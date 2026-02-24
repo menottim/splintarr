@@ -28,28 +28,40 @@ Vibe-Quality-Searcharr automates systematic backlog searching for missing and up
 
 ## Documentation
 
-**Core Documentation:**
-- [Getting Started Guide](docs/GETTING_STARTED.md) - 5-minute quick start
-- [User Guide](docs/USER_GUIDE.md) - Complete feature reference
-- [API Documentation](docs/API_DOCUMENTATION.md) - REST API reference
+Documentation is organized following the [Diátaxis](https://diataxis.fr/) framework:
 
-**Deployment & Operations:**
-- [Docker Deployment](docs/DOCKER_DEPLOYMENT.md) - Docker-specific guide
-- [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) - Production deployment
-- [Backup & Restore](docs/BACKUP_RESTORE.md) - Data protection
-- [Upgrade Guide](docs/UPGRADE_GUIDE.md) - Version upgrades
-- [Troubleshooting](docs/TROUBLESHOOTING.md) - Problem solving
+### 📚 Tutorials (Learning-Oriented)
+*Step-by-step lessons to get you started*
 
-**Security & Architecture:**
-- [Security Guide](docs/SECURITY_GUIDE.md) - Security features and best practices
-- [Security Implementation](SECURITY_IMPLEMENTATION.md) - Detailed security patterns
-- [Technology Stack](TECH_STACK.md) - Architecture and tech decisions
-- [Product Requirements](PRD.md) - Complete requirements
+- **[Getting Started](docs/tutorials/getting-started.md)** - Install and configure your first search queue in 5 minutes
 
-**Release Information:**
-- [Release Notes v1.0.0](RELEASE_NOTES.md) - What's new in v1.0.0
-- [Changelog](CHANGELOG.md) - Version history
-- [Project Status](PROJECT_STATUS.md) - Development progress
+### 🔧 How-To Guides (Problem-Oriented)
+*Practical guides for specific tasks*
+
+- **[Deploy with Docker](docs/how-to-guides/deploy-with-docker.md)** - Deploy using Docker and Docker Compose
+- **[Deploy to Production](docs/how-to-guides/deploy-production.md)** - Production deployment best practices
+- **[Backup and Restore](docs/how-to-guides/backup-and-restore.md)** - Protect and recover your data
+- **[Upgrade](docs/how-to-guides/upgrade.md)** - Upgrade to new versions
+- **[Troubleshoot](docs/how-to-guides/troubleshoot.md)** - Solve common problems
+
+### 📖 Reference (Information-Oriented)
+*Technical descriptions and specifications*
+
+- **[API Reference](docs/reference/api.md)** - Complete REST API documentation
+- **[Configuration Reference](docs/reference/configuration.md)** - All configuration options and environment variables
+- **[Quality Gates](docs/reference/quality-gates.md)** - Testing and quality standards
+
+### 💡 Explanation (Understanding-Oriented)
+*Conceptual guides for deeper understanding*
+
+- **[Architecture](docs/explanation/architecture.md)** - System design and architectural decisions
+- **[Security](docs/explanation/security.md)** - Security model and best practices
+- **[Search Strategies](docs/explanation/search-strategies.md)** - How different search strategies work
+
+### 📋 Release Information
+
+- **[Release Notes v1.0.0](RELEASE_NOTES.md)** - What's new in v1.0.0
+- **[Changelog](CHANGELOG.md)** - Complete version history
 
 ## Quick Start
 
@@ -75,7 +87,7 @@ docker-compose up -d
 # Open http://localhost:7337/setup
 ```
 
-See [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md) for complete instructions.
+See [Deploy with Docker](docs/how-to-guides/deploy-with-docker.md) for complete instructions.
 
 ### Local Development
 

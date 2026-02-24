@@ -39,7 +39,17 @@
       "Bash(wc:*)",
       "Bash(cat:*)",
       "Bash(__NEW_LINE_7c972ec4c589cdaf__ bash /tmp/phase6_validation.sh)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(ssh-keygen:*)",
+      "Bash(ssh:*)",
+      "Bash(git remote:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "WebFetch(domain:diataxis.fr)",
+      "Bash(git mv:*)",
+      "Bash(git rm:*)",
+      "Bash(git add:*)"
     ]
   }
 }
