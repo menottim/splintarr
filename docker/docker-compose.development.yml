@@ -11,7 +11,9 @@ services:
     container_name: vibe-quality-searcharr-dev
 
     # Run as current user for file permissions
-    user: "${UID:-1000}:${GID:-1000}"
+    # Note: Disabled for Windows compatibility - non-root user cannot write to
+    # Windows volume mounts. Re-enable for Linux development environments.
+    # user: "${UID:-1000}:${GID:-1000}"
 
     environment:
       # Application settings
@@ -31,7 +33,7 @@ services:
       - DATABASE_KEY=dev-database-key-change-in-production
 
       # Database (in data volume)
-      - DATABASE_URL=sqlite+pysqlcipher:///:memory:@/data/vibe-quality-searcharr-dev.db?cipher=aes-256-cfb&kdf_iter=256000
+      - DATABASE_URL=sqlite+pysqlcipher:///data/vibe-quality-searcharr-dev.db?cipher=aes-256-cfb&kdf_iter=256000
 
       # Security settings (relaxed for development)
       - SESSION_EXPIRE_HOURS=24

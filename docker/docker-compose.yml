@@ -13,10 +13,14 @@ services:
     container_name: vibe-quality-searcharr
 
     # Security: Run as non-root
-    user: "1000:1000"
+    # Note: Disabled for Windows compatibility - non-root user cannot write to
+    # Windows volume mounts. Re-enable for Linux production deployments.
+    # user: "1000:1000"
 
     # Security: Read-only root filesystem
-    read_only: true
+    # Note: Disabled for Windows compatibility - volume mounts with non-root user
+    # have permission issues on Windows. Re-enable for Linux production deployments.
+    # read_only: true
 
     # Security: Drop all capabilities
     cap_drop:
@@ -44,7 +48,7 @@ services:
       - RELOAD=false
 
       # Database
-      - DATABASE_URL=sqlite+pysqlcipher:///:memory:@/data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=256000
+      - DATABASE_URL=sqlite+pysqlcipher:///data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=256000
 
       # Security
       - SESSION_EXPIRE_HOURS=24
