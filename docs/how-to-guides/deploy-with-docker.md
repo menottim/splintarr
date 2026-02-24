@@ -80,14 +80,27 @@ cd vibe-quality-searcharr
 
 ### 2. Generate Secrets
 
+**Linux/macOS:**
 ```bash
 ./scripts/generate-secrets.sh
 ```
 
+**Windows (PowerShell):**
+```powershell
+.\scripts\generate-secrets.ps1
+```
+
 This creates:
-- `secrets/db_key.txt` - Database encryption key
-- `secrets/secret_key.txt` - JWT signing key
-- `secrets/pepper.txt` - Password hashing pepper
+- `secrets/db_key.txt` - Database encryption key (256-bit)
+- `secrets/secret_key.txt` - JWT signing key (512-bit)
+- `secrets/pepper.txt` - Password hashing pepper (256-bit)
+
+The script includes:
+- ✅ Prerequisite checks (Python 3 / PowerShell 5.1+)
+- ✅ Cryptographically secure random generation
+- ✅ Automatic validation of generated secrets
+- ✅ File permission enforcement (600 on Linux/macOS, current user only on Windows)
+- ✅ Error handling and clear success/failure messages
 
 ### 3. Start the Container
 

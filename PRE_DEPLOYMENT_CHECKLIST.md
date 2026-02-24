@@ -50,21 +50,15 @@ docker-compose exec vibe-quality-searcharr pip show starlette | grep Version
 
 **Windows (PowerShell):**
 ```powershell
-# Create secrets directory
-New-Item -ItemType Directory -Force -Path secrets
-
-# Generate 3 random keys (copy entire block)
-$dbKey = -join ((48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,45,46,61,63,64,95) | Get-Random -Count 64 | ForEach-Object {[char]$_})
-$dbKey | Out-File -FilePath "secrets\db_key.txt" -NoNewline -Encoding ASCII
-
-$secretKey = -join ((48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,45,46,61,63,64,95) | Get-Random -Count 64 | ForEach-Object {[char]$_})
-$secretKey | Out-File -FilePath "secrets\secret_key.txt" -NoNewline -Encoding ASCII
-
-$pepper = -join ((48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,45,46,61,63,64,95) | Get-Random -Count 64 | ForEach-Object {[char]$_})
-$pepper | Out-File -FilePath "secrets\pepper.txt" -NoNewline -Encoding ASCII
-
-Write-Host "✅ Security keys generated!"
+.\scripts\generate-secrets.ps1
 ```
+
+**What the script does:**
+- ✅ Verifies prerequisites (Python 3 / PowerShell 5.1+)
+- ✅ Generates cryptographically secure random keys
+- ✅ Validates each key for proper length and randomness
+- ✅ Sets restrictive file permissions
+- ✅ Provides clear success/error messages
 
 **Verification:**
 ```bash

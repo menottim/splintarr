@@ -56,11 +56,22 @@ cd vibe-quality-searcharr-1.0.0
 
 ### Step 3: Generate Security Secrets
 
+**Linux/macOS:**
 ```bash
 ./scripts/generate-secrets.sh
 ```
 
-This creates cryptographically secure keys in the `secrets/` directory.
+**Windows (PowerShell):**
+```powershell
+.\scripts\generate-secrets.ps1
+```
+
+This creates cryptographically secure keys in the `secrets/` directory:
+- `db_key.txt` - Database encryption key (256-bit)
+- `secret_key.txt` - JWT signing key (512-bit)
+- `pepper.txt` - Password hashing pepper (256-bit)
+
+The script automatically validates all keys and sets secure file permissions.
 
 ### Step 4: Start the Application
 

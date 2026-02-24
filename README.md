@@ -118,6 +118,7 @@ cd vibe-quality-searcharr
 
 # 2. Generate secrets
 ./scripts/generate-secrets.sh
+# Windows: .\scripts\generate-secrets.ps1
 
 # 3. Start the application
 docker-compose up -d

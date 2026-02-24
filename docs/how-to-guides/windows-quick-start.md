@@ -123,42 +123,60 @@ You have two options: download a ZIP file or use Git.
      cd "C:\Users\YourName\vibe-quality-searcharr"
      ```
 
-### Step 2: Create the Secrets Folder
+### Step 2: Generate Security Keys
 
-Type these commands one at a time, pressing Enter after each:
-
-```powershell
-# Create secrets directory
-New-Item -ItemType Directory -Force -Path secrets
-
-# Verify it was created
-Test-Path secrets
-```
-
-You should see `True` after the last command.
-
-### Step 3: Generate Random Keys
-
-**Copy and paste this entire block into PowerShell** (it generates 3 random keys):
+**Run the automated script to generate all keys:**
 
 ```powershell
-# Generate database encryption key (32 random bytes, base64-encoded)
-$dbKey = -join ((48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,45,46,61,63,64,95) | Get-Random -Count 64 | ForEach-Object {[char]$_})
-$dbKey | Out-File -FilePath "secrets\db_key.txt" -NoNewline -Encoding ASCII
-
-# Generate JWT secret key (32 random bytes, base64-encoded)
-$secretKey = -join ((48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,45,46,61,63,64,95) | Get-Random -Count 64 | ForEach-Object {[char]$_})
-$secretKey | Out-File -FilePath "secrets\secret_key.txt" -NoNewline -Encoding ASCII
-
-# Generate password pepper (32 random bytes, base64-encoded)
-$pepper = -join ((48..57) + (65..90) + (97..122) + (33,35,36,37,38,42,45,46,61,63,64,95) | Get-Random -Count 64 | ForEach-Object {[char]$_})
-$pepper | Out-File -FilePath "secrets\pepper.txt" -NoNewline -Encoding ASCII
-
-Write-Host "✅ Security keys generated successfully!" -ForegroundColor Green
-Write-Host "⚠️  IMPORTANT: Never commit the 'secrets' folder to Git!" -ForegroundColor Yellow
+# Run the key generation script
+.\scripts\generate-secrets.ps1
 ```
 
-### Step 4: Verify Key Files Were Created
+The script will:
+- ✅ Check that PowerShell and .NET are properly installed
+- ✅ Create the `secrets` directory automatically
+- ✅ Generate 3 cryptographically secure random keys
+- ✅ Validate each key was created correctly
+- ✅ Set file permissions (current user only)
+- ✅ Verify all files before completing
+
+**What you'll see:**
+
+```
+================================================================
+  Vibe-Quality-Searcharr Secret Generation
+================================================================
+
+ℹ️  PowerShell Version: 5.1
+ℹ️  .NET Cryptography available
+ℹ️  Creating secrets directory: C:\Users\YourName\vibe-quality-searcharr\secrets
+✓ Secrets directory ready
+
+Generating cryptographically secure secrets...
+
+ℹ️  Generating database encryption key...
+✓ Database key generated (32 bytes, 256-bit)
+ℹ️  Generating JWT secret key...
+✓ JWT secret key generated (64 bytes, 512-bit)
+ℹ️  Generating password hashing pepper...
+✓ Password pepper generated (32 bytes, 256-bit)
+
+Setting file permissions...
+✓ Permissions set on db_key.txt (current user only)
+✓ Permissions set on secret_key.txt (current user only)
+✓ Permissions set on pepper.txt (current user only)
+
+Verifying generated secrets...
+✓ db_key.txt verified (43 bytes)
+✓ secret_key.txt verified (86 bytes)
+✓ pepper.txt verified (43 bytes)
+
+================================================================
+✅ SUCCESS: All secrets generated and verified!
+================================================================
+```
+
+### Step 3: Verify Key Files Were Created
 
 ```powershell
 Get-ChildItem -Path secrets
@@ -170,6 +188,17 @@ You should see three files:
 - `pepper.txt`
 
 **⚠️ BACKUP THESE FILES SECURELY!** If you lose them, you cannot decrypt your data.
+
+**Troubleshooting:**
+
+If the script fails with an error about execution policy:
+```powershell
+# Allow scripts to run (one-time setup)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# Then retry the script
+.\scripts\generate-secrets.ps1
+```
 
 ---
 
