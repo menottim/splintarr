@@ -10,6 +10,27 @@
 
 **Use at your own risk.** Before deploying: conduct a professional security audit, perform penetration testing, review all cryptographic implementations, run static analysis tools (Bandit, Semgrep), deploy in isolated environments with aggressive monitoring, and maintain regular backups. This codebase is intended for **educational purposes only** - learning about Python security patterns, FastAPI architecture, and OWASP mitigation strategies. Do not use for production deployments, sensitive data, critical infrastructure, or internet-accessible services without extensive professional review.
 
+### About the Author & Security Approach
+
+This project was created by a **Security Engineering professional** with expertise in security operations, threat detection, and security architecture. However, I am **not an expert Security Software Engineer**. While I have a solid understanding of software development practices and security principles, secure software development at scale requires specialized expertise that differs from operational security engineering.
+
+**Security Implementation Approach:**
+
+During this vibe-coding exercise, I made every effort to implement security best practices by drawing on:
+- Industry-standard security frameworks (OWASP Top 10 2025, NIST guidelines)
+- Security engineering principles and threat modeling concepts
+- Modern cryptographic best practices (Argon2id, AES-256, proper key management)
+- Defense-in-depth architecture and secure defaults
+
+However, there is a **significant difference** between understanding security principles and correctly implementing them in production code. Subtle implementation flaws—such as improper error handling that leaks information, race conditions in authentication flows, or cryptographic API misuse—can undermine even well-intentioned security measures.
+
+**The combination of:**
+1. AI-generated code (which may have subtle flaws despite appearing correct)
+2. Implementation by a security professional rather than a specialized secure development expert
+3. Lack of professional security code review
+
+**...means this codebase should be treated as an educational exercise, not production software.**
+
 ---
 
 ## Overview
