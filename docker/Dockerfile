@@ -57,6 +57,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+# Set Python path so vibe_quality_searcharr module is importable
+ENV PYTHONPATH=/app/src
+
 # Copy Python packages from builder
 COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
