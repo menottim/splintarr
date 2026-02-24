@@ -2,13 +2,26 @@
 
 **Version 1.0.0** | Intelligent backlog search automation for Sonarr and Radarr.
 
+## Table of Contents
+
+- [⚠️ AI-Generated Code Warning](#️-ai-generated-code-warning)
+- [Overview](#overview)
+- [Documentation](#documentation)
+- [Quick Start](#quick-start)
+- [Security](#security)
+- [Development](#development)
+- [Architecture](#architecture)
+- [Contributing](#contributing)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
+
 ---
 
-## ⚠️ **IMPORTANT: AI-Generated Code Warning**
+## ⚠️ AI-Generated Code Warning
 
-**This entire project was 100% "vibe coded" using AI assistance (Claude Code).** While implementing OWASP Top 10 2025 and NIST security guidelines, this codebase is **NOT production-ready, NOT security-reviewed, and NOT battle-tested**. AI-generated code may contain subtle security flaws, logic errors, cryptographic misuse, race conditions, and authentication bypasses that appear correct but are fundamentally broken.
+**This project was 100% "vibe coded" using AI assistance (Claude Code).** This codebase is **NOT production-ready, NOT security-reviewed, and NOT battle-tested**. AI-generated code may contain security flaws, logic errors, and bugs that appear correct but are fundamentally broken.
 
-**Use at your own risk.** Before deploying: conduct a professional security audit, perform penetration testing, review all cryptographic implementations, run static analysis tools (Bandit, Semgrep), deploy in isolated environments with aggressive monitoring, and maintain regular backups. This codebase is intended for **educational purposes only** - learning about Python security patterns, FastAPI architecture, and OWASP mitigation strategies. Do not use for production deployments, sensitive data, critical infrastructure, or internet-accessible services without extensive professional review.
+**Use at your own risk.** This is an **educational project for homelab tinkering only**. Do not use for production, sensitive data, or internet-accessible services without extensive professional security review and testing.
 
 ### About the Author & Security Approach
 
@@ -37,13 +50,13 @@ This tool is **not intended for broad deployment**. It is specifically designed 
 
 ### Key Features
 
-- 🔍 **Intelligent Search Scheduling** - Multiple strategies: round-robin, priority-based, aging-based
-- 🔒 **Security First** - OWASP Top 10 2025 compliant, encrypted credentials, comprehensive audit logging
-- 📊 **Search History Tracking** - Never search the same item twice unnecessarily
-- ⚡ **Rate Limit Aware** - Respects indexer API limits to prevent bans
-- 🎯 **Multi-Instance Support** - Manage multiple Sonarr/Radarr instances from one interface
-- 🔐 **Local Authentication** - Secure password storage with Argon2id hashing
-- 📈 **Configuration Drift Detection** - Alerts when Sonarr/Radarr config changes
+- **Intelligent Search Scheduling** - Multiple strategies: round-robin, priority-based, aging-based
+- **Security First** - OWASP Top 10 2025 compliant, encrypted credentials, comprehensive audit logging
+- **Search History Tracking** - Never search the same item twice unnecessarily
+- **Rate Limit Aware** - Respects indexer API limits to prevent bans
+- **Multi-Instance Support** - Manage multiple Sonarr/Radarr instances from one interface
+- **Local Authentication** - Secure password storage with Argon2id hashing
+- **Configuration Drift Detection** - Alerts when Sonarr/Radarr config changes
 
 ## Documentation
 
@@ -137,20 +150,20 @@ See [Deploy with Docker](docs/how-to-guides/deploy-with-docker.md) for complete 
 
 Vibe-Quality-Searcharr **attempts to implement** defense-in-depth security features:
 
-- ✅ Argon2id password hashing with 128 MiB memory *(implementation requires audit)*
-- ✅ AES-256 database encryption via SQLCipher *(implementation requires audit)*
-- ✅ API keys encrypted at rest with pepper stored separately *(implementation requires audit)*
-- ✅ HTTP-only, secure, same-site cookies *(implementation requires audit)*
-- ✅ JWT token rotation *(implementation requires audit)*
-- ✅ Rate limiting on all authentication endpoints *(implementation requires audit)*
-- ✅ Comprehensive input validation *(edge cases may exist)*
-- ✅ SQL injection prevention via parameterized queries *(usage requires verification)*
-- ✅ Security headers (CSP, X-Frame-Options, etc.) *(configuration requires review)*
-- ✅ Non-root Docker container with read-only filesystem *(container security requires audit)*
+- Argon2id password hashing with 128 MiB memory *(implementation requires audit)*
+- AES-256 database encryption via SQLCipher *(implementation requires audit)*
+- API keys encrypted at rest with pepper stored separately *(implementation requires audit)*
+- HTTP-only, secure, same-site cookies *(implementation requires audit)*
+- JWT token rotation *(implementation requires audit)*
+- Rate limiting on all authentication endpoints *(implementation requires audit)*
+- Comprehensive input validation *(edge cases may exist)*
+- SQL injection prevention via parameterized queries *(usage requires verification)*
+- Security headers (CSP, X-Frame-Options, etc.) *(configuration requires review)*
+- Non-root Docker container with read-only filesystem *(container security requires audit)*
 
 These features are **implemented as specified** but have **NOT been security audited**. The implementation may contain critical vulnerabilities despite following best practice specifications.
 
-See [SECURITY_IMPLEMENTATION.md](SECURITY_IMPLEMENTATION.md) for intended security design.
+See [Security Explanation](docs/explanation/security.md) for detailed security architecture.
 
 ## Development
 
@@ -225,31 +238,15 @@ MIT License - Use at your own risk. See LICENSE file for details.
 
 **This project is clearly marked as AI-generated and requiring security review.** If you discover vulnerabilities:
 
-- ✅ **Public Disclosure Welcome** - Open a GitHub issue documenting the vulnerability
-- ✅ **Pull Requests Welcome** - Submit fixes via PR
-- ✅ **No Embargo Needed** - This is not production software, users are warned
+- **Public Disclosure Welcome** - Open a GitHub issue documenting the vulnerability
+- **Pull Requests Welcome** - Submit fixes via PR
+- **No Embargo Needed** - This is not production software, users are warned
 
 Your findings help improve the codebase and demonstrate where AI code generation falls short!
 
 ## Acknowledgments
 
-- 🤖 **100% Generated by Claude Code (Anthropic)** - AI pair programming tool
-- 📚 Built with lessons learned from the [Huntarr security incident](https://github.com/rfsbraz/huntarr-security-review)
-- 📖 Implements specifications based on OWASP Top 10 2025 best practices
-- 📖 Follows specifications from NIST password storage guidelines
-- ⚠️ **Implementation correctness NOT verified by human security experts**
-
-## Final Warning
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
-│  ⚠️  THIS SOFTWARE IS AI-GENERATED AND UNAUDITED  ⚠️       │
-│                                                             │
-│  Do NOT use in production without professional security    │
-│  audit and extensive testing. You have been warned!        │
-│                                                             │
-│  Use at your own risk. No warranty provided.               │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+- **100% Generated by Claude Code (Anthropic)** - AI pair programming tool
+- Built with lessons learned from the [Huntarr security incident](https://github.com/rfsbraz/huntarr-security-review)
+- Implements specifications based on OWASP Top 10 2025 and NIST password storage guidelines
+- **Implementation correctness NOT verified by human security experts**
