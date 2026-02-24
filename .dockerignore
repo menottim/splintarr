@@ -44,7 +44,6 @@ reports/
 .env
 .env.local
 .env.*.local
-poetry.lock
 
 # Test files
 tests/
