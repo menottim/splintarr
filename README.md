@@ -31,6 +31,10 @@ During this vibe-coding exercise, I made every effort to implement security best
 
 Vibe-Quality-Searcharr automates systematic backlog searching for missing and upgradeable media in your Sonarr and Radarr instances. It intelligently orchestrates searches over time, respecting API rate limits while maximizing coverage.
 
+### Intended Audience
+
+This tool is **not intended for broad deployment**. It is specifically designed for **homelab enthusiasts tinkering with media management stacks**—individuals running personal Sonarr/Radarr instances who want to experiment with automated search optimization in their home environments. If you're looking for production-ready, enterprise-grade, or publicly-deployed software, this is not it.
+
 ### Key Features
 
 - 🔍 **Intelligent Search Scheduling** - Multiple strategies: round-robin, priority-based, aging-based
