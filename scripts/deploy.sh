@@ -52,7 +52,7 @@ if [ ! -f "${PROJECT_DIR}/secrets/db_key.txt" ] || \
     exit 1
 fi
 
-echo -e "${GREEN}✓ Pre-deployment checks passed${NC}"
+echo -e "${GREEN}[OK] Pre-deployment checks passed${NC}"
 echo ""
 
 # Backup existing data
@@ -61,9 +61,9 @@ if [ -d "${DATA_DIR}" ]; then
     mkdir -p "${BACKUP_DIR}"
     BACKUP_FILE="${BACKUP_DIR}/backup-$(date +%Y%m%d-%H%M%S).tar.gz"
     tar -czf "${BACKUP_FILE}" -C "$(dirname ${DATA_DIR})" "$(basename ${DATA_DIR})" 2>/dev/null || true
-    echo -e "${GREEN}✓ Backup created: ${BACKUP_FILE}${NC}"
+    echo -e "${GREEN}[OK] Backup created: ${BACKUP_FILE}${NC}"
 else
-    echo -e "${YELLOW}⚠ No existing data to backup${NC}"
+    echo -e "${YELLOW}[WARNING] No existing data to backup${NC}"
 fi
 echo ""
 
@@ -72,7 +72,7 @@ echo -e "${YELLOW}[3/8] Setting up data directory...${NC}"
 mkdir -p "${DATA_DIR}"
 chown 1000:1000 "${DATA_DIR}"
 chmod 700 "${DATA_DIR}"
-echo -e "${GREEN}✓ Data directory ready${NC}"
+echo -e "${GREEN}[OK] Data directory ready${NC}"
 echo ""
 
 # Pull latest images (if using registry)
@@ -83,19 +83,19 @@ export BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 export VCS_REF=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 docker-compose -f "${COMPOSE_FILE}" build --pull
-echo -e "${GREEN}✓ Image built successfully${NC}"
+echo -e "${GREEN}[OK] Image built successfully${NC}"
 echo ""
 
 # Stop existing container
 echo -e "${YELLOW}[5/8] Stopping existing container...${NC}"
 docker-compose -f "${COMPOSE_FILE}" down || true
-echo -e "${GREEN}✓ Container stopped${NC}"
+echo -e "${GREEN}[OK] Container stopped${NC}"
 echo ""
 
 # Start new container
 echo -e "${YELLOW}[6/8] Starting new container...${NC}"
 docker-compose -f "${COMPOSE_FILE}" up -d
-echo -e "${GREEN}✓ Container started${NC}"
+echo -e "${GREEN}[OK] Container started${NC}"
 echo ""
 
 # Wait for health check
@@ -104,7 +104,7 @@ MAX_WAIT=60
 WAIT=0
 while [ $WAIT -lt $MAX_WAIT ]; do
     if docker-compose -f "${COMPOSE_FILE}" ps | grep -q "healthy"; then
-        echo -e "${GREEN}✓ Application is healthy${NC}"
+        echo -e "${GREEN}[OK] Application is healthy${NC}"
         break
     fi
     echo -n "."
@@ -113,7 +113,7 @@ while [ $WAIT -lt $MAX_WAIT ]; do
 done
 
 if [ $WAIT -ge $MAX_WAIT ]; then
-    echo -e "${RED}✗ Health check timeout${NC}"
+    echo -e "${RED}[ERROR] Health check timeout${NC}"
     echo -e "${YELLOW}Check logs with: docker-compose -f ${COMPOSE_FILE} logs${NC}"
     exit 1
 fi
@@ -122,9 +122,9 @@ echo ""
 # Post-deployment verification
 echo -e "${YELLOW}[8/8] Post-deployment verification...${NC}"
 if curl -f -s http://localhost:7337/health > /dev/null; then
-    echo -e "${GREEN}✓ Health endpoint responding${NC}"
+    echo -e "${GREEN}[OK] Health endpoint responding${NC}"
 else
-    echo -e "${RED}✗ Health endpoint not responding${NC}"
+    echo -e "${RED}[ERROR] Health endpoint not responding${NC}"
     exit 1
 fi
 echo ""

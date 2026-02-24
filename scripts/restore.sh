@@ -36,9 +36,9 @@ if [ -f "${BACKUP_FILE}.sha256" ]; then
     echo -e "${YELLOW}[1/7] Verifying backup integrity...${NC}"
     if command -v sha256sum &> /dev/null; then
         if sha256sum -c "${BACKUP_FILE}.sha256" 2>/dev/null; then
-            echo -e "${GREEN}✓ Checksum verified${NC}"
+            echo -e "${GREEN}[OK] Checksum verified${NC}"
         else
-            echo -e "${RED}✗ Checksum verification failed${NC}"
+            echo -e "${RED}[ERROR] Checksum verification failed${NC}"
             echo -e "${YELLOW}Continue anyway? (y/N)${NC}"
             read -r response
             if [ "$response" != "y" ]; then
@@ -47,9 +47,9 @@ if [ -f "${BACKUP_FILE}.sha256" ]; then
         fi
     elif command -v shasum &> /dev/null; then
         if shasum -a 256 -c "${BACKUP_FILE}.sha256" 2>/dev/null; then
-            echo -e "${GREEN}✓ Checksum verified${NC}"
+            echo -e "${GREEN}[OK] Checksum verified${NC}"
         else
-            echo -e "${RED}✗ Checksum verification failed${NC}"
+            echo -e "${RED}[ERROR] Checksum verification failed${NC}"
             echo -e "${YELLOW}Continue anyway? (y/N)${NC}"
             read -r response
             if [ "$response" != "y" ]; then
@@ -58,7 +58,7 @@ if [ -f "${BACKUP_FILE}.sha256" ]; then
         fi
     fi
 else
-    echo -e "${YELLOW}⚠ No checksum file found, skipping verification${NC}"
+    echo -e "${YELLOW}[WARNING] No checksum file found, skipping verification${NC}"
 fi
 echo ""
 
@@ -79,7 +79,7 @@ cd "${PROJECT_DIR}"
 if [ -f "docker/docker-compose.yml" ]; then
     docker-compose -f docker/docker-compose.yml down 2>/dev/null || true
 fi
-echo -e "${GREEN}✓ Application stopped${NC}"
+echo -e "${GREEN}[OK] Application stopped${NC}"
 echo ""
 
 # Backup current state (safety measure)
@@ -92,9 +92,9 @@ if [ -d "${PROJECT_DIR}/data" ] || [ -d "${PROJECT_DIR}/secrets" ]; then
         $([ -d "secrets" ] && echo "secrets") \
         $([ -f ".env" ] && echo ".env") \
         2>/dev/null || true
-    echo -e "${GREEN}✓ Safety backup created: ${SAFETY_BACKUP}${NC}"
+    echo -e "${GREEN}[OK] Safety backup created: ${SAFETY_BACKUP}${NC}"
 else
-    echo -e "${YELLOW}⚠ Nothing to backup${NC}"
+    echo -e "${YELLOW}[WARNING] Nothing to backup${NC}"
 fi
 echo ""
 
@@ -104,7 +104,7 @@ TEMP_DIR=$(mktemp -d)
 tar -xzf "${BACKUP_FILE}" -C "${TEMP_DIR}"
 BACKUP_NAME=$(ls -1 "${TEMP_DIR}" | head -1)
 BACKUP_EXTRACT="${TEMP_DIR}/${BACKUP_NAME}"
-echo -e "${GREEN}✓ Backup extracted to temporary directory${NC}"
+echo -e "${GREEN}[OK] Backup extracted to temporary directory${NC}"
 echo ""
 
 # Display backup info
@@ -122,7 +122,7 @@ if [ -d "${BACKUP_EXTRACT}/data" ]; then
     cp -r "${BACKUP_EXTRACT}/data" "${PROJECT_DIR}/"
     chmod 700 "${PROJECT_DIR}/data"
     chmod 600 "${PROJECT_DIR}/data"/* 2>/dev/null || true
-    echo -e "${GREEN}✓ Data restored${NC}"
+    echo -e "${GREEN}[OK] Data restored${NC}"
 fi
 
 if [ -d "${BACKUP_EXTRACT}/secrets" ]; then
@@ -130,20 +130,20 @@ if [ -d "${BACKUP_EXTRACT}/secrets" ]; then
     cp -r "${BACKUP_EXTRACT}/secrets" "${PROJECT_DIR}/"
     chmod 700 "${PROJECT_DIR}/secrets"
     chmod 600 "${PROJECT_DIR}/secrets"/* 2>/dev/null || true
-    echo -e "${GREEN}✓ Secrets restored${NC}"
+    echo -e "${GREEN}[OK] Secrets restored${NC}"
 fi
 
 if [ -f "${BACKUP_EXTRACT}/.env" ]; then
     cp "${BACKUP_EXTRACT}/.env" "${PROJECT_DIR}/.env"
     chmod 600 "${PROJECT_DIR}/.env"
-    echo -e "${GREEN}✓ Environment file restored${NC}"
+    echo -e "${GREEN}[OK] Environment file restored${NC}"
 fi
 echo ""
 
 # Cleanup
 echo -e "${YELLOW}[6/7] Cleaning up...${NC}"
 rm -rf "${TEMP_DIR}"
-echo -e "${GREEN}✓ Temporary files removed${NC}"
+echo -e "${GREEN}[OK] Temporary files removed${NC}"
 echo ""
 
 # Start application
@@ -151,7 +151,7 @@ echo -e "${YELLOW}[7/7] Starting application...${NC}"
 cd "${PROJECT_DIR}"
 if [ -f "docker/docker-compose.yml" ]; then
     docker-compose -f docker/docker-compose.yml up -d
-    echo -e "${GREEN}✓ Application started${NC}"
+    echo -e "${GREEN}[OK] Application started${NC}"
 
     # Wait for health check
     echo -e "${YELLOW}Waiting for application to be healthy...${NC}"
@@ -160,7 +160,7 @@ if [ -f "docker/docker-compose.yml" ]; then
     WAIT=0
     while [ $WAIT -lt $MAX_WAIT ]; do
         if curl -f -s http://localhost:7337/health > /dev/null 2>&1; then
-            echo -e "${GREEN}✓ Application is healthy${NC}"
+            echo -e "${GREEN}[OK] Application is healthy${NC}"
             break
         fi
         echo -n "."
@@ -169,11 +169,11 @@ if [ -f "docker/docker-compose.yml" ]; then
     done
 
     if [ $WAIT -ge $MAX_WAIT ]; then
-        echo -e "${RED}✗ Health check timeout${NC}"
+        echo -e "${RED}[ERROR] Health check timeout${NC}"
         echo -e "${YELLOW}Check logs with: docker-compose logs${NC}"
     fi
 else
-    echo -e "${YELLOW}⚠ Docker Compose file not found, manual start required${NC}"
+    echo -e "${YELLOW}[WARNING] Docker Compose file not found, manual start required${NC}"
 fi
 echo ""
 

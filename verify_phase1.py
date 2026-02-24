@@ -14,23 +14,23 @@ print("PHASE 1 VERIFICATION")
 print("=" * 70)
 
 # Test 1: Configuration
-print("\n✓ Testing Configuration Management...")
+print("\n[OK] Testing Configuration Management...")
 try:
     from vibe_quality_searcharr.config import settings
     print(f"  - App Name: {settings.app_name}")
     print(f"  - Environment: {settings.environment}")
     print(f"  - Argon2 Memory: {settings.argon2_memory_cost} KiB")
     print(f"  - Argon2 Time Cost: {settings.argon2_time_cost}")
-    print(f"  - Secret Key Loaded: {'✓' if settings.get_secret_key() else '✗'}")
-    print(f"  - Pepper Loaded: {'✓' if settings.get_pepper() else '✗'}")
-    print(f"  - DB Key Loaded: {'✓' if settings.get_database_key() else '✗'}")
-    print("  ✅ Configuration: PASS")
+    print(f"  - Secret Key Loaded: {'[OK]' if settings.get_secret_key() else '[ERROR]'}")
+    print(f"  - Pepper Loaded: {'[OK]' if settings.get_pepper() else '[ERROR]'}")
+    print(f"  - DB Key Loaded: {'[OK]' if settings.get_database_key() else '[ERROR]'}")
+    print("  [OK] Configuration: PASS")
 except Exception as e:
-    print(f"  ❌ Configuration: FAIL - {e}")
+    print(f"  [ERROR] Configuration: FAIL - {e}")
     sys.exit(1)
 
 # Test 2: Password Hashing
-print("\n✓ Testing Password Security...")
+print("\n[OK] Testing Password Security...")
 try:
     from vibe_quality_searcharr.core.security import hash_password, verify_password
 
@@ -39,21 +39,21 @@ try:
 
     print(f"  - Hash Format: {hashed[:20]}...")
     print(f"  - Hash Length: {len(hashed)} characters")
-    print(f"  - Verification: {'✓' if verify_password(password, hashed) else '✗'}")
-    print(f"  - Wrong Password Rejected: {'✓' if not verify_password('wrong', hashed) else '✗'}")
+    print(f"  - Verification: {'[OK]' if verify_password(password, hashed) else '[ERROR]'}")
+    print(f"  - Wrong Password Rejected: {'[OK]' if not verify_password('wrong', hashed) else '[ERROR]'}")
 
     # Check hash format (should be PHC format)
     assert hashed.startswith("$argon2"), "Hash should be Argon2 PHC format"
     assert verify_password(password, hashed), "Password verification failed"
     assert not verify_password("wrong_password", hashed), "Wrong password not rejected"
 
-    print("  ✅ Password Security: PASS")
+    print("  [OK] Password Security: PASS")
 except Exception as e:
-    print(f"  ❌ Password Security: FAIL - {e}")
+    print(f"  [ERROR] Password Security: FAIL - {e}")
     sys.exit(1)
 
 # Test 3: Field Encryption
-print("\n✓ Testing Field Encryption...")
+print("\n[OK] Testing Field Encryption...")
 try:
     from vibe_quality_searcharr.core.security import encrypt_field, decrypt_field
 
@@ -64,18 +64,18 @@ try:
     print(f"  - Original: {api_key}")
     print(f"  - Encrypted: {encrypted[:40]}...")
     print(f"  - Decrypted: {decrypted}")
-    print(f"  - Round-trip: {'✓' if api_key == decrypted else '✗'}")
+    print(f"  - Round-trip: {'[OK]' if api_key == decrypted else '[ERROR]'}")
 
     assert api_key == decrypted, "Encryption round-trip failed"
     assert api_key not in encrypted, "Plaintext found in ciphertext"
 
-    print("  ✅ Field Encryption: PASS")
+    print("  [OK] Field Encryption: PASS")
 except Exception as e:
-    print(f"  ❌ Field Encryption: FAIL - {e}")
+    print(f"  [ERROR] Field Encryption: FAIL - {e}")
     sys.exit(1)
 
 # Test 4: Token Generation
-print("\n✓ Testing Token Generation...")
+print("\n[OK] Testing Token Generation...")
 try:
     from vibe_quality_searcharr.core.security import generate_token
 
@@ -84,35 +84,35 @@ try:
 
     print(f"  - Token 1: {token1[:20]}...")
     print(f"  - Token 2: {token2[:20]}...")
-    print(f"  - Tokens Different: {'✓' if token1 != token2 else '✗'}")
+    print(f"  - Tokens Different: {'[OK]' if token1 != token2 else '[ERROR]'}")
     print(f"  - Token Length: {len(token1)} chars (URL-safe)")
 
     assert token1 != token2, "Tokens should be unique"
     assert len(token1) > 32, "Token should be URL-safe encoded"
 
-    print("  ✅ Token Generation: PASS")
+    print("  [OK] Token Generation: PASS")
 except Exception as e:
-    print(f"  ❌ Token Generation: FAIL - {e}")
+    print(f"  [ERROR] Token Generation: FAIL - {e}")
     sys.exit(1)
 
 # Test 5: Database Models
-print("\n✓ Testing Database Models...")
+print("\n[OK] Testing Database Models...")
 try:
     from vibe_quality_searcharr.models import User, RefreshToken, Instance, SearchQueue, SearchHistory
 
-    print(f"  - User Model: ✓")
-    print(f"  - RefreshToken Model: ✓")
-    print(f"  - Instance Model: ✓")
-    print(f"  - SearchQueue Model: ✓")
-    print(f"  - SearchHistory Model: ✓")
+    print(f"  - User Model: [OK]")
+    print(f"  - RefreshToken Model: [OK]")
+    print(f"  - Instance Model: [OK]")
+    print(f"  - SearchQueue Model: [OK]")
+    print(f"  - SearchHistory Model: [OK]")
 
-    print("  ✅ Database Models: PASS")
+    print("  [OK] Database Models: PASS")
 except Exception as e:
-    print(f"  ❌ Database Models: FAIL - {e}")
+    print(f"  [ERROR] Database Models: FAIL - {e}")
     sys.exit(1)
 
 # Test 6: Database Connection (in-memory for testing)
-print("\n✓ Testing Database Connection...")
+print("\n[OK] Testing Database Connection...")
 try:
     from sqlalchemy import create_engine
     from vibe_quality_searcharr.database import Base
@@ -132,21 +132,21 @@ try:
     assert "search_queue" in tables, "SearchQueue table should exist"
     assert "search_history" in tables, "SearchHistory table should exist"
 
-    print("  ✅ Database Connection: PASS")
+    print("  [OK] Database Connection: PASS")
 except Exception as e:
-    print(f"  ❌ Database Connection: FAIL - {e}")
+    print(f"  [ERROR] Database Connection: FAIL - {e}")
     sys.exit(1)
 
 # Summary
 print("\n" + "=" * 70)
-print("✅ PHASE 1 VERIFICATION: ALL TESTS PASSED")
+print("[OK] PHASE 1 VERIFICATION: ALL TESTS PASSED")
 print("=" * 70)
 print("\nComponents Verified:")
-print("  ✓ Configuration Management (Docker secrets support)")
-print("  ✓ Password Hashing (Argon2id with pepper)")
-print("  ✓ Field Encryption (Fernet AES-128-CBC + HMAC)")
-print("  ✓ Token Generation (Cryptographically secure)")
-print("  ✓ Database Models (5 models with relationships)")
-print("  ✓ Database Schema (5 tables created)")
+print("  [OK] Configuration Management (Docker secrets support)")
+print("  [OK] Password Hashing (Argon2id with pepper)")
+print("  [OK] Field Encryption (Fernet AES-128-CBC + HMAC)")
+print("  [OK] Token Generation (Cryptographically secure)")
+print("  [OK] Database Models (5 models with relationships)")
+print("  [OK] Database Schema (5 tables created)")
 print("\nPhase 1 Implementation: READY FOR PHASE 2")
 print("=" * 70)

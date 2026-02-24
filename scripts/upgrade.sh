@@ -54,14 +54,14 @@ if [ "${FREE_SPACE}" -lt 1 ]; then
     exit 1
 fi
 
-echo -e "${GREEN}✓ Pre-upgrade checks passed${NC}"
+echo -e "${GREEN}[OK] Pre-upgrade checks passed${NC}"
 echo ""
 
 # Automatic backup
 echo -e "${YELLOW}[2/8] Creating automatic backup...${NC}"
 BACKUP_FILE="${PROJECT_DIR}/backups/pre-upgrade-${CURRENT_VERSION}-$(date +%Y%m%d-%H%M%S).tar.gz"
 "${PROJECT_DIR}/scripts/backup.sh" "${PROJECT_DIR}/backups" > /dev/null 2>&1
-echo -e "${GREEN}✓ Backup created${NC}"
+echo -e "${GREEN}[OK] Backup created${NC}"
 echo ""
 
 # Pull/build new version
@@ -76,7 +76,7 @@ if [ "${VERSION}" == "latest" ] || [ ! -f "docker/Dockerfile" ]; then
 else
     docker-compose -f "${COMPOSE_FILE}" build --pull
 fi
-echo -e "${GREEN}✓ New version ready${NC}"
+echo -e "${GREEN}[OK] New version ready${NC}"
 echo ""
 
 # Check for breaking changes
@@ -84,7 +84,7 @@ echo -e "${YELLOW}[4/8] Checking for breaking changes...${NC}"
 BREAKING_CHANGES_FILE="${PROJECT_DIR}/UPGRADE_GUIDE.md"
 if [ -f "${BREAKING_CHANGES_FILE}" ]; then
     if grep -q "Breaking Changes.*${VERSION}" "${BREAKING_CHANGES_FILE}"; then
-        echo -e "${RED}⚠ BREAKING CHANGES DETECTED FOR VERSION ${VERSION}${NC}"
+        echo -e "${RED}[WARNING] BREAKING CHANGES DETECTED FOR VERSION ${VERSION}${NC}"
         echo -e "${YELLOW}Please review ${BREAKING_CHANGES_FILE}${NC}"
         echo -e "${YELLOW}Continue anyway? (yes/no)${NC}"
         read -r response
@@ -92,17 +92,17 @@ if [ -f "${BREAKING_CHANGES_FILE}" ]; then
             exit 1
         fi
     else
-        echo -e "${GREEN}✓ No breaking changes detected${NC}"
+        echo -e "${GREEN}[OK] No breaking changes detected${NC}"
     fi
 else
-    echo -e "${YELLOW}⚠ No upgrade guide found${NC}"
+    echo -e "${YELLOW}[WARNING] No upgrade guide found${NC}"
 fi
 echo ""
 
 # Stop current version
 echo -e "${YELLOW}[5/8] Stopping current version...${NC}"
 docker-compose -f "${COMPOSE_FILE}" down
-echo -e "${GREEN}✓ Container stopped${NC}"
+echo -e "${GREEN}[OK] Container stopped${NC}"
 echo ""
 
 # Run database migrations
@@ -110,21 +110,21 @@ echo -e "${YELLOW}[6/8] Running database migrations...${NC}"
 if [ -f "${PROJECT_DIR}/alembic.ini" ]; then
     # Run migrations in temporary container
     docker-compose -f "${COMPOSE_FILE}" run --rm --entrypoint "alembic upgrade head" vibe-quality-searcharr || {
-        echo -e "${RED}✗ Migration failed!${NC}"
+        echo -e "${RED}[ERROR] Migration failed!${NC}"
         echo -e "${YELLOW}Rolling back...${NC}"
         "${PROJECT_DIR}/scripts/restore.sh" "${BACKUP_FILE}"
         exit 1
     }
-    echo -e "${GREEN}✓ Migrations completed${NC}"
+    echo -e "${GREEN}[OK] Migrations completed${NC}"
 else
-    echo -e "${YELLOW}⚠ No migrations to run${NC}"
+    echo -e "${YELLOW}[WARNING] No migrations to run${NC}"
 fi
 echo ""
 
 # Start new version
 echo -e "${YELLOW}[7/8] Starting new version...${NC}"
 docker-compose -f "${COMPOSE_FILE}" up -d
-echo -e "${GREEN}✓ Container started${NC}"
+echo -e "${GREEN}[OK] Container started${NC}"
 echo ""
 
 # Verify health
@@ -133,7 +133,7 @@ MAX_WAIT=60
 WAIT=0
 while [ $WAIT -lt $MAX_WAIT ]; do
     if curl -f -s http://localhost:7337/health > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Application is healthy${NC}"
+        echo -e "${GREEN}[OK] Application is healthy${NC}"
         break
     fi
     echo -n "."
@@ -142,7 +142,7 @@ while [ $WAIT -lt $MAX_WAIT ]; do
 done
 
 if [ $WAIT -ge $MAX_WAIT ]; then
-    echo -e "${RED}✗ Health check failed!${NC}"
+    echo -e "${RED}[ERROR] Health check failed!${NC}"
     echo -e "${YELLOW}Rolling back to version ${CURRENT_VERSION}...${NC}"
 
     # Stop failed version
@@ -161,15 +161,15 @@ echo -e "${YELLOW}Running post-upgrade verification...${NC}"
 
 # Check API is responding
 if curl -f -s http://localhost:7337/health | grep -q "ok"; then
-    echo -e "${GREEN}✓ API responding${NC}"
+    echo -e "${GREEN}[OK] API responding${NC}"
 else
-    echo -e "${RED}✗ API not responding correctly${NC}"
+    echo -e "${RED}[ERROR] API not responding correctly${NC}"
     exit 1
 fi
 
 # Check database is accessible
 NEW_VERSION=$(docker inspect vibe-quality-searcharr --format='{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || echo "unknown")
-echo -e "${GREEN}✓ Upgraded to version ${NEW_VERSION}${NC}"
+echo -e "${GREEN}[OK] Upgraded to version ${NEW_VERSION}${NC}"
 echo ""
 
 # Summary

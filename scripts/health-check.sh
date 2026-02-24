@@ -31,7 +31,7 @@ echo -e "${YELLOW}Checking: ${HEALTH_ENDPOINT}${NC}"
 echo ""
 
 if RESPONSE=$(curl -f -s -m "${TIMEOUT}" "${HEALTH_ENDPOINT}" 2>&1); then
-    echo -e "${GREEN}✓ Health endpoint responding${NC}"
+    echo -e "${GREEN}[OK] Health endpoint responding${NC}"
     echo ""
 
     # Parse response (assuming JSON)
@@ -48,9 +48,9 @@ if RESPONSE=$(curl -f -s -m "${TIMEOUT}" "${HEALTH_ENDPOINT}" 2>&1); then
     if echo "${RESPONSE}" | grep -q '"status"'; then
         STATUS=$(echo "${RESPONSE}" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
         if [ "${STATUS}" == "ok" ] || [ "${STATUS}" == "healthy" ]; then
-            echo -e "${GREEN}✓ Status: ${STATUS}${NC}"
+            echo -e "${GREEN}[OK] Status: ${STATUS}${NC}"
         else
-            echo -e "${RED}✗ Status: ${STATUS}${NC}"
+            echo -e "${RED}[ERROR] Status: ${STATUS}${NC}"
             exit 1
         fi
     fi
@@ -59,9 +59,9 @@ if RESPONSE=$(curl -f -s -m "${TIMEOUT}" "${HEALTH_ENDPOINT}" 2>&1); then
     if echo "${RESPONSE}" | grep -q '"database"'; then
         DB_STATUS=$(echo "${RESPONSE}" | grep -o '"database":"[^"]*"' | cut -d'"' -f4)
         if [ "${DB_STATUS}" == "ok" ] || [ "${DB_STATUS}" == "connected" ]; then
-            echo -e "${GREEN}✓ Database: ${DB_STATUS}${NC}"
+            echo -e "${GREEN}[OK] Database: ${DB_STATUS}${NC}"
         else
-            echo -e "${RED}✗ Database: ${DB_STATUS}${NC}"
+            echo -e "${RED}[ERROR] Database: ${DB_STATUS}${NC}"
             exit 1
         fi
     fi
@@ -73,7 +73,7 @@ if RESPONSE=$(curl -f -s -m "${TIMEOUT}" "${HEALTH_ENDPOINT}" 2>&1); then
     exit 0
 
 else
-    echo -e "${RED}✗ Health endpoint not responding${NC}"
+    echo -e "${RED}[ERROR] Health endpoint not responding${NC}"
     echo -e "${RED}Error: ${RESPONSE}${NC}"
     echo ""
 
@@ -88,23 +88,23 @@ else
         PORT=${PORT:-7337}
 
         if nc -z "${HOST}" "${PORT}" 2>/dev/null; then
-            echo -e "${GREEN}✓ Port ${PORT} is listening${NC}"
+            echo -e "${GREEN}[OK] Port ${PORT} is listening${NC}"
         else
-            echo -e "${RED}✗ Port ${PORT} is not listening${NC}"
+            echo -e "${RED}[ERROR] Port ${PORT} is not listening${NC}"
         fi
     fi
 
     # Check Docker container status
     if command -v docker &> /dev/null; then
         if docker ps | grep -q vibe-quality-searcharr; then
-            echo -e "${GREEN}✓ Docker container is running${NC}"
+            echo -e "${GREEN}[OK] Docker container is running${NC}"
 
             # Show recent logs
             echo ""
             echo -e "${YELLOW}Recent logs:${NC}"
             docker logs --tail 20 vibe-quality-searcharr 2>&1
         else
-            echo -e "${RED}✗ Docker container is not running${NC}"
+            echo -e "${RED}[ERROR] Docker container is not running${NC}"
 
             # Check if container exists but stopped
             if docker ps -a | grep -q vibe-quality-searcharr; then

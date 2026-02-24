@@ -16,23 +16,23 @@ NC='\033[0m' # No Color
 
 # Error handler
 error_exit() {
-    echo -e "${RED}❌ ERROR: $1${NC}" >&2
+    echo -e "${RED}[ERROR] $1${NC}" >&2
     exit 1
 }
 
 # Success message
 success() {
-    echo -e "${GREEN}✓ $1${NC}"
+    echo -e "${GREEN}[OK] $1${NC}"
 }
 
 # Warning message
 warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+    echo -e "${YELLOW}[WARNING] $1${NC}"
 }
 
 # Info message
 info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+    echo -e "${BLUE}[INFO] $1${NC}"
 }
 
 # Check if command exists
@@ -158,7 +158,7 @@ done
 if [[ "$all_valid" == true ]]; then
     echo ""
     echo "================================================================"
-    echo -e "${GREEN}✅ SUCCESS: All secrets generated and verified!${NC}"
+    echo -e "${GREEN}SUCCESS: All secrets generated and verified!${NC}"
     echo "================================================================"
     echo ""
     echo "Generated files in $SECRETS_DIR:"
@@ -166,7 +166,7 @@ if [[ "$all_valid" == true ]]; then
     echo "  - secret_key.txt  (JWT signing key)"
     echo "  - pepper.txt      (Password hashing pepper)"
     echo ""
-    echo -e "${YELLOW}⚠️  CRITICAL SECURITY WARNINGS:${NC}"
+    echo -e "${YELLOW}CRITICAL SECURITY WARNINGS:${NC}"
     echo ""
     echo "  1. NEVER commit these files to version control"
     echo "  2. BACKUP these files securely (encrypted backup)"
@@ -176,7 +176,7 @@ if [[ "$all_valid" == true ]]; then
     echo "     - Encrypted USB drive"
     echo "     - Secure cloud storage (encrypted)"
     echo ""
-    echo -e "${BLUE}ℹ️  Next Steps:${NC}"
+    echo -e "${BLUE}Next Steps:${NC}"
     echo ""
     echo "  1. Start the application:"
     echo "     docker-compose up -d"
