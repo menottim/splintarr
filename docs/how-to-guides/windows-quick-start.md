@@ -10,10 +10,9 @@ This guide assumes you have **no Docker experience** and will walk you through e
 1. [Prerequisites](#prerequisites)
 2. [Install Docker Desktop](#install-docker-desktop)
 3. [Download the Application](#download-the-application)
-4. [Generate Security Keys](#generate-security-keys)
-5. [Start the Application](#start-the-application)
-6. [Access the Application](#access-the-application)
-7. [Troubleshooting](#troubleshooting)
+4. [Automated Setup](#automated-setup)
+5. [Access the Application](#access-the-application)
+6. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -108,9 +107,9 @@ You have two options: download a ZIP file or use Git.
 
 ---
 
-## Generate Security Keys
+## Automated Setup
 
-**Important:** These keys encrypt your data. Never share them!
+**The easy way:** Run our automated setup script that does everything for you!
 
 ### Step 1: Navigate to the Project Folder
 
@@ -123,122 +122,102 @@ You have two options: download a ZIP file or use Git.
      cd "C:\Users\YourName\vibe-quality-searcharr"
      ```
 
-### Step 2: Generate Security Keys
+### Step 2: Allow PowerShell Scripts (One-Time Setup)
 
-**Run the automated script to generate all keys:**
-
-```powershell
-# Run the key generation script
-.\scripts\generate-secrets.ps1
-```
-
-The script will:
-- ✅ Check that PowerShell and .NET are properly installed
-- ✅ Create the `secrets` directory automatically
-- ✅ Generate 3 cryptographically secure random keys
-- ✅ Validate each key was created correctly
-- ✅ Set file permissions (current user only)
-- ✅ Verify all files before completing
-
-**What you'll see:**
-
-```
-================================================================
-  Vibe-Quality-Searcharr Secret Generation
-================================================================
-
-ℹ️  PowerShell Version: 5.1
-ℹ️  .NET Cryptography available
-ℹ️  Creating secrets directory: C:\Users\YourName\vibe-quality-searcharr\secrets
-✓ Secrets directory ready
-
-Generating cryptographically secure secrets...
-
-ℹ️  Generating database encryption key...
-✓ Database key generated (32 bytes, 256-bit)
-ℹ️  Generating JWT secret key...
-✓ JWT secret key generated (64 bytes, 512-bit)
-ℹ️  Generating password hashing pepper...
-✓ Password pepper generated (32 bytes, 256-bit)
-
-Setting file permissions...
-✓ Permissions set on db_key.txt (current user only)
-✓ Permissions set on secret_key.txt (current user only)
-✓ Permissions set on pepper.txt (current user only)
-
-Verifying generated secrets...
-✓ db_key.txt verified (43 bytes)
-✓ secret_key.txt verified (86 bytes)
-✓ pepper.txt verified (43 bytes)
-
-================================================================
-✅ SUCCESS: All secrets generated and verified!
-================================================================
-```
-
-### Step 3: Verify Key Files Were Created
-
-```powershell
-Get-ChildItem -Path secrets
-```
-
-You should see three files:
-- `db_key.txt`
-- `secret_key.txt`
-- `pepper.txt`
-
-**⚠️ BACKUP THESE FILES SECURELY!** If you lose them, you cannot decrypt your data.
-
-**Troubleshooting:**
-
-If the script fails with an error about execution policy:
 ```powershell
 # Allow scripts to run (one-time setup)
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-
-# Then retry the script
-.\scripts\generate-secrets.ps1
 ```
 
----
+### Step 3: Run the Setup Script
 
-## Start the Application
+**Option A: Complete Automated Setup (Recommended)**
 
-### Step 1: Build the Docker Image
-
-This downloads dependencies and builds the application (takes 5-15 minutes the first time):
+This builds and starts everything automatically:
 
 ```powershell
-docker-compose build
+.\scripts\setup-windows.ps1 -AutoStart
 ```
 
-**What you'll see:**
-- Many lines of text scrolling by
-- "Building vibe-quality-searcharr"
-- Download progress bars
-- "Successfully built" at the end
+**Option B: Setup Only (Manual Start)**
 
-**If you see errors about "no configuration file":**
-- Make sure you're in the correct directory (use `pwd` to check)
-- The directory should contain `docker-compose.yml`
-
-### Step 2: Start the Container
+This prepares everything but lets you start manually:
 
 ```powershell
-docker-compose up -d
+.\scripts\setup-windows.ps1
 ```
 
-**Explanation of flags:**
-- `up` = Start the containers
-- `-d` = Detached mode (runs in background)
+**What the setup script does:**
+- ✅ Checks Docker and Docker Compose are installed
+- ✅ Verifies Docker is running
+- ✅ Creates the `data` directory for your database
+- ✅ Creates the `secrets` directory
+- ✅ Generates 3 cryptographically secure encryption keys
+- ✅ Validates all keys were created correctly
+- ✅ Sets secure file permissions
+- ✅ (With `-AutoStart`) Builds the Docker image
+- ✅ (With `-AutoStart`) Starts the application
 
 **What you'll see:**
+
 ```
-Creating network "vibe-quality-searcharr_default" ... done
-Creating vibe-quality-searcharr ... done
+================================================================
+  Vibe-Quality-Searcharr - Windows Setup
+================================================================
+
+ℹ️  This script will set up Vibe-Quality-Searcharr on your system.
+
+Step 1: Checking Prerequisites
+----------------------------------------
+
+ℹ️  Checking for Docker...
+✓ Docker found: Docker version 24.0.7, build afdd53b
+ℹ️  Checking for Docker Compose...
+✓ Docker Compose found: Docker Compose version v2.24.5
+ℹ️  Checking if Docker is running...
+✓ Docker is running
+
+Step 2: Creating Required Directories
+----------------------------------------
+
+ℹ️  Creating data directory...
+✓ Created: C:\Users\YourName\vibe-quality-searcharr\data
+ℹ️  Creating secrets directory...
+✓ Created: C:\Users\YourName\vibe-quality-searcharr\secrets
+
+Step 3: Generating Encryption Keys
+----------------------------------------
+
+ℹ️  Running secret generation script...
+
+[... secret generation output ...]
+
+Step 4: Docker Setup
+----------------------------------------
+
+ℹ️  Building Docker image...
+[... build output ...]
+✓ Docker image built successfully
+
+ℹ️  Starting application...
+✓ Application started
+
+================================================================
+Setup Complete!
+================================================================
+
+Next Steps:
+
+  1. Check the application logs:
+     docker-compose logs -f
+
+  2. Open your browser to:
+     http://localhost:7337
+
+  3. Follow the setup wizard to create your admin account
 ```
 
-### Step 3: Verify It's Running
+### Step 4: Verify It's Running
 
 ```powershell
 docker-compose ps
@@ -251,6 +230,54 @@ vibe-quality-searcharr    Up 30 seconds   127.0.0.1:7337->7337/tcp
 ```
 
 The `STATUS` should say "Up" (not "Exited" or "Restarting").
+
+**⚠️ IMPORTANT: Backup Your Encryption Keys!**
+
+The setup script created encryption keys in the `secrets/` folder. If you lose these, you cannot decrypt your data!
+
+```powershell
+# View your secret files
+Get-ChildItem -Path secrets
+```
+
+You should see:
+- `db_key.txt`
+- `secret_key.txt`
+- `pepper.txt`
+
+**Copy these to a secure location:**
+- Password manager (1Password, Bitwarden, etc.)
+- Encrypted USB drive
+- Secure cloud storage (encrypted)
+
+---
+
+## Manual Setup (Alternative)
+
+If you prefer to run commands individually or the automated script fails:
+
+### Generate Security Keys Manually
+
+```powershell
+# Run the key generation script
+.\scripts\generate-secrets.ps1
+```
+
+### Build and Start Manually
+
+```powershell
+# Create data directory
+New-Item -ItemType Directory -Force -Path .\data
+
+# Build the Docker image
+docker-compose build
+
+# Start the container
+docker-compose up -d
+
+# Verify it's running
+docker-compose ps
+```
 
 ---
 
@@ -334,8 +361,37 @@ You should see a welcome screen! Follow the setup wizard:
    ```
 2. Look for errors (usually missing secret files or configuration issues)
 3. Common fixes:
-   - Regenerate secret files (see Step 3 above)
+   - Regenerate secret files: `.\scripts\generate-secrets.ps1`
+   - Ensure data directory exists: `New-Item -ItemType Directory -Force -Path .\data`
    - Check Docker Desktop has enough memory (Settings → Resources → Increase memory to 4GB+)
+
+### Problem: "unable to open database file" error
+
+**Symptoms:**
+```
+ERROR: (sqlcipher3.dbapi2.OperationalError) unable to open database file
+RuntimeError: Failed to initialize database
+```
+
+**Solution:**
+1. Stop the container:
+   ```powershell
+   docker-compose down
+   ```
+2. Ensure the data directory exists:
+   ```powershell
+   New-Item -ItemType Directory -Force -Path .\data
+   ```
+3. Verify Docker has write permissions (Settings → Resources → File Sharing → Add your project directory)
+4. Rebuild and restart:
+   ```powershell
+   docker-compose build
+   docker-compose up -d
+   ```
+5. If still failing, try running the automated setup script again:
+   ```powershell
+   .\scripts\setup-windows.ps1 -AutoStart
+   ```
 
 ### Problem: "WSL 2 installation is incomplete"
 
