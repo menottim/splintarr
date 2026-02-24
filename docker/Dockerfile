@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libffi-dev \
     libssl-dev \
+    libsqlcipher-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /build
@@ -49,6 +50,7 @@ RUN groupadd -r -g 1000 appuser && \
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl3 \
+    libsqlcipher0 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
