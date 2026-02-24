@@ -1,0 +1,112 @@
+version: '3.9'
+
+# Root-level docker-compose.yml for convenience
+# This file allows running `docker-compose up` from the project root directory
+
+services:
+  vibe-quality-searcharr:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        VERSION: ${VERSION:-latest}
+        BUILD_DATE: ${BUILD_DATE:-}
+        VCS_REF: ${VCS_REF:-}
+    image: vibe-quality-searcharr:${VERSION:-latest}
+    container_name: vibe-quality-searcharr
+
+    # Security: Run as non-root
+    user: "1000:1000"
+
+    # Security: Read-only root filesystem
+    read_only: true
+
+    # Security: Drop all capabilities
+    cap_drop:
+      - ALL
+
+    # Security: No new privileges
+    security_opt:
+      - no-new-privileges:true
+
+    environment:
+      # Secrets (Docker secrets recommended)
+      - DATABASE_KEY_FILE=/run/secrets/db_key
+      - SECRET_KEY_FILE=/run/secrets/secret_key
+      - PEPPER_FILE=/run/secrets/pepper
+
+      # Application
+      - APP_NAME=Vibe-Quality-Searcharr
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - DEBUG=false
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+
+      # Server
+      - HOST=0.0.0.0
+      - PORT=7337
+      - RELOAD=false
+
+      # Database
+      - DATABASE_URL=sqlite+pysqlcipher:///:memory:@/data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=256000
+
+      # Security
+      - SESSION_EXPIRE_HOURS=24
+      - ACCESS_TOKEN_EXPIRE_MINUTES=15
+      - REFRESH_TOKEN_EXPIRE_DAYS=30
+      - API_RATE_LIMIT=100/minute
+      - ALLOW_LOCAL_INSTANCES=false
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:7337}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+
+    secrets:
+      - db_key
+      - secret_key
+      - pepper
+
+    volumes:
+      # Data directory (read-write, persistent)
+      - ./data:/data:rw
+      # Temp directory (for read-only filesystem)
+      - /tmp
+
+    ports:
+      - "127.0.0.1:7337:7337"  # Bind to localhost only for security
+
+    restart: unless-stopped
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx, sys; resp = httpx.get('http://localhost:7337/health', timeout=5.0); sys.exit(0 if resp.status_code == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+secrets:
+  db_key:
+    file: ./secrets/db_key.txt
+  secret_key:
+    file: ./secrets/secret_key.txt
+  pepper:
+    file: ./secrets/pepper.txt
+
+networks:
+  default:
+    driver: bridge

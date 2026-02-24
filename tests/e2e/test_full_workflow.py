@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from vibe_quality_searcharr.models.instance import InstanceType
-from vibe_quality_searcharr.models.search_queue import SearchStrategy, SearchQueueStatus
+from vibe_quality_searcharr.models.search_queue import SearchStrategy, SearchStatus
 
 
 class TestCompleteUserJourney:

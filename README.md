@@ -11,6 +11,7 @@
 - [Security](#security)
 - [Development](#development)
 - [Architecture](#architecture)
+- [Known Issues](#known-issues)
 - [Contributing](#contributing)
 - [License](#license)
 - [Acknowledgments](#acknowledgments)
@@ -104,9 +105,13 @@ Documentation is organized following the [Diátaxis](https://diataxis.fr/) frame
 
 ### Docker Deployment (Recommended)
 
+**Windows users:** See the dedicated **[Windows Quick Start Guide](docs/how-to-guides/windows-quick-start.md)** for step-by-step instructions.
+
+**Linux/macOS:**
+
 ```bash
 # 1. Clone repository
-git clone https://github.com/yourusername/vibe-quality-searcharr.git
+git clone https://github.com/menottim/vibe-quality-searcharr.git
 cd vibe-quality-searcharr
 
 # 2. Generate secrets
@@ -214,6 +219,66 @@ Vibe-Quality-Searcharr is built with:
 - **httpx** - Async HTTP client for *arr APIs
 - **Argon2** - Password hashing
 - **Pydantic** - Input validation
+
+## Known Issues
+
+### Windows Docker Compose Configuration
+
+**Issue:** Running `docker-compose up` from the project root on Windows may fail with `no configuration file provided: not found`.
+
+**Solutions:**
+
+1. **Use the root-level docker-compose.yml (Recommended):**
+   ```powershell
+   # From project root
+   docker-compose up -d
+   ```
+   A `docker-compose.yml` is now provided in the project root for convenience.
+
+2. **Run from docker/ directory:**
+   ```powershell
+   cd docker
+   docker-compose up -d
+   ```
+
+3. **Specify the file explicitly:**
+   ```powershell
+   docker-compose -f docker/docker-compose.yml up -d
+   ```
+
+**For complete Windows setup instructions**, see **[Windows Quick Start Guide](docs/how-to-guides/windows-quick-start.md)**.
+
+### Test Suite Coverage
+
+**Issue:** Two security tests currently fail due to test code issues (not actual security problems):
+- `test_hash_password_with_pepper` - Test outdated after HMAC implementation
+- `test_password_hashing_error_propagation` - Mocking limitation with Argon2 read-only attributes
+
+**Status:** Security fixes are verified working. Test code needs updates to match new implementations.
+
+### Python Version Requirements
+
+**Issue:** `pyproject.toml` specifies Python 3.13+, but the project may work with Python 3.11+.
+
+**Note:** Only Python 3.13+ is officially tested and supported.
+
+### SQLCipher Installation (Development)
+
+**Issue:** Installing `sqlcipher3` Python package requires SQLCipher library headers on your system.
+
+**Solution:**
+```bash
+# macOS
+brew install sqlcipher
+
+# Ubuntu/Debian
+sudo apt-get install libsqlcipher-dev
+
+# Windows (via vcpkg)
+vcpkg install sqlcipher
+```
+
+**Docker users:** This is handled automatically in the Docker image.
 
 ## Contributing
 
