@@ -66,6 +66,8 @@ def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
     Set SQLite PRAGMA settings for security and performance.
 
     This event handler is called for every new database connection to configure:
+    - SQLCipher encryption key (MUST be set first!)
+    - Cipher algorithm and KDF iterations
     - Foreign key constraints
     - Write-Ahead Logging (WAL) for better concurrency
     - Full synchronous mode for crash safety
@@ -80,6 +82,15 @@ def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
     cursor = dbapi_conn.cursor()
 
     try:
+        # CRITICAL: Set encryption key FIRST, before any other operations
+        # This must be done immediately after connecting for SQLCipher to work
+        db_key = settings.get_database_key()
+        cursor.execute(f"PRAGMA key = '{db_key}'")
+
+        # Set cipher algorithm and KDF iterations
+        cursor.execute(f"PRAGMA cipher = '{settings.database_cipher}'")
+        cursor.execute(f"PRAGMA kdf_iter = {settings.database_kdf_iter}")
+
         # Enable foreign key constraints (referential integrity)
         cursor.execute("PRAGMA foreign_keys = ON")
 
