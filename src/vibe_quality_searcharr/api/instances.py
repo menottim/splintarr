@@ -600,32 +600,33 @@ async def test_instance_pre_creation(
 
         # Test connection
         try:
-            system_status = client.get_system_status()
+            async with client:
+                system_status = await client.get_system_status()
 
-            # Get item count for display
-            items_count = None
-            try:
-                if test_data.instance_type == "sonarr":
-                    series = client.get_all_series()
-                    items_count = len(series) if series else 0
-                else:
-                    movies = client.get_all_movies()
-                    items_count = len(movies) if movies else 0
-            except Exception:
-                pass  # Item count is optional
+                # Get item count for display
+                items_count = None
+                try:
+                    if test_data.instance_type == "sonarr":
+                        series = await client.get_all_series()
+                        items_count = len(series) if series else 0
+                    else:
+                        movies = await client.get_all_movies()
+                        items_count = len(movies) if movies else 0
+                except Exception:
+                    pass  # Item count is optional
 
-            logger.info(
-                "instance_test_successful",
-                instance_type=test_data.instance_type,
-                version=system_status.get("version", "unknown"),
-            )
+                logger.info(
+                    "instance_test_successful",
+                    instance_type=test_data.instance_type,
+                    version=system_status.get("version", "unknown"),
+                )
 
-            return InstanceTestResult(
-                success=True,
-                message="Connection successful",
-                version=system_status.get("version"),
-                items_count=items_count,
-            )
+                return InstanceTestResult(
+                    success=True,
+                    message="Connection successful",
+                    version=system_status.get("version"),
+                    items_count=items_count,
+                )
 
         except (SonarrError, RadarrError) as e:
             logger.warning(
