@@ -31,31 +31,35 @@ services:
       - no-new-privileges:true
 
     environment:
-      # Secrets (Docker secrets recommended)
+      # Secrets (loaded from Docker secrets files)
       - DATABASE_KEY_FILE=/run/secrets/db_key
       - SECRET_KEY_FILE=/run/secrets/secret_key
       - PEPPER_FILE=/run/secrets/pepper
 
       # Application
       - APP_NAME=Vibe-Quality-Searcharr
-      - ENVIRONMENT=${ENVIRONMENT:-production}
+      # Use "development" for homelab (allows SECURE_COOKIES=false without HTTPS).
+      # Use "production" if you have HTTPS configured via reverse proxy.
+      - ENVIRONMENT=${ENVIRONMENT:-development}
       - DEBUG=false
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
 
       # Server
       - HOST=0.0.0.0
       - PORT=7337
+      - WORKERS=1
       - RELOAD=false
 
       # Database
       - DATABASE_URL=sqlite+pysqlcipher:///data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=256000
 
-      # Security
+      # Security (homelab defaults: no HTTPS, local network access)
+      - SECURE_COOKIES=false
       - SESSION_EXPIRE_HOURS=24
       - ACCESS_TOKEN_EXPIRE_MINUTES=15
       - REFRESH_TOKEN_EXPIRE_DAYS=30
       - API_RATE_LIMIT=100/minute
-      - ALLOW_LOCAL_INSTANCES=false
+      - ALLOW_LOCAL_INSTANCES=true
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:7337}
       - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
 
