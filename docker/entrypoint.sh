@@ -13,9 +13,10 @@ log "Starting Vibe-Quality-Searcharr entrypoint..."
 # Ensure /data directory exists and has correct permissions
 if [ -d "/data" ]; then
     log "Setting permissions on /data directory..."
-    chown -R appuser:appuser /data
-    chmod -R u+rw /data
-    log "Permissions set successfully"
+    # Try to fix permissions, but don't fail if we can't (Windows mounts)
+    chown -R appuser:appuser /data 2>/dev/null || log "Note: Could not change ownership (this is normal on Windows)"
+    chmod -R u+rw /data 2>/dev/null || log "Note: Could not change permissions (this is normal on Windows)"
+    log "Permissions configured"
 else
     log "WARNING: /data directory does not exist!"
 fi
