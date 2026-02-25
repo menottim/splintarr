@@ -410,11 +410,14 @@ def database_health_check() -> dict[str, Any]:
             result = conn.execute(text("PRAGMA cipher_version"))
             cipher_version = result.fetchone()
 
-        # Get pool status
-        pool_status = {
-            "size": engine.pool.size(),
-            "checked_out": engine.pool.checkedout(),
-        }
+        # Get pool status (if available - NullPool doesn't have size/checkedout methods)
+        pool_status = {}
+        if hasattr(engine.pool, "size") and callable(engine.pool.size):
+            pool_status["size"] = engine.pool.size()
+        if hasattr(engine.pool, "checkedout") and callable(engine.pool.checkedout):
+            pool_status["checked_out"] = engine.pool.checkedout()
+        if not pool_status:
+            pool_status["type"] = type(engine.pool).__name__
 
         return {
             "status": "healthy",

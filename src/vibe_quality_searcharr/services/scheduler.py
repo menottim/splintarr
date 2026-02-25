@@ -26,6 +26,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
 from vibe_quality_searcharr.config import settings
+from vibe_quality_searcharr.database import get_engine
 from vibe_quality_searcharr.models import Instance, SearchQueue
 from vibe_quality_searcharr.services.radarr import RadarrClient
 from vibe_quality_searcharr.services.search_queue import SearchQueueManager
@@ -74,10 +75,12 @@ class SearchScheduler:
         Returns:
             AsyncIOScheduler: Configured scheduler instance
         """
-        # Job store for persistence (use same database as app)
+        # Job store for persistence (use same database engine as app)
+        # IMPORTANT: Use get_engine() to get our configured engine with SQLCipher support
+        # Do NOT pass url= as it would create a separate engine without encryption
         jobstores = {
             "default": SQLAlchemyJobStore(
-                url=settings.database_url,
+                engine=get_engine(),
                 tablename="apscheduler_jobs",
             )
         }
