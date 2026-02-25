@@ -273,7 +273,7 @@ docker pull vibe-quality-searcharr:0.9.0
 docker-compose up -d
 ```
 
-**⚠️ Warning:** Database migrations may not be reversible. Always restore from backup when downgrading.
+**Warning:** Database migrations may not be reversible. Always restore from backup when downgrading.
 
 ### Database Rollback
 
@@ -423,24 +423,23 @@ For high-availability deployments (future versions):
 
 ## Best Practices
 
-### ✅ DO
+### DO
 
-- ✅ Always backup before upgrading
-- ✅ Read release notes carefully
-- ✅ Test in development first (if possible)
-- ✅ Use automated upgrade script
-- ✅ Verify functionality after upgrade
-- ✅ Keep backups for at least 30 days
-- ✅ Schedule upgrades during low-usage periods
+- Always backup before upgrading
+- Read release notes carefully
+- Test in development first (if possible)
+- Use the automated upgrade script
+- Verify functionality after upgrade
+- Keep backups for at least 30 days
 
-### ❌ DON'T
+### DON'T
 
-- ❌ Skip backups
-- ❌ Upgrade without reading release notes
-- ❌ Skip version numbers (e.g., 1.0 → 1.3)
-- ❌ Delete pre-upgrade backup immediately
-- ❌ Force upgrade if health check fails
-- ❌ Ignore database migration errors
+- Skip backups
+- Upgrade without reading release notes
+- Skip version numbers (e.g., 1.0 to 1.3)
+- Delete pre-upgrade backup immediately
+- Force upgrade if health check fails
+- Ignore database migration errors
 
 ---
 

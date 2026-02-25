@@ -1,248 +1,97 @@
-# Getting Started Guide
+# Getting Started
 
 **Vibe-Quality-Searcharr v0.1.0-alpha**
 
-**⚠️ ALPHA:** This is a pre-release version that has not been hand-verified for deployment.
+This tutorial walks you through the post-install experience: completing the setup wizard, understanding the dashboard, creating your first search queue, and checking search history.
 
-Welcome! This guide will help you get Vibe-Quality-Searcharr up and running in 5 minutes.
+**This guide assumes you already have the Docker container running.** If you have not installed the application yet:
 
----
-
-## What is Vibe-Quality-Searcharr?
-
-Vibe-Quality-Searcharr automates systematic backlog searching for your Sonarr and Radarr instances. It intelligently schedules searches to maximize coverage while respecting API rate limits.
-
-**Key Benefits:**
-- Automatically searches for missing episodes/movies
-- Upgrades content that doesn't meet quality profiles
-- Tracks search history to avoid duplicates
-- Respects indexer API limits
-- Secure by design (implements OWASP Top 10 best practices)
+- **Windows users:** Follow the [Windows Quick Start Guide](../how-to-guides/windows-quick-start.md)
+- **Linux/macOS users:** Follow the [Docker Deployment Guide](../how-to-guides/deploy-with-docker.md)
 
 ---
 
-## Quick Start (5 Minutes)
+## Step 1: Complete the Setup Wizard
 
-### Step 1: Install Docker
+Open your browser and go to **http://localhost:7337/setup** (or substitute your server's IP address).
 
-**Already have Docker?** Skip to Step 2.
+### Create Your Admin Account
 
-```bash
-# Linux (Ubuntu/Debian)
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
-sudo usermod -aG docker $USER
-newgrp docker
+- Choose a username (3-50 characters)
+- Set a strong password (minimum 12 characters, mix of uppercase, lowercase, numbers, and symbols)
+- Confirm your password
 
-# Verify
-docker --version
-docker-compose --version
-```
+Click **Create Account** to continue.
 
-For other operating systems, see [Docker Installation](https://docs.docker.com/get-docker/).
+### Add Your First Sonarr or Radarr Instance
 
-### Step 2: Download Vibe-Quality-Searcharr
-
-```bash
-# Clone repository
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
-
-# Or download and extract
-wget https://github.com/menottim/vibe-quality-searcharr/archive/v0.1.0-alpha.tar.gz
-tar -xzf v1.0.0.tar.gz
-cd vibe-quality-searcharr-1.0.0
-```
-
-### Step 3: Generate Security Secrets
-
-**Linux/macOS:**
-```bash
-./scripts/generate-secrets.sh
-```
-
-**Windows (PowerShell):**
-```powershell
-.\scripts\generate-secrets.ps1
-```
-
-This creates cryptographically secure keys in the `secrets/` directory:
-
-- `db_key.txt` - Database encryption key (256-bit)
-- `secret_key.txt` - JWT signing key (512-bit)
-- `pepper.txt` - Password hashing pepper (256-bit)
-
-The script automatically validates all keys and sets secure file permissions.
-
-### Step 4: Start the Application
-
-```bash
-docker-compose up -d
-```
-
-Wait ~30 seconds for the application to start.
-
-### Step 5: Access the Setup Wizard
-
-Open your browser to: **http://localhost:7337/setup**
-
-The setup wizard will guide you through:
-1. Creating your admin account
-2. Adding your first Sonarr/Radarr instance
-3. Creating your first search queue
-
-**That's it!** Vibe-Quality-Searcharr is now running and searching for you.
-
----
-
-## First-Time Setup Wizard
-
-### Welcome Screen
-
-![Setup Wizard - Welcome](../assets/setup-wizard-welcome.png)
-
-Click "Get Started" to begin.
-
-### 1. Create Admin Account
-
-**Create your administrator account:**
-
-- **Username**: Choose a username (3-50 characters)
-- **Password**: Strong password required
-  - Minimum 12 characters
-  - Mix of uppercase, lowercase, numbers, symbols
-  - Example: `MySecure#Pass2024!`
-- **Confirm Password**: Re-enter to confirm
-
-**Security tip:** Use a password manager to generate and store a strong password.
-
-Click "Create Account" to continue.
-
-### 2. Add Sonarr or Radarr Instance
-
-**Connect your first instance:**
+You will need the URL and API key for at least one Sonarr or Radarr instance on your network.
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| **Name** | Friendly name for this instance | "Main Sonarr" |
-| **Type** | Select Sonarr or Radarr | Sonarr |
-| **URL** | Full URL to instance | http://192.168.1.100:8989 |
-| **API Key** | From instance settings | abc123def456... |
+| **Name** | A friendly label for this instance | "Main Sonarr" |
+| **Type** | Sonarr or Radarr | Sonarr |
+| **URL** | Full URL including port | `http://192.168.1.100:8989` |
+| **API Key** | From your instance's settings | `abc123def456...` |
 
-**Finding your API key:**
+**Where to find your API key:**
 
-**Sonarr:**
-1. Open Sonarr web interface
-2. Settings → General → Security → API Key
-3. Copy the key
+- **Sonarr:** Settings > General > Security > API Key
+- **Radarr:** Settings > General > Security > API Key
 
-**Radarr:**
-1. Open Radarr web interface
-2. Settings → General → Security → API Key
-3. Copy the key
+Click **Test Connection** to verify, then **Add Instance**.
 
-Click "Test Connection" to verify, then "Add Instance".
+### Finish Setup
 
-### 3. Create Your First Search Queue
+The wizard will confirm everything is configured. Click **Complete Setup** to proceed to the dashboard.
 
-**Set up automated searching:**
+---
+
+## Step 2: Understand the Dashboard
+
+After setup, you land on the main dashboard. It shows:
+
+- **Instance Status** -- Health and connectivity of each Sonarr/Radarr instance
+- **Active Search Queues** -- Any currently running or scheduled searches
+- **Recent Searches** -- Search activity from the last 24 hours
+- **Statistics** -- Total searches, success rate, and items found
+
+The navigation bar gives you access to:
+
+- **Dashboard** -- Overview and statistics
+- **Instances** -- Manage Sonarr/Radarr connections
+- **Search Queues** -- Create and manage automated searches
+- **Search History** -- View past search results
+- **Settings** -- Account and application settings
+
+---
+
+## Step 3: Create Your First Search Queue
+
+A search queue tells Vibe-Quality-Searcharr what to search for and when.
+
+Go to **Search Queues** and click **Add Queue**. Fill in the following:
 
 | Field | Description | Recommendation |
 |-------|-------------|----------------|
-| **Name** | Queue name | "Daily Missing Search" |
-| **Instance** | Select from dropdown | (instance you just added) |
-| **Strategy** | What to search for | Missing |
+| **Name** | Descriptive label | "Daily Missing Search" |
+| **Instance** | Which Sonarr/Radarr to search | Select the instance you just added |
+| **Strategy** | What to look for | Missing |
 | **Schedule** | When to run | Daily at 2:00 AM |
-| **Items per batch** | How many to search | 50 |
+| **Items per Batch** | How many items per run | 50 |
 
-**Search Strategies:**
+### Search Strategies
 
-- **Missing**: Search for all missing episodes/movies
-- **Cutoff Unmet**: Search for upgrades (better quality)
-- **Recent**: Search recent additions only
-- **Custom**: Advanced filtering options
+- **Missing** -- Search for episodes or movies that are completely missing
+- **Cutoff Unmet** -- Search for upgrades to content that does not meet your quality profile cutoff
+- **Recent** -- Search only recently added content
+- **Custom** -- Advanced filtering by tags, quality, and other criteria
 
-Click "Create Queue" and then "Complete Setup".
-
-### 4. Setup Complete!
-
-You'll be redirected to the dashboard where you can monitor your searches.
-
----
-
-## Dashboard Overview
-
-### Main Dashboard
-
-The dashboard shows:
-
-- **Instance Status** - Health of each Sonarr/Radarr instance
-- **Active Search Queues** - Currently running searches
-- **Recent Searches** - Last 24 hours of search activity
-- **Statistics** - Total searches, success rate, items found
-
-### Navigation
-
-- **Dashboard** - Overview and statistics
-- **Instances** - Manage Sonarr/Radarr connections
-- **Search Queues** - Create and manage search automation
-- **Search History** - View all searches and results
-- **Settings** - Change account settings, 2FA
-
----
-
-## Adding More Instances
-
-### From Dashboard
-
-- Click "Instances" in navigation
-- Click "Add Instance" button
-- Fill in details (name, type, URL, API key)
-- Click "Test Connection"
-- Click "Save"
-
-**You can add multiple instances:**
-- Multiple Sonarr instances (e.g., TV4K, TV1080p)
-- Multiple Radarr instances (e.g., Movies4K, Movies1080p)
-- Mix of both
-
-Each instance can have its own search queue with different strategies and schedules.
-
----
-
-## Creating Search Queues
-
-### Search Queue Options
-
-**Name:** Descriptive name (e.g., "Weekly 4K Upgrades")
-
-**Instance:** Select which Sonarr/Radarr instance
-
-**Strategy:**
-- **Missing** - Search all content marked as missing
-- **Cutoff Unmet** - Search content below quality cutoff
-- **Recent** - Only search recently added content
-- **Custom** - Advanced: filter by tags, quality, etc.
-
-**Schedule:**
-- **Cron Expression** - For advanced scheduling
-  - Daily at 2 AM: `0 2 * * *`
-  - Every 6 hours: `0 */6 * * *`
-  - Weekdays at noon: `0 12 * * 1-5`
-- **Or use presets** - Daily, weekly, etc.
-
-**Items per Batch:**
-- How many items to search in one run
-- Higher = faster, more API load
-- Recommended: 20-50
-
-**Enabled:**
-- Check to start immediately
-- Uncheck to create but not start
+Click **Create Queue** to save. The queue will run automatically on its schedule.
 
 ### Example Queues
 
-**Daily Missing Search:**
+**Daily missing content search:**
 ```
 Name: Daily Missing
 Strategy: Missing
@@ -250,7 +99,7 @@ Schedule: 0 2 * * * (2 AM daily)
 Batch Size: 50
 ```
 
-**Weekly Quality Upgrade:**
+**Weekly quality upgrade:**
 ```
 Name: Weekend Upgrades
 Strategy: Cutoff Unmet
@@ -258,258 +107,48 @@ Schedule: 0 2 * * 6 (Saturday 2 AM)
 Batch Size: 30
 ```
 
-**Continuous Recent:**
-```
-Name: Recent Additions
-Strategy: Recent (last 30 days)
-Schedule: 0 */6 * * * (Every 6 hours)
-Batch Size: 20
-```
-
 ---
 
-## Understanding Search History
+## Step 4: Check Search History
 
-### What Gets Tracked
+Go to **Search History** to see what Vibe-Quality-Searcharr has done. Each entry shows:
 
-Every search operation is logged with:
-- Date and time
-- Instance name
-- Search strategy used
-- Item searched (episode/movie)
-- Result (success/failure)
-- Downloads found
+- Date and time of the search
+- Which instance was searched
+- The search strategy used
+- The specific item searched (episode or movie)
+- Whether the search succeeded or failed
+- How many downloads were found
 
 ### Cooldown Period
 
-**24-hour cooldown:** Once an item is searched, it won't be searched again for 24 hours.
-
-**Why?** Prevents overwhelming your indexers with duplicate searches.
-
-**Override:** You can manually trigger immediate search from instance management.
-
-### Viewing History
-
-1. Go to "Search History"
-2. Filter by:
-   - Date range
-   - Instance
-   - Success/failure
-   - Search strategy
+Once an item is searched, it will not be searched again for 24 hours. This prevents overwhelming your indexers with duplicate requests.
 
 ---
 
-## Enable Two-Factor Authentication (Recommended)
+## Tips for Best Results
 
-### Setup 2FA
+**Stagger search schedules** if you have multiple instances:
+- Instance 1 queue: 2:00 AM
+- Instance 2 queue: 3:00 AM
+- Instance 3 queue: 4:00 AM
 
-- Go to "Settings" → "Security"
-- Click "Enable 2FA"
-- Scan QR code with authenticator app:
-  - Google Authenticator
-  - Authy
-  - 1Password
-  - Bitwarden
-- Enter 6-digit code to verify
-- **Save backup codes** in secure location
+**Adjust batch sizes** based on your indexer capacity:
+- More indexers: higher batch size is fine
+- Fewer indexers: keep batch size lower (10-20)
 
-### Using 2FA
-
-After setup, you'll be prompted for a 6-digit code after entering your password.
-
-**Lost device?** Use backup codes to regain access.
-
----
-
-## Configuration Tips
-
-### For Best Performance
-
-**Stagger search schedules** across instances:
-- Instance 1: 2 AM
-- Instance 2: 3 AM
-- Instance 3: 4 AM
-
-**Adjust batch sizes** based on your indexers:
-- More indexers = higher batch size
-- Fewer indexers = lower batch size
-
-**Use different strategies** for different needs:
-- Missing: Daily
-- Cutoff Unmet: Weekly
-- Recent: Every 6 hours
-
-### Resource Management
-
-**Memory usage:**
-- Light usage (<5 instances): 256-512 MB
-- Medium usage (5-15 instances): 512 MB-1 GB
-- Heavy usage (15+ instances): 1-2 GB
-
-Adjust in `docker-compose.yml` if needed.
-
----
-
-## Common Tasks
-
-### Change Password
-
-- Settings → Account → Change Password
-- Enter current password
-- Enter new password (twice)
-- Click "Update Password"
-
-### Test Instance Connection
-
-- Instances → Select instance
-- Click "Test Connection"
-- View response time and status
-- Check "Configuration Drift" for changes
-
-### Pause Search Queue
-
-- Search Queues → Select queue
-- Click "Pause"
-- Resume when ready with "Resume" button
-
-### View Logs
-
-```bash
-# View all logs
-docker-compose logs -f
-
-# Last 100 lines
-docker-compose logs --tail=100
-
-# Search for errors
-docker-compose logs | grep -i error
-```
-
----
-
-## Troubleshooting Quick Fixes
-
-### Can't Connect to Instance
-
-**Check:**
-- URL is correct (include http:// or https://)
-- Port is included (e.g., :8989)
-- API key is correct
-- Instance is running and accessible
-- Firewall allows connection
-
-**Test from Docker container:**
-```bash
-docker exec vibe-quality-searcharr curl -v http://your-sonarr:8989/api/v3/system/status?apikey=YOUR_KEY
-```
-
-### Searches Not Running
-
-**Check:**
-- Queue is enabled (green toggle)
-- Schedule is correct
-- Instance is connected
-- Check Search History for errors
-
-### Forgot Password
-
-**Reset via Docker:**
-```bash
-# Access container
-docker exec -it vibe-quality-searcharr sh
-
-# Reset password (future feature)
-# For now, restore from backup or recreate
-```
-
-### Application Won't Start
-
-```bash
-# Check logs
-docker-compose logs
-
-# Common fixes:
-# 1. Port conflict
-sudo lsof -i :7337
-
-# 2. Permission issues
-sudo chown -R 1000:1000 data/
-
-# 3. Secrets missing
-./scripts/generate-secrets.sh
-```
+**Use different strategies** for different goals:
+- Missing: run daily
+- Cutoff Unmet: run weekly
+- Recent: run every 6 hours
 
 ---
 
 ## Next Steps
 
-### Learn More
-
-- **[API Documentation](../reference/api.md)** - REST API reference
-- **[Security Guide](../explanation/security.md)** - Security best practices
-- **[Troubleshooting](../how-to-guides/troubleshoot.md)** - Detailed problem solving
-- **[Configuration Reference](../reference/configuration.md)** - All configuration options
-
-### Advanced Topics
-
-- **[Docker Deployment](../how-to-guides/deploy-with-docker.md)** - Production deployment
-- **[Backup & Restore](../how-to-guides/backup-and-restore.md)** - Data protection
-- **[Upgrade Guide](../how-to-guides/upgrade.md)** - Keeping up-to-date
-
-### Get Help
-
-- **GitHub Issues:** Report bugs or request features
-- **Discussions:** Ask questions, share tips
-- **Documentation:** Complete guides in `/docs`
-
----
-
-## Security Reminder
-
-**⚠️ This is AI-generated code**
-
-While implementing security best practices, this codebase:
-- Has NOT been professionally audited
-- May contain subtle security flaws
-- Should be treated as educational/experimental
-
-**For production use:**
-- Deploy in isolated environment
-- Use strong, unique passwords
-- Enable 2FA
-- Regular backups
-- Keep updated
-- Monitor logs
-
-See the [Security Guide](../explanation/security.md) for detailed security recommendations.
-
----
-
-## FAQ
-
-**Q: How many instances can I add?**
-A: Unlimited. Tested with 20+.
-
-**Q: Does this affect my indexers?**
-A: Yes - respects rate limits but uses API quota.
-
-**Q: Can I run without Docker?**
-A: Yes, see the [Docker Deployment Guide](../how-to-guides/deploy-with-docker.md) for local development setup.
-
-**Q: Does this work with Radarr v4/v5?**
-A: Currently supports Radarr v3 API.
-
-**Q: Can I exclude certain series/movies?**
-A: Yes, use tags in Sonarr/Radarr and Custom strategy.
-
-**Q: Is this safe to run 24/7?**
-A: Yes, designed for continuous operation.
-
-**Q: How do I update?**
-A: See the [Upgrade Guide](../how-to-guides/upgrade.md).
-
----
-
-**Welcome to Vibe-Quality-Searcharr!**
-
-Happy automated searching! 🎉
+- **[Troubleshooting](../how-to-guides/troubleshoot.md)** -- Solutions for common problems
+- **[Backup and Restore](../how-to-guides/backup-and-restore.md)** -- Protect your data
+- **[Configuration Reference](../reference/configuration.md)** -- All configuration options
+- **[Search Strategies](../explanation/search-strategies.md)** -- How strategies work in detail
+- **[API Reference](../reference/api.md)** -- REST API documentation
+- **[Upgrade Guide](../how-to-guides/upgrade.md)** -- Keeping up to date

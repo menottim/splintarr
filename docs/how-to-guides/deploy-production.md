@@ -1,146 +1,65 @@
-# Deployment Guide
-## Vibe-Quality-Searcharr
+# Advanced Deployment
 
-## System Requirements
+If you want to do more than the basic Docker setup, here are some optional
+enhancements for your homelab. None of these are required -- the standard
+`docker-compose up -d` workflow from the
+[Docker Deployment Guide](./deploy-with-docker.md) is perfectly fine for most
+users.
 
-### Minimum Requirements
-- **CPU:** 1 core
-- **RAM:** 512 MB
-- **Disk:** 500 MB + storage for database
-- **OS:** Linux, macOS, Windows (Docker recommended)
-- **Python:** 3.13+ (manual installation only)
-
-### Recommended Requirements
-- **CPU:** 2+ cores
-- **RAM:** 1 GB
-- **Disk:** 2 GB + storage
-- **OS:** Linux (Ubuntu 22.04 LTS or Debian 12)
-- **Network:** Stable connection to Sonarr/Radarr instances
+This guide covers running on dedicated Linux hardware, adding HTTPS on your
+local network, managing database migrations, and a few performance tweaks.
 
 ---
 
-## Installation Methods
+## Running on a Linux Server
 
-### Method 1: Docker (Recommended)
+### Supported Platforms
 
-**Single Command:**
+Vibe-Quality-Searcharr runs well on common homelab hardware:
+
+- Raspberry Pi 4/5 (arm64) with 2 GB+ RAM
+- Synology, QNAP, or TrueNAS with Docker support
+- Proxmox / VMware VMs running Debian or Ubuntu
+- Any x86_64 or arm64 Linux box
+
+### System Requirements
+
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| CPU | 1 core | 2 cores |
+| RAM | 512 MB | 1 GB |
+| Disk | 500 MB | 2 GB |
+| OS | Any Linux with Docker | Debian 12 / Ubuntu 22.04+ |
+
+### Running as a systemd Service (Without Docker)
+
+If you prefer to run directly on the host instead of in a container, you can
+use a systemd unit. This is useful on minimal installs where you do not want
+Docker overhead.
+
+**Install dependencies and clone:**
 ```bash
-docker run -d \
-  --name vibe-quality-searcharr \
-  -p 7337:7337 \
-  -v $(pwd)/data:/data \
-  -v $(pwd)/secrets:/run/secrets:ro \
-  -e SECRET_KEY_FILE=/run/secrets/secret_key \
-  -e PEPPER_FILE=/run/secrets/pepper \
-  -e DATABASE_KEY_FILE=/run/secrets/db_key \
-  -e ENVIRONMENT=production \
-  --restart unless-stopped \
-  vibe-quality-searcharr:latest
-```
-
-### Method 2: Docker Compose (Recommended for Production)
-
-**docker-compose.yml:**
-```yaml
-version: '3.8'
-
-services:
-  vibe-quality-searcharr:
-    image: vibe-quality-searcharr:latest
-    container_name: vibe-quality-searcharr
-    restart: unless-stopped
-    ports:
-      - "7337:7337"
-    volumes:
-      - ./data:/data
-      - ./secrets:/run/secrets:ro
-    environment:
-      ENVIRONMENT: production
-      LOG_LEVEL: INFO
-      SECRET_KEY_FILE: /run/secrets/secret_key
-      PEPPER_FILE: /run/secrets/pepper
-      DATABASE_KEY_FILE: /run/secrets/db_key
-      SECURE_COOKIES: "true"
-      ALLOW_LOCAL_INSTANCES: "false"
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    read_only: true
-    tmpfs:
-      - /tmp
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7337/api/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
-```
-
-**Deploy:**
-```bash
-# Generate secrets
-mkdir -p secrets && chmod 700 secrets
-python3 -c "import secrets; print(secrets.token_urlsafe(64))" > secrets/secret_key
-python3 -c "import secrets; print(secrets.token_urlsafe(32))" > secrets/pepper
-python3 -c "import secrets; print(secrets.token_urlsafe(32))" > secrets/db_key
-chmod 600 secrets/*
-
-# Create data directory
-mkdir -p data && chmod 755 data
-
-# Start services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-```
-
-### Method 3: Manual Installation
-
-**Prerequisites:**
-```bash
-# Install Python 3.13+
 sudo apt update
-sudo apt install python3.13 python3.13-venv python3-pip
-
-# Install Poetry
+sudo apt install python3.13 python3.13-venv python3-pip sqlcipher libsqlcipher-dev
 curl -sSL https://install.python-poetry.org | python3 -
-```
-
-**Installation:**
-```bash
-# Clone repository
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
-
-# Install dependencies
+git clone https://github.com/menottim/vibe-quality-searcharr.git /opt/vibe-quality-searcharr
+cd /opt/vibe-quality-searcharr
 poetry install --no-dev
-
-# Generate secrets
-mkdir -p secrets && chmod 700 secrets
-python3 -c "import secrets; print(secrets.token_urlsafe(64))" > secrets/secret_key
-python3 -c "import secrets; print(secrets.token_urlsafe(32))" > secrets/pepper
-python3 -c "import secrets; print(secrets.token_urlsafe(32))" > secrets/db_key
-chmod 600 secrets/*
-
-# Configure environment
-cp .env.example .env
-# Edit .env with your settings
-
-# Initialize database
-poetry run alembic upgrade head
-
-# Run application
-poetry run uvicorn vibe_quality_searcharr.main:app \
-  --host 0.0.0.0 \
-  --port 7337 \
-  --workers 2
 ```
 
-**Systemd Service (Optional):**
+**Generate secrets and create a service user:**
+```bash
+mkdir -p /opt/vibe-quality-searcharr/secrets && chmod 700 /opt/vibe-quality-searcharr/secrets
+python3 -c "import secrets; print(secrets.token_urlsafe(64))" > /opt/vibe-quality-searcharr/secrets/secret_key
+python3 -c "import secrets; print(secrets.token_urlsafe(32))" > /opt/vibe-quality-searcharr/secrets/pepper
+python3 -c "import secrets; print(secrets.token_urlsafe(32))" > /opt/vibe-quality-searcharr/secrets/db_key
+chmod 600 /opt/vibe-quality-searcharr/secrets/*
+sudo useradd --system --no-create-home --shell /usr/sbin/nologin appuser
+sudo chown -R appuser:appuser /opt/vibe-quality-searcharr
+```
+
+**Create the systemd unit** at `/etc/systemd/system/vibe-quality-searcharr.service`:
 ```ini
-# /etc/systemd/system/vibe-quality-searcharr.service
 [Unit]
 Description=Vibe-Quality-Searcharr
 After=network.target
@@ -152,601 +71,231 @@ WorkingDirectory=/opt/vibe-quality-searcharr
 Environment="SECRET_KEY_FILE=/opt/vibe-quality-searcharr/secrets/secret_key"
 Environment="PEPPER_FILE=/opt/vibe-quality-searcharr/secrets/pepper"
 Environment="DATABASE_KEY_FILE=/opt/vibe-quality-searcharr/secrets/db_key"
+Environment="ENVIRONMENT=production"
 ExecStart=/opt/vibe-quality-searcharr/.venv/bin/uvicorn vibe_quality_searcharr.main:app --host 0.0.0.0 --port 7337
-Restart=always
+Restart=on-failure
+RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 ```
 
+**Enable and start:**
 ```bash
-sudo systemctl enable vibe-quality-searcharr
-sudo systemctl start vibe-quality-searcharr
+sudo systemctl daemon-reload
+sudo systemctl enable --now vibe-quality-searcharr
+sudo systemctl status vibe-quality-searcharr
 ```
 
 ---
 
-## Environment Configuration
+## Optional: Reverse Proxy for HTTPS
 
-### Required Environment Variables
+You do **not** need HTTPS to use Vibe-Quality-Searcharr on your local network.
+However, if you want encrypted connections (for example, to avoid browser
+warnings or to protect API keys in transit on an untrusted VLAN), a reverse
+proxy is the simplest way to add TLS.
 
-```bash
-# Secrets (use _FILE suffix for file-based secrets)
-SECRET_KEY=<64-char-random-string>  # or SECRET_KEY_FILE
-PEPPER=<32-char-random-string>  # or PEPPER_FILE
-DATABASE_KEY=<32-char-random-string>  # or DATABASE_KEY_FILE
+### Option 1: Caddy (Simplest)
 
-# Application
-ENVIRONMENT=production  # production, development
-LOG_LEVEL=INFO  # DEBUG, INFO, WARNING, ERROR
+Caddy is popular in homelab setups because it handles TLS certificates
+automatically with almost no configuration. If you use a local domain like
+`searcharr.home.lan`, Caddy generates a self-signed certificate automatically.
+If you point a real domain at your LAN IP, Caddy obtains a Let's Encrypt
+certificate for you.
 
-# Database
-DATABASE_URL=sqlite+pysqlcipher:///:memory:@/data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=256000
+Install Caddy following the [official instructions](https://caddyserver.com/docs/install),
+then create `/etc/caddy/Caddyfile`:
 
-# Server
-HOST=0.0.0.0
-PORT=7337
-
-# Security
-SECURE_COOKIES=true  # Requires HTTPS
-SESSION_EXPIRE_HOURS=24
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-REFRESH_TOKEN_EXPIRE_DAYS=30
-ALLOW_LOCAL_INSTANCES=false  # Set true only in dev
-
-# Rate Limiting
-API_RATE_LIMIT=100/minute
-
-# CORS
-ALLOWED_ORIGINS=https://yourdomain.com
-
-# Trusted Hosts
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+```
+searcharr.home.lan {
+    reverse_proxy localhost:7337
+}
 ```
 
-### Environment File Example
-
-**.env:**
+That is the entire configuration. Restart Caddy after editing:
 ```bash
-# Production Configuration
-ENVIRONMENT=production
-DEBUG=false
-LOG_LEVEL=INFO
-
-# Secrets (file-based - recommended)
-SECRET_KEY_FILE=/run/secrets/secret_key
-PEPPER_FILE=/run/secrets/pepper
-DATABASE_KEY_FILE=/run/secrets/db_key
-
-# Database
-DATABASE_URL=sqlite+pysqlcipher:///:memory:@/data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=256000
-
-# Server
-HOST=0.0.0.0
-PORT=7337
-WORKERS=2
-
-# Security
-SECURE_COOKIES=true
-SESSION_EXPIRE_HOURS=24
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-REFRESH_TOKEN_EXPIRE_DAYS=30
-ALLOW_LOCAL_INSTANCES=false
-
-# Rate Limiting
-API_RATE_LIMIT=100/minute
-
-# CORS
-ALLOWED_ORIGINS=https://searcharr.yourdomain.com
-
-# Trusted Hosts
-ALLOWED_HOSTS=searcharr.yourdomain.com
+sudo systemctl restart caddy
 ```
 
----
+If you use a `.lan` or `.local` domain, your browser will warn about the
+self-signed certificate. You can trust Caddy's root CA on your devices by
+running `caddy trust` on the Caddy host.
 
-## Reverse Proxy Setup
+### Option 2: nginx
 
-### nginx
+If you already run nginx on your homelab, add a site configuration:
 
-**Configuration:**
 ```nginx
 # /etc/nginx/sites-available/vibe-quality-searcharr
-upstream vibe_backend {
-    server localhost:7337;
-}
-
 server {
     listen 80;
-    server_name searcharr.yourdomain.com;
+    server_name searcharr.home.lan;
     return 301 https://$server_name$request_uri;
 }
-
 server {
     listen 443 ssl http2;
-    server_name searcharr.yourdomain.com;
-
-    # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/searcharr.yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/searcharr.yourdomain.com/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384';
-    ssl_prefer_server_ciphers off;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 10m;
-
-    # Security Headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header X-Frame-Options "DENY" always;
-    add_header X-XSS-Protection "1; mode=block" always;
-
-    # Logging
-    access_log /var/log/nginx/vibe-access.log;
-    error_log /var/log/nginx/vibe-error.log;
-
-    # Proxy Configuration
+    server_name searcharr.home.lan;
+    ssl_certificate     /etc/nginx/ssl/searcharr.crt;
+    ssl_certificate_key /etc/nginx/ssl/searcharr.key;
     location / {
-        proxy_pass http://vibe_backend;
+        proxy_pass http://127.0.0.1:7337;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-Host $host;
-        proxy_set_header X-Forwarded-Port $server_port;
-
-        # WebSocket Support (if needed in future)
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-
-        # Timeouts
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
     }
-
-    # Rate Limiting (additional layer)
-    limit_req_zone $binary_remote_addr zone=api_limit:10m rate=10r/s;
-    limit_req zone=api_limit burst=20 nodelay;
 }
 ```
 
-**Enable Configuration:**
+Enable and reload:
 ```bash
 sudo ln -s /etc/nginx/sites-available/vibe-quality-searcharr /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
-**SSL Certificate (Let's Encrypt):**
+Generate a self-signed certificate if you do not have a real domain:
 ```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d searcharr.yourdomain.com
+sudo mkdir -p /etc/nginx/ssl
+sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+  -keyout /etc/nginx/ssl/searcharr.key \
+  -out /etc/nginx/ssl/searcharr.crt \
+  -subj "/CN=searcharr.home.lan"
 ```
 
-### Traefik
+### Note on SECURE_COOKIES
 
-**docker-compose.yml with Traefik:**
-```yaml
-version: '3.8'
-
-services:
-  traefik:
-    image: traefik:v2.10
-    container_name: traefik
-    restart: unless-stopped
-    security_opt:
-      - no-new-privileges:true
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik.yml:/traefik.yml:ro
-      - ./acme.json:/acme.json
-    labels:
-      - "traefik.enable=true"
-
-  vibe-quality-searcharr:
-    image: vibe-quality-searcharr:latest
-    container_name: vibe-quality-searcharr
-    restart: unless-stopped
-    volumes:
-      - ./data:/data
-      - ./secrets:/run/secrets:ro
-    environment:
-      SECRET_KEY_FILE: /run/secrets/secret_key
-      PEPPER_FILE: /run/secrets/pepper
-      DATABASE_KEY_FILE: /run/secrets/db_key
-      ENVIRONMENT: production
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.vibe.rule=Host(`searcharr.yourdomain.com`)"
-      - "traefik.http.routers.vibe.entrypoints=websecure"
-      - "traefik.http.routers.vibe.tls.certresolver=letsencrypt"
-      - "traefik.http.services.vibe.loadbalancer.server.port=7337"
-      # Rate Limiting
-      - "traefik.http.middlewares.vibe-ratelimit.ratelimit.average=100"
-      - "traefik.http.middlewares.vibe-ratelimit.ratelimit.burst=50"
-      - "traefik.http.routers.vibe.middlewares=vibe-ratelimit"
-```
-
-**traefik.yml:**
-```yaml
-api:
-  dashboard: true
-
-entryPoints:
-  web:
-    address: ":80"
-    http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
-  websecure:
-    address: ":443"
-
-providers:
-  docker:
-    exposedByDefault: false
-
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: your@email.com
-      storage: /acme.json
-      httpChallenge:
-        entryPoint: web
-```
+When you access the app over HTTPS (through any reverse proxy), set
+`SECURE_COOKIES=true` in your environment so session cookies are sent only over
+encrypted connections. If you access the app over plain HTTP, leave it as
+`false` (the default).
 
 ---
 
-## Database Setup
+## Database Migrations with Alembic
 
-### SQLCipher Installation (Manual Deployment)
+Vibe-Quality-Searcharr uses Alembic for database schema migrations. When
+running via Docker, migrations are applied automatically on container start. If
+you run directly on the host, or need to manage migrations manually, use the
+commands below.
 
+**Common commands (from the project root):**
 ```bash
-# Ubuntu/Debian
-sudo apt install sqlcipher libsqlcipher-dev
-
-# macOS
-brew install sqlcipher
-
-# Verify
-sqlcipher --version
+poetry run alembic current           # check current schema version
+poetry run alembic upgrade head      # apply all pending migrations
+poetry run alembic downgrade -1      # roll back one migration
+poetry run alembic history           # view migration history
 ```
 
-### Database Initialization
-
-**Automatic (First Run):**
-Application automatically creates database on first run.
-
-**Manual (Using Alembic):**
+**Running migrations inside Docker:**
 ```bash
-# Create initial database
-poetry run alembic upgrade head
-
-# Verify
-poetry run alembic current
+docker compose exec vibe-quality-searcharr alembic upgrade head
 ```
 
-### Database Migrations
-
+**Always back up your database before applying migrations:**
 ```bash
-# Check current version
-poetry run alembic current
-
-# Upgrade to latest
-poetry run alembic upgrade head
-
-# Downgrade one version
-poetry run alembic downgrade -1
-
-# Show migration history
-poetry run alembic history
+cp data/vibe-quality-searcharr.db "data/backup-$(date +%Y%m%d-%H%M%S).db"
 ```
 
 ---
 
 ## Performance Tuning
 
-### Application Tuning
+Vibe-Quality-Searcharr is a lightweight, single-user (or few-user) application.
+It runs a single Uvicorn worker by design. There is no need for multi-worker
+deployment. A few small tweaks can help on constrained hardware.
 
-**Workers:**
-```bash
-# CPU-bound: 2 x num_cores + 1
-# I/O-bound: 2-4 per core
-WORKERS=4  # For 2-core system
+### Store the Database on Fast Storage
+
+SQLite performance degrades significantly on high-latency storage (USB drives,
+SD cards, network mounts). If your host has both an SD card and an SSD (common
+on Raspberry Pi), mount the data volume on the SSD:
+```yaml
+volumes:
+  - /mnt/ssd/vibe-quality-searcharr/data:/data
 ```
 
-**Database:**
-```bash
-# Increase KDF iterations for better security (slower)
-DATABASE_URL=sqlite+pysqlcipher:///:memory:@/data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=500000
+### Docker Resource Limits
+
+On shared homelab hosts, cap the container so it does not starve other services:
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '1'
+      memory: 512M
+    reservations:
+      cpus: '0.25'
+      memory: 128M
 ```
 
-**Rate Limiting:**
-```bash
-# Adjust based on your traffic
-API_RATE_LIMIT=200/minute  # Higher for busy servers
-```
+### Reduce Log I/O
 
-### System Tuning
-
-**File Descriptors:**
-```bash
-# /etc/security/limits.conf
-appuser soft nofile 65536
-appuser hard nofile 65536
-```
-
-**Kernel Parameters:**
-```bash
-# /etc/sysctl.conf
-net.core.somaxconn = 4096
-net.ipv4.tcp_max_syn_backlog = 4096
-```
+Setting `LOG_LEVEL=WARNING` instead of `INFO` reduces disk writes on low-power
+devices. Only do this once you are confident the application is running
+correctly.
 
 ---
 
-## Monitoring and Logging
+## Monitoring
 
-### Health Checks
+### Health Check
 
-**Endpoint:**
+The application exposes a health endpoint:
 ```bash
 curl http://localhost:7337/api/health
 ```
 
-**Response:**
+A healthy response:
 ```json
-{
-  "status": "healthy",
-  "version": "0.1.0",
-  "database": "connected",
-  "uptime": 3600
-}
+{"status": "healthy", "version": "0.1.0", "database": "connected"}
 ```
 
-**Docker Health Check:**
-```yaml
-healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:7337/api/health"]
-  interval: 30s
-  timeout: 3s
-  retries: 3
-  start_period: 10s
-```
+### Uptime Monitoring (Optional)
 
-### Logging Configuration
+If you run Uptime Kuma, Healthchecks.io, or similar, point an HTTP monitor at
+`http://<server-ip>:7337/api/health` with a 60-second interval.
 
-**Production Log Levels:**
+### Viewing Logs
 
+**Docker:**
 ```bash
-# Standard production: reasonable verbosity
-LOG_LEVEL=INFO
-
-# High-traffic: reduce log volume
-LOG_LEVEL=WARNING
-
-# Troubleshooting: maximum verbosity
-LOG_LEVEL=DEBUG
-
-# Critical only: minimal logging
-LOG_LEVEL=ERROR
+docker compose logs -f vibe-quality-searcharr
 ```
 
-**Application Logging:**
-
-The application includes built-in logging with automatic rotation:
-
-```yaml
-# docker-compose.yml or .env
-environment:
-  - LOG_LEVEL=INFO  # Recommended for production
-  - LOG_FORMAT=json  # Structured logging for SIEM
-```
-
-**Log Files:**
-- `logs/all.log` - All messages (INFO+)
-- `logs/error.log` - Errors only
-- `logs/debug.log` - Debug messages (when enabled)
-
-**Automatic Rotation:**
-- 10 MB max per file
-- 5 backups kept
-- ~150 MB total disk usage
-
-**Sensitive Data Protection:**
-All logs automatically filter sensitive information (even in DEBUG mode):
-- Passwords → `***REDACTED***`
-- API keys → Partially masked
-- Tokens → Truncated
-- Database keys → Never logged
-
-**Access Logs:**
+**systemd:**
 ```bash
-# Via Docker
-docker-compose logs -f
+sudo journalctl -u vibe-quality-searcharr -f
+```
 
-# Via log files
+**Application log files** (if the logs directory is mapped):
+```bash
 tail -f logs/all.log
 tail -f logs/error.log
-
-# Find errors
-grep ERROR logs/all.log
-```
-
-**Structured Logging:**
-```bash
-LOG_LEVEL=INFO
-LOG_FORMAT=json  # For SIEM/log aggregation
-```
-
-**Log Aggregation (ELK Stack):**
-```yaml
-# filebeat.yml
-filebeat.inputs:
-  - type: log
-    enabled: true
-    paths:
-      - /path/to/vibe-quality-searcharr/logs/all.log
-    fields:
-      app: vibe-quality-searcharr
-      environment: production
-    json.keys_under_root: true
-    json.add_error_key: true
-
-output.elasticsearch:
-  hosts: ["elasticsearch:9200"]
-  index: "vibe-quality-searcharr-%{+yyyy.MM.dd}"
-```
-
-**Docker Container Logs:**
-```yaml
-# docker-compose.yml
-logging:
-  driver: "json-file"
-  options:
-    max-size: "10m"
-    max-file: "5"
-    compress: "true"
-```
-
-**External Log Rotation (Manual Install):**
-```bash
-# /etc/logrotate.d/vibe-quality-searcharr
-/opt/vibe-quality-searcharr/logs/*.log {
-    daily
-    rotate 14
-    compress
-    delaycompress
-    notifempty
-    create 0640 appuser appuser
-    sharedscripts
-    postrotate
-        systemctl reload vibe-quality-searcharr > /dev/null 2>&1 || true
-    endscript
-}
-```
-
-**Production Recommendations:**
-
-1. **Use INFO level** for normal operations
-2. **Enable JSON format** for log aggregation
-3. **Map logs directory** for external access
-4. **Monitor error.log** for issues
-5. **Set up alerts** on ERROR/CRITICAL logs
-6. **Use DEBUG only** for troubleshooting (temporarily)
-
-**Example Production Configuration:**
-```yaml
-services:
-  vibe-quality-searcharr:
-    environment:
-      - LOG_LEVEL=INFO
-      - LOG_FORMAT=json
-    volumes:
-      - ./logs:/data/logs  # Access from host
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "5"
-```
-
-### Monitoring Tools
-
-**Prometheus Metrics (Future):**
-```yaml
-# Coming in future release
-metrics:
-  enabled: true
-  endpoint: /metrics
-  port: 9090
-```
-
-**Uptime Monitoring:**
-```bash
-# UptimeRobot, Healthchecks.io, etc.
-curl https://hc-ping.com/your-uuid -fsS --retry 3 > /dev/null
 ```
 
 ---
 
-## Upgrade Procedures
+## Quick Troubleshooting
 
-### Docker Upgrade
+For detailed troubleshooting, see [troubleshoot.md](./troubleshoot.md). Here
+are common issues specific to advanced deployments.
 
+**Service will not start (systemd):**
 ```bash
-# Pull latest image
-docker-compose pull
-
-# Backup database
-cp data/vibe-quality-searcharr.db backups/backup-$(date +%Y%m%d).db
-
-# Upgrade
-docker-compose up -d
-
-# Check logs
-docker-compose logs -f
-
-# Verify health
-curl http://localhost:7337/api/health
+sudo journalctl -u vibe-quality-searcharr -n 50 --no-pager
+ls -la /opt/vibe-quality-searcharr/secrets/
+ls -la /opt/vibe-quality-searcharr/data/
 ```
 
-### Manual Upgrade
+**Reverse proxy returns 502 Bad Gateway:**
+- Confirm the app is running: `curl http://127.0.0.1:7337/api/health`
+- Check that the proxy target matches the port the app is listening on.
+- If using Docker, make sure the container port is published (`-p 7337:7337`).
 
-```bash
-# Backup database
-cp data/vibe-quality-searcharr.db backups/backup-$(date +%Y%m%d).db
-
-# Pull latest code
-git pull origin main
-
-# Update dependencies
-poetry install --no-dev
-
-# Run migrations
-poetry run alembic upgrade head
-
-# Restart service
-sudo systemctl restart vibe-quality-searcharr
-
-# Verify
-curl http://localhost:7337/api/health
-```
+**Database locked errors on NAS:**
+SQLite does not work well over network filesystems (NFS, SMB/CIFS). Always
+store the database on local or directly-attached storage.
 
 ---
-
-## Troubleshooting Deployment
-
-See TROUBLESHOOTING.md for detailed troubleshooting guide.
-
-**Quick Checks:**
-```bash
-# Check if service is running
-docker-compose ps  # Docker
-sudo systemctl status vibe-quality-searcharr  # Systemd
-
-# Check logs
-docker-compose logs --tail=50  # Docker
-sudo journalctl -u vibe-quality-searcharr -n 50  # Systemd
-
-# Check health
-curl http://localhost:7337/api/health
-
-# Check database
-ls -lh data/vibe-quality-searcharr.db
-
-# Check permissions
-ls -l secrets/
-ls -l data/
-```
-
----
-
-**Version:** 0.1.0
-**Last Updated:** 2026-02-24
+*Version 0.1.0 -- Last updated 2026-02-25*

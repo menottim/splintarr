@@ -1,562 +1,271 @@
 # Security Guide
-## Vibe-Quality-Searcharr
 
 ## Overview
 
-This guide covers security features, best practices, and deployment security for Vibe-Quality-Searcharr.
+Vibe-Quality-Searcharr is a homelab application designed to run on your local network. This guide documents the security measures implemented in the codebase and practical steps for keeping your deployment secure.
 
-## Security Features
+This is not an enterprise application. There is no SSO, no compliance framework, and no security team on call. The goal is defense-in-depth appropriate for a self-hosted tool that stores API keys for your Sonarr and Radarr instances.
 
-### 1. Authentication & Authorization
+---
 
-**Password Security:**
-- Argon2id hashing (OWASP recommended)
-- Global pepper (stored separately)
-- Per-user salt (automatic)
-- Parameters: 3 iterations, 128 MiB memory, 8 threads
-- Case-preserved storage (never normalized)
-- 100+ common password blocklist (per NIST SP 800-63B)
+## 1. Authentication
+
+**Password Hashing (Argon2id + Pepper):**
+
+Passwords are hashed using Argon2id (winner of the Password Hashing Competition) with a global pepper stored separately from the database. The pepper is mixed via HMAC-SHA256 in constant time to prevent timing attacks.
+
+Parameters: 3 iterations, 128 MiB memory, 8 threads, 256-bit hash, 128-bit salt per user.
+
+If the database file is stolen, the attacker still needs the pepper (stored in a separate secrets file) to attempt any offline cracking.
+
+Additional password rules:
 - 12-128 character length enforcement
+- 100+ common password blocklist (per NIST SP 800-63B)
+- Must contain uppercase, lowercase, digit, and special character
+- Case-preserved storage (never normalized)
 
-**Session Management:**
-- JWT with HS256 (HMAC-SHA256)
-- Access token: 15-minute expiration
-- Refresh token: 30-day expiration
-- Secure logout (session invalidation)
+**JWT Sessions (HS256):**
 
-**2FA Support (Partial):**
-- TOTP (Google Authenticator compatible)
-- Backup codes
-- QR code generation
+- Access tokens: 15-minute expiry, signed with HS256 using a hardcoded algorithm whitelist (prevents algorithm confusion attacks)
+- Refresh tokens: 30-day expiry, stored in the database for revocation
+- Token rotation: old refresh tokens are revoked when new ones are issued
+- Logout: access tokens are blacklisted in memory; refresh tokens are revoked in the database
+- Reserved JWT claims (`sub`, `exp`, `iat`, `jti`, `type`) cannot be overridden
 
-### 2. Data Protection
+**Account Lockout (Exponential Backoff):**
 
-**Encryption at Rest:**
-- Database: SQLCipher (AES-256-CFB, 256k iterations)
-- API Keys: Fernet (AES-128-CBC + HMAC)
-- Secrets: Environment variables or Docker secrets
+After 5 consecutive failed login attempts, the account is temporarily locked with escalating durations:
 
-**Encryption in Transit:**
-- HTTPS/TLS (recommended for production)
-- HSTS header (production mode)
-- Secure cookie flags
+| Failed Attempts | Lockout Duration |
+|-----------------|------------------|
+| 5-9             | 1 minute         |
+| 10-14           | 5 minutes        |
+| 15-19           | 15 minutes       |
+| 20+             | 30 minutes (cap) |
 
-### 3. API Security
+Lockout resets on successful login. A dummy Argon2 verification runs on unknown usernames to equalize response timing and prevent username enumeration.
+
+---
+
+## 2. Data Protection
+
+**Database Encryption (SQLCipher):**
+
+The SQLite database is encrypted at rest using SQLCipher with AES-256-CFB and 256,000 KDF iterations. The encryption key (`DATABASE_KEY`) is stored in a separate secrets file, never in the database itself.
+
+**Field-Level Encryption (Fernet):**
+
+Sonarr and Radarr API keys are individually encrypted in the database using Fernet (AES-128-CBC + HMAC-SHA256). The Fernet key is derived from the application `SECRET_KEY` using HKDF with an application-specific salt. Even if the database encryption is somehow bypassed, API keys remain individually encrypted.
+
+**Docker Secrets:**
+
+In production Docker deployments, secrets are read from files mounted at `/run/secrets/` rather than passed as environment variables. Environment variables are visible in `docker inspect` output and process listings; file-based secrets are not.
+
+---
+
+## 3. API Security
 
 **Rate Limiting:**
-- Global: 100 requests/minute (configurable)
-- Authentication: 3-10/minute (login, register, password change, refresh)
-- Data read endpoints: 30-60/minute
-- Data write/delete endpoints: 5-20/minute
-- Headers: X-RateLimit-* for clients
 
-**CORS:**
-- Configurable allowed origins
-- Credentials support controlled
-- Preflight request handling
+All endpoints are rate-limited using SlowAPI (backed by in-memory storage):
 
-**Security Headers:**
+| Endpoint Category | Limit |
+|-------------------|-------|
+| Global default    | 100/minute |
+| Login, register, password change | 3-10/minute |
+| Data read (instances, history) | 30-60/minute |
+| Data write/delete | 5-20/minute |
+
+Rate limit headers (`X-RateLimit-*`) are included in responses.
+
+**Content Security Policy (Nonce-Based):**
+
+Each HTTP response includes a CSP header with a unique per-request nonce for inline scripts. This prevents XSS even if an attacker can inject HTML, because injected scripts will not have the correct nonce. The nonce is generated using `secrets.token_urlsafe(16)`.
+
+CSP directives:
+```
+default-src 'self';
+script-src 'self' 'nonce-<per-request>';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https:;
+frame-ancestors 'none';
+base-uri 'self';
+form-action 'self'
+```
+
+**SSRF Protection:**
+
+When users add Sonarr/Radarr instance URLs, the application resolves the hostname to an IP address and checks it against a blocklist of private networks (RFC 1918), loopback, link-local, cloud metadata endpoints (169.254.x.x), and other reserved ranges. This prevents an attacker from using the application to probe your internal network.
+
+In development mode, `ALLOW_LOCAL_INSTANCES=true` permits localhost URLs.
+
+**Cookie Security:**
+
+In production mode, cookies are set with `SameSite=Strict` and `Secure` flags. HSTS headers are sent when `SECURE_COOKIES=true`.
+
+**Additional Headers:**
 ```
 X-Content-Type-Options: nosniff
 X-Frame-Options: DENY
-Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-<per-request>'
-Referrer-Policy: strict-origin-when-cross-origin
 X-XSS-Protection: 1; mode=block
-Strict-Transport-Security: max-age=31536000 (production)
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains (production only)
 ```
 
-CSP uses per-request nonces for inline scripts instead of `'unsafe-inline'`, providing real XSS protection while allowing the application's inline scripts to execute.
+---
 
-### 4. Input Validation
+## 4. Input Validation
 
-**Protection Against:**
-- SQL Injection (SQLAlchemy ORM)
-- XSS (Content-Type headers, CSP)
-- Command Injection (no shell execution)
-- SSRF (URL validation with DNS resolution, blocked network lists, cloud metadata protection)
+**Pydantic Schemas:**
 
-**Validation:**
-- Pydantic schemas for all inputs
-- Type safety via Python type hints
-- URL scheme validation (http/https only)
+All API inputs are validated through Pydantic models with strict type checking. URLs are validated for scheme (http/https only) and hostname. Usernames are restricted to alphanumeric characters and underscores.
 
-### 5. Logging & Monitoring
+**SQL Injection Prevention:**
 
-**Comprehensive Logging System:**
-- Multiple log files (all.log, error.log, debug.log)
-- Automatic rotation at 10MB (5 backups kept)
-- Total disk usage ~150MB max for all logs
-- Five log levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
+All database queries use SQLAlchemy ORM with parameterized queries. No raw SQL strings are constructed from user input.
 
-**Security Events Logged:**
-- Failed login attempts with source IP
-- Successful authentication events
-- Authorization failures
-- Configuration changes
-- API errors and exceptions
+**XSS Prevention:**
+
+Jinja2 templates auto-escape all output by default. Inline scripts use CSP nonces, so even if auto-escaping were bypassed, injected scripts would be blocked by the browser. No shell commands are executed from user input.
+
+---
+
+## 5. Logging
+
+**Structured Logging (structlog):**
+
+All log output uses structlog with contextual fields (user ID, IP address, endpoint, timestamps). In production, logs are rendered as JSON for machine parsing. In development, logs use a human-readable console format.
+
+**Log Files and Rotation:**
+
+| Log File   | Contents              | Rotation   | Backups |
+|------------|-----------------------|------------|---------|
+| all.log    | INFO+ (or DEBUG)      | 10 MB      | 5       |
+| error.log  | ERROR and CRITICAL    | 10 MB      | 5       |
+| debug.log  | Everything (debug mode only) | 10 MB | 5       |
+
+Rotated files are named with datetime stamps (e.g., `all-2026-02-24_143052.log`). Total disk usage is capped at approximately 150 MB across all log types.
+
+**Sensitive Data Filtering:**
+
+A structlog processor automatically censors sensitive fields in all log output, including DEBUG level. Fields matching `password`, `secret`, `token`, `api_key`, `pepper`, `db_key`, and similar patterns are masked. API keys show only the first 4 characters. Database encryption keys are never logged.
+
+**Security Events:**
+
+The following events are logged with structured context:
+- Failed and successful login attempts (with IP address)
+- Account lockouts
+- Token creation, revocation, and rotation
+- SSRF-blocked URLs
 - Rate limit violations
-- Suspicious activity patterns
-
-**Sensitive Data Protection:**
-- Automatic filtering in all log levels (even DEBUG)
-- Passwords replaced with `***REDACTED***`
-- API keys partially masked (first/last 4 chars)
-- JWT tokens truncated
-- Database keys never logged
-- Secret keys never logged
-
-**Structured Logging:**
-- JSON format (SIEM-compatible)
-- Configurable log levels
-- Timestamp on every entry
-- Contextual information (user, IP, endpoint)
-- Stack traces for errors
+- Authorization failures
 
 ---
 
-## Best Practices for Deployment
+## 6. Deployment Security
 
-### 1. Secrets Management
+**Docker Container Hardening:**
 
-**Environment Variables (Development):**
-```bash
-export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(64))')"
-export PEPPER="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-export DATABASE_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
-```
+The production Docker Compose file (`docker/docker-compose.production.yml`) applies these restrictions:
 
-**Docker Secrets (Production - Recommended):**
-```bash
-# Generate secrets
-python -c "import secrets; print(secrets.token_urlsafe(64))" | docker secret create secret_key -
-python -c "import secrets; print(secrets.token_urlsafe(32))" | docker secret create pepper -
-python -c "import secrets; print(secrets.token_urlsafe(32))" | docker secret create db_key -
-
-# Reference in docker-compose.yml
-secrets:
-  - secret_key
-  - pepper
-  - db_key
-```
-
-**Files (Alternative):**
-```bash
-# Create secrets directory
-mkdir -p secrets && chmod 700 secrets
-
-# Generate secrets to files
-python -c "import secrets; print(secrets.token_urlsafe(64))" > secrets/secret_key
-python -c "import secrets; print(secrets.token_urlsafe(32))" > secrets/pepper
-python -c "import secrets; print(secrets.token_urlsafe(32))" > secrets/db_key
-
-# Set permissions
-chmod 600 secrets/*
-
-# Reference in .env
-SECRET_KEY_FILE=/path/to/secrets/secret_key
-PEPPER_FILE=/path/to/secrets/pepper
-DATABASE_KEY_FILE=/path/to/secrets/db_key
-```
-
-### 2. Database Security
-
-**Encryption:**
-- Always enable database encryption (SQLCipher)
-- Use strong encryption key (32+ bytes)
-- Store DATABASE_KEY separately from database file
-
-**Backups:**
-```bash
-# Backup database (encrypted)
-cp data/vibe-quality-searcharr.db backups/backup-$(date +%Y%m%d).db
-
-# Backup DATABASE_KEY separately (critical for restore)
-# Store in password manager or encrypted vault
-```
-
-**Permissions:**
-```bash
-# Set appropriate file permissions
-chmod 600 data/vibe-quality-searcharr.db
-chown appuser:appuser data/vibe-quality-searcharr.db
-```
-
-### 3. Network Security
-
-**Reverse Proxy (Recommended):**
-
-**nginx Example:**
-```nginx
-server {
-    listen 443 ssl http2;
-    server_name searcharr.yourdomain.com;
-
-    ssl_certificate /path/to/cert.pem;
-    ssl_certificate_key /path/to/key.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-
-    location / {
-        proxy_pass http://localhost:7337;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-**Traefik Example:**
-```yaml
-http:
-  routers:
-    vibe-quality-searcharr:
-      rule: "Host(`searcharr.yourdomain.com`)"
-      service: vibe-quality-searcharr
-      tls:
-        certResolver: letsencrypt
-  services:
-    vibe-quality-searcharr:
-      loadBalancer:
-        servers:
-          - url: "http://localhost:7337"
-```
-
-**Firewall:**
-```bash
-# Only expose via reverse proxy, block direct access
-sudo ufw deny 7337
-sudo ufw allow 443/tcp  # HTTPS only
-```
-
-### 4. Production Configuration
-
-**Environment Settings:**
-```bash
-# Production mode
-ENVIRONMENT=production
-DEBUG=false
-LOG_LEVEL=INFO
-
-# Security settings
-SECURE_COOKIES=true  # Requires HTTPS
-SESSION_EXPIRE_HOURS=24
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-REFRESH_TOKEN_EXPIRE_DAYS=30
-
-# Disable local instance access
-ALLOW_LOCAL_INSTANCES=false
-
-# Restrict CORS
-ALLOWED_ORIGINS=https://searcharr.yourdomain.com
-
-# Restrict hosts
-ALLOWED_HOSTS=searcharr.yourdomain.com
-```
-
-**Checklist:**
-- [ ] HTTPS/TLS enabled
-- [ ] Strong SECRET_KEY (64+ chars)
-- [ ] Unique PEPPER (32+ chars)
-- [ ] Strong DATABASE_KEY (32+ chars)
-- [ ] SECURE_COOKIES=true
-- [ ] ALLOW_LOCAL_INSTANCES=false
-- [ ] Firewall configured
-- [ ] Reverse proxy with TLS
-- [ ] Regular backups enabled
-- [ ] Monitoring configured
-
----
-
-## Security Hardening
-
-### Container Security
-
-**Dockerfile Best Practices:**
-```dockerfile
-# Use specific version, not latest
-FROM python:3.13-slim-bookworm
-
-# Run as non-root user
-RUN useradd -m -u 1000 appuser
-USER appuser
-
-# Read-only root filesystem
-VOLUME /data
-VOLUME /run/secrets
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD curl -f http://localhost:7337/api/health || exit 1
-```
-
-**Docker Compose Security:**
 ```yaml
 services:
   vibe-quality-searcharr:
-    security_opt:
-      - no-new-privileges:true
+    user: "1000:1000"           # Non-root user
+    read_only: true             # Read-only root filesystem
     cap_drop:
-      - ALL
-    read_only: true
+      - ALL                     # Drop all Linux capabilities
+    security_opt:
+      - no-new-privileges:true  # Prevent privilege escalation
     tmpfs:
-      - /tmp
+      - /tmp                    # Writable temp directory
     volumes:
-      - ./data:/data:rw
-      - ./secrets:/run/secrets:ro  # Read-only secrets
+      - vqs-data:/data:rw       # Only /data is writable
 ```
 
-### Application Security
+The container binds to `127.0.0.1:7337` by default, so it is only accessible via localhost. Use a reverse proxy to expose it to your network.
 
-**Rate Limiting:**
+In production mode, the Swagger/ReDoc API documentation endpoints are disabled. The health check endpoint returns only a status field, with no internal details like cipher version or connection pool state.
+
+---
+
+## 7. Secrets Management
+
+Three secrets are required:
+
+| Secret        | Purpose                        | Size     |
+|---------------|--------------------------------|----------|
+| `SECRET_KEY`  | JWT signing and Fernet key derivation | 64 bytes (512-bit) |
+| `PEPPER`      | Password hashing pepper        | 32 bytes (256-bit) |
+| `DATABASE_KEY`| SQLCipher database encryption  | 32 bytes (256-bit) |
+
+**Generating Secrets:**
+
 ```bash
-# Adjust rate limits for your use case
-API_RATE_LIMIT=100/minute  # General API
-LOGIN_RATE_LIMIT=5/minute  # Login attempts
+./scripts/generate-secrets.sh
 ```
 
-**Session Security:**
-```bash
-# Shorter sessions for sensitive environments
-SESSION_EXPIRE_HOURS=8
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-REFRESH_TOKEN_EXPIRE_DAYS=7
+This creates `secrets/db_key.txt`, `secrets/secret_key.txt`, and `secrets/pepper.txt` with restrictive file permissions (`chmod 600`). The script validates each secret for minimum length and randomness.
+
+**Backup Your Keys:**
+
+If you lose these secret files, you cannot decrypt your database. There is no recovery mechanism. Store copies in a password manager (Bitwarden, 1Password, KeePassXC) or on an encrypted USB drive.
+
+The `generate-secrets.sh` script will warn you before overwriting existing secrets.
+
+---
+
+## 8. Network Security
+
+Vibe-Quality-Searcharr does not handle TLS itself. For HTTPS, place it behind a reverse proxy.
+
+**Caddy Example (recommended for homelabs):**
+
+```
+searcharr.home.lan {
+    reverse_proxy localhost:7337
+    tls internal
+}
 ```
 
-**Logging:**
+Caddy automatically provisions and renews TLS certificates. With `tls internal`, it generates a self-signed CA for local use. If you have a domain, replace `tls internal` with your domain and Caddy will use Let's Encrypt automatically.
+
+**Firewall (optional):**
+
+If the Docker container is bound to `127.0.0.1:7337` (the default), it is already inaccessible from other machines. The reverse proxy handles external access. If you change the bind address to `0.0.0.0`, restrict access with a firewall:
+
 ```bash
-# Enhanced logging for security monitoring
-LOG_LEVEL=INFO  # Or DEBUG for troubleshooting
-STRUCTURED_LOGGING=true
-LOG_PII=false  # Never log sensitive data
+sudo ufw deny 7337
+sudo ufw allow 443/tcp
 ```
 
 ---
 
-## Backup and Recovery
+## 9. Password Reset
 
-### Backup Procedures
+If you forget your password or lock yourself out, use the CLI tool from the host machine (or `docker exec` into the container):
 
-**What to Backup:**
-1. Database file (`data/vibe-quality-searcharr.db`)
-2. Encryption keys (SECRET_KEY, PEPPER, DATABASE_KEY)
-3. Configuration files (.env, docker-compose.yml)
-
-**Backup Script:**
 ```bash
-#!/bin/bash
-# backup.sh
-
-BACKUP_DIR="/backups/vibe-quality-searcharr"
-DATE=$(date +%Y%m%d_%H%M%S)
-
-# Create backup directory
-mkdir -p "$BACKUP_DIR"
-
-# Backup database
-cp data/vibe-quality-searcharr.db "$BACKUP_DIR/db-$DATE.db"
-
-# Backup configuration (without secrets)
-cp .env.example "$BACKUP_DIR/config-$DATE.env"
-
-# Encrypt backup (optional but recommended)
-gpg --encrypt --recipient your@email.com "$BACKUP_DIR/db-$DATE.db"
-
-# Keep last 30 days of backups
-find "$BACKUP_DIR" -name "db-*.db" -mtime +30 -delete
-
-echo "Backup completed: $BACKUP_DIR/db-$DATE.db"
+python -m vibe_quality_searcharr.cli reset-password
 ```
 
-**Automated Backups:**
-```bash
-# Add to crontab for daily backups
-0 2 * * * /path/to/backup.sh >> /var/log/vibe-backup.log 2>&1
-```
-
-### Recovery Procedures
-
-**Restore from Backup:**
-```bash
-# Stop application
-docker-compose down
-
-# Restore database
-cp /backups/vibe-quality-searcharr/db-20260224_020000.db data/vibe-quality-searcharr.db
-
-# Restore encryption keys (critical!)
-export DATABASE_KEY="<your-original-database-key>"
-export SECRET_KEY="<your-original-secret-key>"
-export PEPPER="<your-original-pepper>"
-
-# Start application
-docker-compose up -d
-
-# Verify
-curl http://localhost:7337/api/health
-```
-
-**Important Notes:**
-- DATABASE_KEY must match the key used to encrypt the database
-- Changing DATABASE_KEY without re-encrypting will cause data loss
-- Store keys securely (password manager, encrypted vault)
+This prompts for a username and new password, validates the password against the same strength rules as registration, updates the hash, and unlocks the account if it was locked.
 
 ---
 
-## Incident Response
+## 10. Backup and Recovery
 
-### Security Incident Checklist
+Database backups and key management are covered in detail in the [Backup and Restore Guide](../how-to-guides/backup-and-restore.md).
 
-**1. Detection:**
-- [ ] Monitor logs for suspicious activity
-- [ ] Check failed login attempts
-- [ ] Review authorization failures
-- [ ] Analyze traffic patterns
-
-**2. Containment:**
-- [ ] Disable affected accounts
-- [ ] Block suspicious IPs (firewall)
-- [ ] Isolate compromised instances
-- [ ] Enable additional logging
-
-**3. Investigation:**
-- [ ] Review audit logs
-- [ ] Identify attack vector
-- [ ] Assess data exposure
-- [ ] Document findings
-
-**4. Recovery:**
-- [ ] Patch vulnerabilities
-- [ ] Rotate compromised secrets
-- [ ] Restore from clean backup
-- [ ] Reset affected passwords
-
-**5. Post-Incident:**
-- [ ] Update security measures
-- [ ] Document lessons learned
-- [ ] Enhance monitoring
-- [ ] Update incident response plan
-
-### Log Analysis
-
-**Check Failed Logins:**
-```bash
-# Using structured logs
-docker-compose logs | jq '. | select(.event == "authentication_failed")'
-```
-
-**Check Authorization Failures:**
-```bash
-docker-compose logs | jq '. | select(.event == "authorization_failed")'
-```
-
-**Monitor Rate Limiting:**
-```bash
-docker-compose logs | grep "429 Too Many Requests"
-```
+The short version:
+1. Back up `data/vibe-quality-searcharr.db` (the encrypted database file)
+2. Back up `secrets/` (the three key files)
+3. The `DATABASE_KEY` must match the key used to encrypt the database -- using the wrong key means permanent data loss
+4. Test your restore procedure at least once
 
 ---
 
-## Security Update Procedures
-
-### Regular Maintenance
-
-**Monthly Tasks:**
-- [ ] Update dependencies (check for security patches)
-- [ ] Review logs for anomalies
-- [ ] Verify backups working
-- [ ] Test recovery procedures
-
-**Quarterly Tasks:**
-- [ ] Full security audit
-- [ ] Penetration testing
-- [ ] Review and rotate secrets
-- [ ] Update documentation
-
-**Yearly Tasks:**
-- [ ] Major version upgrades
-- [ ] Security architecture review
-- [ ] Third-party security audit
-- [ ] Disaster recovery drill
-
-### Updating Dependencies
-
-```bash
-# Check for security updates
-poetry update --only security
-
-# Run security scans
-poetry run safety check
-poetry run bandit -r src/
-
-# Run tests
-poetry run pytest
-
-# Update in production
-docker-compose pull
-docker-compose up -d
-```
-
----
-
-## Compliance Considerations
-
-### GDPR Compliance
-
-**User Data:**
-- Minimal data collection (username, email, IP for audit)
-- Encrypted storage
-- User data export (coming soon)
-- Right to deletion
-
-**Implementation:**
-```python
-# User data export endpoint (future)
-GET /api/auth/export-data
-
-# User deletion endpoint (future)
-DELETE /api/auth/account
-```
-
-### SOC 2 Considerations
-
-**Access Controls:**
-- Multi-factor authentication (partial)
-- Role-based access control
-- Audit logging
-
-**Data Protection:**
-- Encryption at rest and in transit
-- Secure key management
-- Regular backups
-
-**Monitoring:**
-- Structured logging
-- Security event tracking
-- Anomaly detection (external tools)
-
----
-
-## Security Contacts
-
-**Report Security Vulnerabilities:**
-- Email: security@yourdomain.com
-- PGP Key: [Key Fingerprint]
-- GitHub Security Advisories: https://github.com/menottim/vibe-quality-searcharr/security
-
-**Response Time:**
-- Critical: 24 hours
-- High: 72 hours
-- Medium: 1 week
-- Low: 2 weeks
-
----
-
-**Version:** 0.1.0
-**Last Updated:** 2026-02-25
-**Next Review:** 2026-05-25
-
-### Security Audit History
+## Security Audit History
 
 | Date | Report | Findings | Status |
 |------|--------|----------|--------|
@@ -564,3 +273,9 @@ DELETE /api/auth/account
 | 2026-02-24 | [Penetration Test](../other/security-penetration-test-report.md) | 15 vulnerabilities (3 critical) | All fixed |
 | 2026-02-24 | [Post-Fix Assessment](../other/security-assessment-post-fix.md) | Verification of all pen test fixes | Complete |
 | 2026-02-25 | [API & Docker Audit](../other/security-audit-api-docker-2026-02-25.md) | 20 vulnerabilities (3 critical) | All fixed |
+| 2026-02-25 | [Red Team Assessment](../other/red-team-adversarial-assessment-2026-02-25.md) | 15 vulnerabilities (3 critical) | All fixed |
+
+---
+
+**Version:** 0.1.0
+**Last Updated:** 2026-02-25
