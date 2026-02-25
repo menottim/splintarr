@@ -607,12 +607,17 @@ async def test_instance_pre_creation(
                 items_count = None
                 try:
                     if test_data.instance_type == "sonarr":
-                        series = await client.get_all_series()
-                        items_count = len(series) if series else 0
+                        series = await client.get_series()  # No args = all series
+                        items_count = len(series) if isinstance(series, list) else 0
                     else:
-                        movies = await client.get_all_movies()
-                        items_count = len(movies) if movies else 0
-                except Exception:
+                        movies = await client.get_movies()  # No args = all movies
+                        items_count = len(movies) if isinstance(movies, list) else 0
+                except Exception as e:
+                    logger.warning(
+                        "failed_to_get_item_count",
+                        instance_type=test_data.instance_type,
+                        error=str(e),
+                    )
                     pass  # Item count is optional
 
                 logger.info(
