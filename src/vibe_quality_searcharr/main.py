@@ -9,6 +9,8 @@ Main application entry point with:
 - Database initialization
 """
 
+import secrets
+
 import structlog
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,7 +36,10 @@ logger = structlog.get_logger(__name__)
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=[f"{settings.rate_limit_per_minute}/minute"],
-    storage_uri="memory://",  # In-memory storage (use Redis in production for multiple workers)
+    storage_uri="memory://",  # WARNING: In-memory storage does not share state across workers.
+    # With workers > 1, each worker has independent rate counters, effectively
+    # multiplying the rate limit by the number of workers. For production with
+    # multiple workers, use Redis: storage_uri="redis://localhost:6379"
 )
 
 # Create FastAPI application
@@ -101,8 +106,13 @@ async def add_security_headers(request: Request, call_next):
     - X-Frame-Options: DENY
     - X-XSS-Protection: 1; mode=block
     - Strict-Transport-Security (HSTS) in production
-    - Content-Security-Policy
+    - Content-Security-Policy with nonce-based script protection
     """
+    # Generate a per-request CSP nonce for inline scripts
+    # Templates access this via {{ request.state.csp_nonce }}
+    nonce = secrets.token_urlsafe(16)
+    request.state.csp_nonce = nonce
+
     response = await call_next(request)
 
     # Basic security headers
@@ -115,10 +125,13 @@ async def add_security_headers(request: Request, call_next):
     if settings.environment == "production" and settings.secure_cookies:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
 
-    # Content Security Policy
+    # Content Security Policy with nonce-based script protection
+    # Using nonces instead of 'unsafe-inline' to prevent XSS while allowing
+    # inline scripts in templates. Each request gets a unique nonce.
+    # Style 'unsafe-inline' is kept because Pico CSS requires it.
     csp_directives = [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline'",  # Allow inline scripts for API docs
+        f"script-src 'self' 'nonce-{nonce}'",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: https:",
         "font-src 'self'",
@@ -231,12 +244,14 @@ async def health_check():
 
     except Exception as e:
         logger.error("health_check_failed", error=str(e))
+        # Return generic error message - do not expose exception details
+        # to unauthenticated callers (prevents information disclosure)
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={
                 "status": "unhealthy",
                 "application": "operational",
-                "database": {"status": "unhealthy", "error": str(e)},
+                "database": {"status": "unhealthy"},
             },
         )
 

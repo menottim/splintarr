@@ -67,7 +67,7 @@ class UserRegister(BaseModel):
         Validate password complexity requirements.
 
         Password must:
-        - Be at least 12 characters long
+        - Be at least 12 characters long (max 128 to prevent Argon2 DoS)
         - Contain at least one lowercase letter
         - Contain at least one uppercase letter
         - Contain at least one digit
@@ -78,13 +78,16 @@ class UserRegister(BaseModel):
             v: Password to validate
 
         Returns:
-            str: Validated password
+            str: Validated password (case-preserved)
 
         Raises:
             ValueError: If password doesn't meet complexity requirements
         """
         if len(v) < 12:
             raise ValueError("Password must be at least 12 characters long")
+
+        if len(v) > 128:
+            raise ValueError("Password must not exceed 128 characters")
 
         # Check for required character types
         if not re.search(r"[a-z]", v):
@@ -99,33 +102,41 @@ class UserRegister(BaseModel):
         if not re.search(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]', v):
             raise ValueError("Password must contain at least one special character")
 
-        # Check against common passwords (top 25 most common)
+        # Check against common passwords (case-insensitive comparison)
+        # Based on NIST SP 800-63B recommendation to check breached/common passwords
         common_passwords = {
-            "password",
-            "password123",
-            "123456",
-            "12345678",
-            "123456789",
-            "1234567890",
-            "qwerty",
-            "qwerty123",
-            "abc123",
-            "password1",
-            "admin",
-            "admin123",
-            "letmein",
-            "welcome",
-            "welcome123",
-            "monkey",
-            "dragon",
-            "master",
-            "passw0rd",
-            "p@ssw0rd",
-            "p@ssword",
-            "iloveyou",
-            "sunshine",
-            "princess",
-            "starwars",
+            "password", "password123", "password1", "password12",
+            "123456", "12345678", "123456789", "1234567890",
+            "qwerty", "qwerty123", "qwerty12345",
+            "abc123", "abcdef", "abcdefg",
+            "admin", "admin123", "administrator",
+            "letmein", "welcome", "welcome123", "welcome1",
+            "monkey", "dragon", "master", "shadow",
+            "passw0rd", "p@ssw0rd", "p@ssword", "p@ssw0rd!",
+            "iloveyou", "sunshine", "princess", "starwars",
+            "trustno1", "baseball", "football", "soccer",
+            "michael", "jordan", "jennifer", "jessica",
+            "charlie", "thomas", "robert", "daniel",
+            "access", "master123", "hello123", "test123",
+            "changeme", "changeme123", "default", "temp123",
+            "batman", "superman", "spider-man", "matrix",
+            "killer", "hunter", "ranger", "buster",
+            "mustang", "harley", "tigger", "pepper",
+            "george", "andrew", "joshua", "freedom",
+            "computer", "internet", "server", "network",
+            "letmein123", "login", "admin1234", "root",
+            "toor", "pass", "test", "guest",
+            "secret", "secret123", "mysecret", "security",
+            "password!", "p@ssword!", "p@ssword1", "passw0rd!",
+            "qwerty!", "qwerty1!", "asdfgh", "zxcvbn",
+            "nothing", "summer", "winter", "spring",
+            "aaaaaa", "111111", "000000", "121212",
+            "654321", "696969", "112233", "123123",
+            "abc123!", "test1234", "password2", "password3",
+            "letmein!", "welcome!", "hello", "lovely",
+            "whatever", "fantasy", "pokemon", "please",
+            "diamond", "angel", "friends", "flower",
+            "hotdog", "hammer", "purple", "simple",
         }
 
         if v.lower() in common_passwords:
@@ -133,45 +144,7 @@ class UserRegister(BaseModel):
                 "Password is too common. Please choose a more unique password."
             )
 
-        return v.lower()  # Normalize to lowercase
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v: str) -> str:
-        """
-        Validate password strength.
-
-        Password must:
-        - Be at least 12 characters long
-        - Contain at least one uppercase letter
-        - Contain at least one lowercase letter
-        - Contain at least one digit
-        - Contain at least one special character
-
-        Args:
-            v: Password to validate
-
-        Returns:
-            str: Validated password
-
-        Raises:
-            ValueError: If password doesn't meet strength requirements
-        """
-        if len(v) < 12:
-            raise ValueError("Password must be at least 12 characters long")
-
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain at least one digit")
-
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-+=\[\]\\/'`~;]", v):
-            raise ValueError("Password must contain at least one special character")
-
+        # Return password with original case preserved (never normalize)
         return v
 
     model_config = {

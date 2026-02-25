@@ -28,9 +28,10 @@ services:
       - RELOAD=true  # Enable auto-reload for development
 
       # Secrets (use environment variables for dev convenience)
-      - SECRET_KEY=dev-secret-key-change-in-production
-      - PEPPER=dev-pepper-change-in-production
-      - DATABASE_KEY=dev-database-key-change-in-production
+      # These are 32+ chars to pass config validation. DO NOT use in production.
+      - SECRET_KEY=dev-only-insecure-secret-key-00000
+      - PEPPER=dev-only-insecure-pepper-value-00000
+      - DATABASE_KEY=dev-only-insecure-db-key-value-00
 
       # Database (in data volume)
       - DATABASE_URL=sqlite+pysqlcipher:///data/vibe-quality-searcharr-dev.db?cipher=aes-256-cfb&kdf_iter=256000

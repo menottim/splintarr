@@ -47,7 +47,7 @@ Expected variables:
 </div>
 {% endif %}
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 // Auto-dismiss flash messages after 5 seconds
 document.addEventListener('DOMContentLoaded', () => {
     const flashMessage = document.getElementById('flash-message');

@@ -151,7 +151,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 function toggleRecurring() {
     const recurring = document.getElementById('recurring').checked;
     const intervalLabel = document.getElementById('intervalLabel');

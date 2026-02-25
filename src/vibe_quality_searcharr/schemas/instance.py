@@ -43,7 +43,7 @@ class InstanceCreate(BaseModel):
     )
     api_key: str = Field(
         ...,
-        min_length=20,
+        min_length=32,
         max_length=100,
         description="API key for instance authentication (will be encrypted)",
     )
@@ -180,7 +180,7 @@ class InstanceUpdate(BaseModel):
     )
     api_key: str | None = Field(
         default=None,
-        min_length=20,
+        min_length=32,
         max_length=100,
         description="API key for instance authentication (will be encrypted)",
     )

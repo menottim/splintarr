@@ -40,11 +40,9 @@ function showNotification(message, type = 'info') {
     // In a production app, this would use a toast/notification library
     if (type === 'error') {
         alert('Error: ' + message);
-    } else if (type === 'success') {
-        console.log('Success:', message);
-    } else {
-        console.log('Info:', message);
     }
+    // Success/info notifications are silent in production to avoid
+    // leaking application internals via browser console
 }
 
 // Confirm dialog
@@ -88,14 +86,12 @@ class AutoRefresh {
     start() {
         if (this.timerId) return;
         this.timerId = setInterval(this.callback, this.interval);
-        console.log('Auto-refresh started (interval: ' + this.interval + 'ms)');
     }
 
     stop() {
         if (this.timerId) {
             clearInterval(this.timerId);
             this.timerId = null;
-            console.log('Auto-refresh stopped');
         }
     }
 
@@ -110,7 +106,6 @@ if (window.location.pathname === '/dashboard') {
     const statsRefresh = new AutoRefresh(async () => {
         const result = await apiCall('/api/dashboard/stats');
         if (result.success) {
-            console.log('Dashboard stats refreshed:', result.data);
             // Update UI with new stats (would require more complex DOM manipulation)
         }
     }, 30000);
@@ -182,4 +177,4 @@ window.QualitySearcharr = {
     AutoRefresh,
 };
 
-console.log('Vibe-Quality-Searcharr dashboard initialized');
+// Dashboard initialized

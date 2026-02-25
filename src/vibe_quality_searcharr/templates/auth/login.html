@@ -24,7 +24,7 @@
     </form>
 </div>
 
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 

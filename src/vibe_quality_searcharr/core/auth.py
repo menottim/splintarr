@@ -83,8 +83,14 @@ def create_access_token(
             "jti": str(uuid.uuid4()),  # JWT ID (unique identifier)
         }
 
-        # Add any additional claims
+        # Add any additional claims (reject reserved claim names to prevent injection)
         if additional_claims:
+            reserved_claims = {"sub", "exp", "iat", "jti", "type", "username"}
+            injected = set(additional_claims.keys()) & reserved_claims
+            if injected:
+                raise TokenError(
+                    f"Cannot override reserved JWT claims: {', '.join(injected)}"
+                )
             claims.update(additional_claims)
 
         # Sign and encode token using hardcoded algorithm (prevent algorithm confusion)

@@ -92,7 +92,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 function checkPasswordStrength() {
     const password = document.getElementById('password').value;
     const strengthDiv = document.getElementById('passwordStrength');

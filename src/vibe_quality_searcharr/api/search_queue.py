@@ -11,7 +11,9 @@ This module provides REST API endpoints for managing search queues:
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from vibe_quality_searcharr.api.auth import get_current_user
@@ -27,6 +29,7 @@ from vibe_quality_searcharr.services import get_scheduler
 
 logger = structlog.get_logger()
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/search-queues", tags=["search-queues"])
 
 
@@ -37,7 +40,9 @@ router = APIRouter(prefix="/api/search-queues", tags=["search-queues"])
     summary="Create search queue",
     description="Create a new search queue for automated searching",
 )
+@limiter.limit("10/minute")
 async def create_search_queue(
+    request: Request,
     queue_data: SearchQueueCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -135,7 +140,9 @@ async def create_search_queue(
     summary="List search queues",
     description="Get all search queues for the current user's instances",
 )
+@limiter.limit("30/minute")
 async def list_search_queues(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
@@ -189,7 +196,9 @@ async def list_search_queues(
     summary="Get search queue",
     description="Get details of a specific search queue",
 )
+@limiter.limit("60/minute")
 async def get_search_queue(
+    request: Request,
     queue_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -254,7 +263,9 @@ async def get_search_queue(
     summary="Update search queue",
     description="Update search queue configuration",
 )
+@limiter.limit("20/minute")
 async def update_search_queue(
+    request: Request,
     queue_id: int,
     queue_data: SearchQueueUpdate,
     db: Session = Depends(get_db),
@@ -361,7 +372,9 @@ async def update_search_queue(
     summary="Delete search queue",
     description="Delete a search queue permanently",
 )
+@limiter.limit("10/minute")
 async def delete_search_queue(
+    request: Request,
     queue_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -432,7 +445,9 @@ async def delete_search_queue(
     summary="Start search queue",
     description="Manually trigger search queue execution",
 )
+@limiter.limit("10/minute")
 async def start_search_queue(
+    request: Request,
     queue_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -501,7 +516,9 @@ async def start_search_queue(
     summary="Pause search queue",
     description="Deactivate search queue (stops future executions)",
 )
+@limiter.limit("10/minute")
 async def pause_search_queue(
+    request: Request,
     queue_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -572,7 +589,9 @@ async def pause_search_queue(
     summary="Resume search queue",
     description="Reactivate paused search queue",
 )
+@limiter.limit("10/minute")
 async def resume_search_queue(
+    request: Request,
     queue_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -643,7 +662,9 @@ async def resume_search_queue(
     summary="Get queue status",
     description="Get current status and statistics for a search queue",
 )
+@limiter.limit("30/minute")
 async def get_queue_status(
+    request: Request,
     queue_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

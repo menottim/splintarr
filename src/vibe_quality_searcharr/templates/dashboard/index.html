@@ -122,7 +122,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
     // Auto-refresh statistics every 30 seconds
     setInterval(async () => {
         try {

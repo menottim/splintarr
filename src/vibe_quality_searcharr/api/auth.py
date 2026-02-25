@@ -62,7 +62,8 @@ def get_client_ip(request: Request) -> str:
     """
     Extract client IP address from request.
 
-    Handles proxies by checking X-Forwarded-For header.
+    Only trusts X-Forwarded-For in production (where a reverse proxy is expected).
+    In development/test, uses the direct client IP to prevent spoofing.
 
     Args:
         request: FastAPI request object
@@ -70,10 +71,13 @@ def get_client_ip(request: Request) -> str:
     Returns:
         str: Client IP address
     """
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        # X-Forwarded-For can contain multiple IPs, take the first one
-        return forwarded.split(",")[0].strip()
+    # Only trust X-Forwarded-For when behind a reverse proxy (production)
+    # In development, attackers can spoof this header to bypass rate limiting
+    if settings.environment == "production":
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            # Take the first IP (client IP set by the reverse proxy)
+            return forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
 
@@ -539,7 +543,9 @@ async def refresh(
     summary="Change password",
     description="Change user password (requires current password).",
 )
+@limiter.limit("3/minute")
 async def change_password(
+    request: Request,
     password_data: PasswordChange,
     access_token: Annotated[str | None, Cookie()] = None,
     db: Session = Depends(get_db),

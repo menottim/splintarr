@@ -111,7 +111,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 

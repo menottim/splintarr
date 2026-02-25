@@ -11,7 +11,9 @@ from datetime import datetime
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from vibe_quality_searcharr.api.auth import get_current_user
@@ -22,6 +24,7 @@ from vibe_quality_searcharr.services import get_history_service
 
 logger = structlog.get_logger()
 
+limiter = Limiter(key_func=get_remote_address)
 router = APIRouter(prefix="/api/search-history", tags=["search-history"])
 
 
@@ -31,7 +34,9 @@ router = APIRouter(prefix="/api/search-history", tags=["search-history"])
     summary="List search history",
     description="Get search execution history with optional filtering",
 )
+@limiter.limit("30/minute")
 async def list_search_history(
+    request: Request,
     instance_id: int | None = Query(None, description="Filter by instance ID"),
     queue_id: int | None = Query(None, description="Filter by queue ID"),
     strategy: str | None = Query(None, description="Filter by strategy"),
@@ -138,7 +143,9 @@ async def list_search_history(
     summary="Get search statistics",
     description="Get aggregated search statistics and metrics",
 )
+@limiter.limit("30/minute")
 async def get_search_statistics(
+    request: Request,
     instance_id: int | None = Query(None, description="Filter by instance ID"),
     queue_id: int | None = Query(None, description="Filter by queue ID"),
     days: int = Query(30, ge=1, le=365, description="Number of days to analyze"),
@@ -194,7 +201,9 @@ async def get_search_statistics(
     summary="Clean up old history",
     description="Delete search history older than specified days",
 )
+@limiter.limit("5/minute")
 async def cleanup_search_history(
+    request: Request,
     days: int = Query(90, ge=30, le=365, description="Delete history older than this many days"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -238,7 +247,9 @@ async def cleanup_search_history(
     summary="Get recent failures",
     description="Get recent failed searches for troubleshooting",
 )
+@limiter.limit("30/minute")
 async def get_recent_failures(
+    request: Request,
     instance_id: int | None = Query(None, description="Filter by instance ID"),
     limit: int = Query(10, ge=1, le=50, description="Maximum number of failures to return"),
     db: Session = Depends(get_db),
@@ -309,7 +320,9 @@ async def get_recent_failures(
     summary="Get queue history",
     description="Get search history for a specific queue",
 )
+@limiter.limit("30/minute")
 async def get_queue_history(
+    request: Request,
     queue_id: int,
     limit: int = Query(50, ge=1, le=500, description="Maximum number of records"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),

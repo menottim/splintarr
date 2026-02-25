@@ -90,7 +90,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
+<script nonce="{{ request.state.csp_nonce }}">
 async function testInstance(instanceId) {
     try {
         const response = await fetch(`/api/instances/${instanceId}/test`, {

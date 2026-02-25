@@ -412,7 +412,7 @@ async def setup_instance_create(
                     "request": request,
                     "app_name": settings.app_name,
                     "user": current_user,
-                    "error": f"Connection test failed: {str(e)}",
+                    "error": "Connection test failed. Check the URL and API key, and see Docker Networking Tips below.",
                     "name": name,
                     "url": url,
                     "instance_type": instance_type,

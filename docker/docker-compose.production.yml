@@ -12,15 +12,13 @@ services:
     image: vibe-quality-searcharr:1.0.0
     container_name: vibe-quality-searcharr-prod
 
-    # Security: Run as non-root
-    # Note: Disabled for Windows compatibility - non-root user cannot write to
-    # Windows volume mounts. Re-enable for Linux production deployments.
-    # user: "1000:1000"
+    # Security: Run as non-root (required for production)
+    # If deploying on Windows with volume mount issues, use docker-compose.development.yml
+    user: "1000:1000"
 
     # Security: Read-only root filesystem
-    # Note: Disabled for Windows compatibility - volume mounts with non-root user
-    # have permission issues on Windows. Re-enable for Linux production deployments.
-    # read_only: true
+    # Prevents attackers from modifying application code if container is compromised
+    read_only: true
 
     # Security: Drop all capabilities
     cap_drop:

@@ -250,7 +250,7 @@ async def create_instance(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create instance: {str(e)}",
+            detail="Failed to create instance",
         ) from e
 
 
@@ -467,7 +467,7 @@ async def update_instance(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update instance: {str(e)}",
+            detail="Failed to update instance",
         ) from e
 
 
@@ -558,56 +558,23 @@ class InstanceTestRequest(BaseModel):
         """
         Validate URL to prevent SSRF attacks.
 
-        Blocks access to:
-        - localhost, 127.0.0.1
-        - Private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
-        - Link-local addresses (169.254.x.x)
-
-        Unless settings.allow_local_instances is True (development mode).
+        Uses the comprehensive ssrf_protection module which:
+        - Resolves DNS to check all IPs against blocked networks
+        - Blocks private IPs, loopback, link-local, cloud metadata endpoints
+        - Prevents DNS rebinding attacks
+        - Respects allow_local_instances setting for development
         """
-        from urllib.parse import urlparse
-        import ipaddress
         from vibe_quality_searcharr.config import settings
+        from vibe_quality_searcharr.core.ssrf_protection import SSRFError, validate_instance_url
 
-        # Parse the URL
         try:
-            parsed = urlparse(v)
-            hostname = parsed.hostname
+            validate_instance_url(v, allow_local=settings.allow_local_instances)
+        except SSRFError as e:
+            raise ValueError(str(e)) from e
+        except ValueError:
+            raise
 
-            if not hostname:
-                raise ValueError("URL must contain a valid hostname")
-
-            # If local instances are allowed (development), skip checks
-            if settings.allow_local_instances:
-                return v
-
-            # Check for localhost
-            if hostname.lower() in ("localhost", "127.0.0.1", "::1"):
-                raise ValueError(
-                    "Localhost URLs are not allowed in production. "
-                    "Set ALLOW_LOCAL_INSTANCES=true for development."
-                )
-
-            # Try to parse as IP address
-            try:
-                ip = ipaddress.ip_address(hostname)
-
-                # Check for private/internal IP ranges
-                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-                    raise ValueError(
-                        f"Private/internal IP addresses are not allowed: {hostname}. "
-                        f"Set ALLOW_LOCAL_INSTANCES=true for development."
-                    )
-            except ValueError:
-                # Not an IP address, it's a hostname - allow it
-                # DNS will resolve it, but we can't prevent all SSRF via DNS rebinding
-                # This is a reasonable security measure for most cases
-                pass
-
-            return v
-
-        except Exception as e:
-            raise ValueError(f"Invalid URL: {str(e)}") from e
+        return v
 
 
 @router.post(

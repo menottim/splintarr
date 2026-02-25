@@ -54,7 +54,7 @@
     </footer>
 
     <!-- Scripts -->
-    <script>
+    <script nonce="{{ request.state.csp_nonce }}">
         // Logout function
         function logout() {
             fetch('/api/auth/logout', {
