@@ -162,10 +162,20 @@ async function testConnection() {
                 </div>
             `;
         } else {
-            testResult.innerHTML = `<div class="alert alert-danger" style="margin-top: 1rem;">✗ Connection failed: ${data.message || 'Unknown error'}</div>`;
+            testResult.innerHTML = `
+                <div class="alert alert-danger" style="margin-top: 1rem;">
+                    <strong>✗ Connection failed:</strong> ${data.message || 'Unknown error'}<br>
+                    <small>See <strong>Docker Networking Tips</strong> below if you're using localhost</small>
+                </div>
+            `;
         }
     } catch (error) {
-        testResult.innerHTML = `<div class="alert alert-danger" style="margin-top: 1rem;">✗ Connection failed: ${error.message}</div>`;
+        testResult.innerHTML = `
+            <div class="alert alert-danger" style="margin-top: 1rem;">
+                <strong>✗ Connection failed:</strong> ${error.message}<br>
+                <small>See <strong>Docker Networking Tips</strong> below if you're using localhost</small>
+            </div>
+        `;
     }
 }
 </script>
