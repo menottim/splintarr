@@ -8,6 +8,7 @@ This directory contains internal documentation, historical reports, and suppleme
 - **[release-checklist.md](release-checklist.md)** - Internal checklist for release process
 
 ### Security Audit Reports
+- **[red-team-adversarial-assessment-2026-02-25.md](red-team-adversarial-assessment-2026-02-25.md)** - Red team adversarial assessment: timing oracles, race conditions, XSS chains, SSRF rebinding (15 findings, remediation pending)
 - **[security-audit-api-docker-2026-02-25.md](security-audit-api-docker-2026-02-25.md)** - Comprehensive audit against OWASP API Top 10, Docker security, and API key transmission standards (20 findings, all remediated)
 - **[security-audit.md](security-audit.md)** - Initial automated security audit (SAST, dependency scanning)
 - **[security-penetration-test-report.md](security-penetration-test-report.md)** - Penetration test report (15 findings)
