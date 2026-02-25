@@ -400,11 +400,11 @@ async def setup_instance_create(
         # Test connection
         try:
             if instance_type == "sonarr":
-                client = SonarrClient(url, api_key)
-                system_status = client.get_system_status()
+                async with SonarrClient(url, api_key) as client:
+                    system_status = await client.get_system_status()
             else:
-                client = RadarrClient(url, api_key)
-                system_status = client.get_system_status()
+                async with RadarrClient(url, api_key) as client:
+                    system_status = await client.get_system_status()
         except (SonarrError, RadarrError) as e:
             return templates.TemplateResponse(
                 "setup/instance.html",

@@ -3,79 +3,54 @@
 {% block title %}Setup - Vibe-Quality-Searcharr{% endblock %}
 
 {% block content %}
-<div style="max-width: 700px; margin: 3rem auto;">
+<div class="setup-wizard-container">
     <!-- Progress indicator -->
     <div class="setup-progress">
-        <span class="step active">1. Welcome</span>
-        <span class="step">2. Admin Account</span>
-        <span class="step">3. Instance</span>
-        <span class="step">4. Complete</span>
+        <span class="step active" data-step="1">Welcome</span>
+        <span class="step" data-step="2">Admin Account</span>
+        <span class="step" data-step="3">Instance</span>
+        <span class="step" data-step="4">Complete</span>
     </div>
 
-    <hgroup style="margin-top: 2rem;">
+    <hgroup>
         <h1>Welcome to Vibe-Quality-Searcharr</h1>
         <p>Intelligent backlog search automation for Sonarr and Radarr</p>
     </hgroup>
 
-    <article>
-        <h3>What is Vibe-Quality-Searcharr?</h3>
-        <p>
-            Vibe-Quality-Searcharr automatically searches your Sonarr and Radarr backlog for
-            unwatched or missing content, intelligently prioritizing items based on your
-            preferences and viewing habits.
-        </p>
+    <div class="setup-content">
+        <article>
+            <h3>What is Vibe-Quality-Searcharr?</h3>
+            <p>
+                Vibe-Quality-Searcharr automatically searches your Sonarr and Radarr backlog for
+                unwatched or missing content, intelligently prioritizing items based on your
+                preferences and viewing habits.
+            </p>
 
-        <h3>Key Features</h3>
-        <ul>
-            <li>Automated backlog searching with customizable strategies</li>
-            <li>Support for both Sonarr (TV shows) and Radarr (movies)</li>
-            <li>Secure API key encryption and authentication</li>
-            <li>Scheduled and recurring searches</li>
-            <li>Configuration drift detection</li>
-            <li>Comprehensive search history and statistics</li>
-        </ul>
+            <h3>Key Features</h3>
+            <ul>
+                <li>Automated backlog searching with customizable strategies</li>
+                <li>Support for both Sonarr (TV shows) and Radarr (movies)</li>
+                <li>Secure API key encryption and authentication</li>
+                <li>Scheduled and recurring searches</li>
+                <li>Configuration drift detection</li>
+                <li>Comprehensive search history and statistics</li>
+            </ul>
 
-        <h3>Getting Started</h3>
-        <p>
-            This setup wizard will guide you through:
-        </p>
-        <ol>
-            <li>Creating an admin account</li>
-            <li>Connecting your first Sonarr or Radarr instance</li>
-            <li>Configuring basic settings</li>
-        </ol>
-    </article>
+            <h3>Getting Started</h3>
+            <p>
+                This setup wizard will guide you through:
+            </p>
+            <ol>
+                <li>Creating an admin account</li>
+                <li>Connecting your first Sonarr or Radarr instance</li>
+                <li>Configuring basic settings</li>
+            </ol>
+        </article>
 
-    <div style="text-align: right;">
-        <a href="/setup/admin" role="button">Get Started</a>
+        <div class="setup-actions">
+            <div></div>
+            <a href="/setup/admin" role="button">Get Started →</a>
+        </div>
     </div>
 </div>
-
-<style>
-.setup-progress {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    margin: 2rem 0;
-    padding: 0;
-}
-
-.setup-progress .step {
-    flex: 1;
-    text-align: center;
-    padding: 0.5rem 1rem;
-    background: var(--card-background-color);
-    border: 1px solid var(--card-border-color);
-    border-radius: var(--border-radius);
-    font-size: 0.875rem;
-    color: var(--muted-color);
-}
-
-.setup-progress .step.active {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-    font-weight: bold;
-}
-</style>
 {% endblock %}

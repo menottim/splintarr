@@ -239,27 +239,27 @@ try {
                 Write-Host "IF YOU REGENERATE THESE KEYS:" -ForegroundColor Yellow
                 Write-Host "  1. The generate-secrets script will prompt you to confirm" -ForegroundColor White
                 Write-Host "  2. Your existing encrypted database will become UNUSABLE" -ForegroundColor Red
+                Write-Host "  3. The script will AUTOMATICALLY DELETE the old database" -ForegroundColor Red
 
                 if ($dbExists) {
-                    Write-Host "  3. YOU MUST DELETE: data\vibe-quality-searcharr.db" -ForegroundColor Red
                     Write-Host ""
                     Write-Host "An encrypted database was found at:" -ForegroundColor Yellow
                     Write-Host "  $dbPath" -ForegroundColor Gray
                     Write-Host ""
-                    Write-Host "If you regenerate keys, you must delete this file or you'll get:" -ForegroundColor Yellow
-                    Write-Host "  'file is encrypted or is not a database' error" -ForegroundColor Red
+                    Write-Host "This file will be AUTOMATICALLY DELETED if you regenerate keys!" -ForegroundColor Red
+                    Write-Host "Make sure you have backups if you need to preserve any data." -ForegroundColor Yellow
                 }
 
                 Write-Host ""
                 Write-Host "To keep your existing keys and database:" -ForegroundColor Cyan
                 Write-Host "  - Press CTRL+C now to cancel" -ForegroundColor White
-                Write-Host "  - Or decline overwrite when prompted by generate-secrets" -ForegroundColor White
+                Write-Host "  - Or type anything other than 'DELETE' when prompted" -ForegroundColor White
                 Write-Host ""
                 Write-Host "================================================================" -ForegroundColor Yellow
                 Write-Host ""
 
                 # Give user time to read
-                Start-Sleep -Seconds 2
+                Start-Sleep -Seconds 3
             }
 
             # Run generate-secrets.ps1
@@ -357,15 +357,13 @@ try {
             Write-Host ""
         }
 
-        # Check if keys might have been regenerated
-        if ($dbExists -and $existingSecrets.Count -gt 0) {
+        # Note about key regeneration
+        if ($existingSecrets.Count -gt 0) {
             Write-Host ""
-            Write-Host "IMPORTANT: If you regenerated encryption keys:" -ForegroundColor Yellow
-            Write-Host "  - The old database is now unusable" -ForegroundColor Yellow
-            Write-Host "  - If you get 'file is encrypted' error, run:" -ForegroundColor Yellow
-            Write-Host "    docker-compose down" -ForegroundColor Gray
-            Write-Host "    Remove-Item -Force .\data\vibe-quality-searcharr.db*" -ForegroundColor Gray
-            Write-Host "    docker-compose up -d" -ForegroundColor Gray
+            Write-Host "NOTE: If you regenerated encryption keys:" -ForegroundColor Cyan
+            Write-Host "  - The old database was automatically deleted" -ForegroundColor White
+            Write-Host "  - A fresh database will be created on first startup" -ForegroundColor White
+            Write-Host "  - You'll need to complete the setup wizard again" -ForegroundColor White
             Write-Host ""
         }
 

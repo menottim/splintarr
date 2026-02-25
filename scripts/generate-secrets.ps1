@@ -173,7 +173,16 @@ try {
         }
     }
 
+    # Track if we're regenerating secrets
+    $regeneratingSecrets = $false
+
     if ($existingSecrets.Count -gt 0) {
+        $regeneratingSecrets = $true
+
+        # Check if database exists
+        $dbPath = Join-Path $PSScriptRoot "..\data\vibe-quality-searcharr.db"
+        $dbExists = Test-Path $dbPath
+
         Write-Host ""
         Write-Host "================================================================" -ForegroundColor Yellow
         Write-Host "WARNING: Existing secrets detected!" -ForegroundColor Yellow
@@ -184,21 +193,47 @@ try {
             Write-Host "  - $file" -ForegroundColor Gray
         }
         Write-Host ""
-        Write-Host "IMPORTANT:" -ForegroundColor Red
-        Write-Host "  Regenerating secrets will make your existing database UNREADABLE!" -ForegroundColor Red
-        Write-Host "  All encrypted data will be permanently lost unless you have backups." -ForegroundColor Red
+        Write-Host "CRITICAL:" -ForegroundColor Red
+        Write-Host "  1. Regenerating secrets will make your existing database UNREADABLE!" -ForegroundColor Red
+        Write-Host "  2. This script will AUTOMATICALLY DELETE your database to prevent errors!" -ForegroundColor Red
+        Write-Host "  3. All encrypted data will be permanently lost unless you have backups." -ForegroundColor Red
+
+        if ($dbExists) {
+            Write-Host ""
+            Write-Host "An encrypted database was found at:" -ForegroundColor Yellow
+            Write-Host "  $dbPath" -ForegroundColor Gray
+            Write-Host ""
+            Write-Host "This file will be DELETED if you proceed!" -ForegroundColor Red
+        }
+
         Write-Host ""
-        Write-Host "Do you want to continue and OVERWRITE existing secrets? (yes/no): " -ForegroundColor Yellow -NoNewline
+        Write-Host "Type 'DELETE' to confirm you want to regenerate secrets and delete the database: " -ForegroundColor Yellow -NoNewline
         $response = Read-Host
 
-        if ($response -ne "yes") {
+        if ($response -ne "DELETE") {
             Write-Host ""
-            Write-Host "Operation cancelled. Existing secrets preserved." -ForegroundColor Green
+            Write-Host "Operation cancelled. Existing secrets and database preserved." -ForegroundColor Green
             Write-Host ""
             exit 0
         }
+
         Write-Host ""
-        Write-Host "Proceeding with secret regeneration..." -ForegroundColor Yellow
+        Write-Host "Proceeding with secret regeneration and database deletion..." -ForegroundColor Yellow
+        Write-Host ""
+
+        # Delete the database if it exists
+        if ($dbExists) {
+            Write-InfoMsg "Deleting old database..."
+            try {
+                Remove-Item -Force "$dbPath*" -ErrorAction Stop
+                Write-Success "Old database deleted successfully"
+            }
+            catch {
+                $errorMsg = $_.Exception.Message
+                Write-WarningMsg "Could not delete database: $errorMsg"
+                Write-Host "You may need to manually delete: $dbPath" -ForegroundColor Yellow
+            }
+        }
     }
 
     Write-Host ""

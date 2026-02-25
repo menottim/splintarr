@@ -3,116 +3,102 @@
 {% block title %}Add Instance - Vibe-Quality-Searcharr{% endblock %}
 
 {% block content %}
-<div style="max-width: 700px; margin: 3rem auto;">
+<div class="setup-wizard-container">
     <!-- Progress indicator -->
     <div class="setup-progress">
-        <span class="step">1. Welcome</span>
-        <span class="step">2. Admin Account</span>
-        <span class="step active">3. Instance</span>
-        <span class="step">4. Complete</span>
+        <span class="step completed" data-step="✓">Welcome</span>
+        <span class="step completed" data-step="✓">Admin Account</span>
+        <span class="step active" data-step="3">Instance</span>
+        <span class="step" data-step="4">Complete</span>
     </div>
 
-    <hgroup style="margin-top: 2rem;">
+    <hgroup>
         <h1>Add Your First Instance</h1>
         <p>Connect to Sonarr or Radarr to start automating searches</p>
     </hgroup>
 
-    <form action="/setup/instance" method="post" id="instanceForm">
-        <label for="instance_type">
-            Instance Type
-            <select id="instance_type" name="instance_type" required>
-                <option value="">Select type...</option>
-                <option value="sonarr" {% if instance_type == 'sonarr' %}selected{% endif %}>Sonarr (TV Shows)</option>
-                <option value="radarr" {% if instance_type == 'radarr' %}selected{% endif %}>Radarr (Movies)</option>
-            </select>
-        </label>
+    <div class="setup-content">
+        <article>
+            <form action="/setup/instance" method="post" id="instanceForm">
+                <div class="form-group">
+                    <label for="instance_type">
+                        Instance Type
+                        <select id="instance_type" name="instance_type" required>
+                            <option value="">Select type...</option>
+                            <option value="sonarr" {% if instance_type == 'sonarr' %}selected{% endif %}>Sonarr (TV Shows)</option>
+                            <option value="radarr" {% if instance_type == 'radarr' %}selected{% endif %}>Radarr (Movies)</option>
+                        </select>
+                    </label>
+                </div>
 
-        <label for="name">
-            Instance Name
-            <input
-                type="text"
-                id="name"
-                name="name"
-                required
-                placeholder="e.g., Main Sonarr, 4K Radarr"
-                value="{{ name or '' }}">
-            <small>Friendly name to identify this instance</small>
-        </label>
+                <div class="form-group">
+                    <label for="name">
+                        Instance Name
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            required
+                            placeholder="e.g., Main Sonarr, 4K Radarr"
+                            value="{{ name or '' }}">
+                        <small>Friendly name to identify this instance</small>
+                    </label>
+                </div>
 
-        <label for="url">
-            URL
-            <input
-                type="url"
-                id="url"
-                name="url"
-                required
-                placeholder="http://localhost:8989"
-                value="{{ url or '' }}">
-            <small>Full URL including port (e.g., http://localhost:8989 or http://192.168.1.100:7878)</small>
-        </label>
+                <div class="form-group">
+                    <label for="url">
+                        URL
+                        <input
+                            type="url"
+                            id="url"
+                            name="url"
+                            required
+                            placeholder="http://localhost:8989"
+                            value="{{ url or '' }}">
+                        <small>Full URL including port (e.g., http://localhost:8989 or http://192.168.1.100:7878)</small>
+                    </label>
+                </div>
 
-        <label for="api_key">
-            API Key
-            <input
-                type="text"
-                id="api_key"
-                name="api_key"
-                required
-                placeholder="Enter your API key"
-                autocomplete="off">
-            <small>Found in Settings > General > Security in Sonarr/Radarr</small>
-        </label>
+                <div class="form-group">
+                    <label for="api_key">
+                        API Key
+                        <input
+                            type="text"
+                            id="api_key"
+                            name="api_key"
+                            required
+                            placeholder="Enter your API key"
+                            autocomplete="off">
+                        <small>Found in Settings > General > Security in Sonarr/Radarr</small>
+                    </label>
+                </div>
 
-        <div id="testResult"></div>
+                <div id="testResult"></div>
 
-        <div style="display: flex; justify-content: space-between; gap: 1rem; margin-top: 1rem;">
-            <button type="button" class="secondary" onclick="testConnection()">Test Connection</button>
-            <div style="display: flex; gap: 1rem;">
-                <a href="/setup/instance/skip" role="button" class="secondary">Skip (Add Later)</a>
-                <button type="submit" id="submitBtn">Continue</button>
-            </div>
-        </div>
-    </form>
+                <div class="setup-actions" style="margin-top: 1.5rem;">
+                    <button type="button" class="secondary" onclick="testConnection()">Test Connection</button>
+                    <div class="btn-group">
+                        <a href="/setup/instance/skip" role="button" class="secondary">Skip (Add Later)</a>
+                        <button type="submit" id="submitBtn">Continue →</button>
+                    </div>
+                </div>
+            </form>
+        </article>
 
-    <article style="margin-top: 2rem;">
-        <h4>Where to find your API key:</h4>
-        <ol>
-            <li>Open your Sonarr or Radarr web interface</li>
-            <li>Navigate to <strong>Settings > General</strong></li>
-            <li>Scroll down to the <strong>Security</strong> section</li>
-            <li>Copy the <strong>API Key</strong> value</li>
-        </ol>
-    </article>
+        <article>
+            <h4>Where to find your API key:</h4>
+            <ol>
+                <li>Open your Sonarr or Radarr web interface</li>
+                <li>Navigate to <strong>Settings → General</strong></li>
+                <li>Scroll down to the <strong>Security</strong> section</li>
+                <li>Copy the <strong>API Key</strong> value</li>
+            </ol>
+        </article>
+    </div>
 </div>
+{% endblock %}
 
-<style>
-.setup-progress {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    margin: 2rem 0;
-    padding: 0;
-}
-
-.setup-progress .step {
-    flex: 1;
-    text-align: center;
-    padding: 0.5rem 1rem;
-    background: var(--card-background-color);
-    border: 1px solid var(--card-border-color);
-    border-radius: var(--border-radius);
-    font-size: 0.875rem;
-    color: var(--muted-color);
-}
-
-.setup-progress .step.active {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-    font-weight: bold;
-}
-</style>
-
+{% block extra_scripts %}
 <script>
 async function testConnection() {
     const testResult = document.getElementById('testResult');
@@ -121,11 +107,11 @@ async function testConnection() {
     const apiKey = document.getElementById('api_key').value;
 
     if (!instanceType || !url || !apiKey) {
-        testResult.innerHTML = '<article style="background-color: var(--del-color);">Please fill in all fields</article>';
+        testResult.innerHTML = '<div class="alert alert-danger" style="margin-top: 1rem;">Please fill in all fields</div>';
         return;
     }
 
-    testResult.innerHTML = '<article><progress></progress> Testing connection...</article>';
+    testResult.innerHTML = '<div class="alert alert-info" style="margin-top: 1rem;"><progress></progress> Testing connection...</div>';
 
     try {
         const response = await fetch('/api/instances/test', {
@@ -144,17 +130,17 @@ async function testConnection() {
 
         if (response.ok && data.success) {
             testResult.innerHTML = `
-                <article style="background-color: var(--ins-color);">
-                    <strong>Connection successful!</strong><br>
+                <div class="alert alert-success" style="margin-top: 1rem;">
+                    <strong>✓ Connection successful!</strong><br>
                     Version: ${data.version || 'Unknown'}<br>
                     ${instanceType === 'sonarr' ? 'Series' : 'Movies'}: ${data.items_count || 0}
-                </article>
+                </div>
             `;
         } else {
-            testResult.innerHTML = `<article style="background-color: var(--del-color);">Connection failed: ${data.message || 'Unknown error'}</article>`;
+            testResult.innerHTML = `<div class="alert alert-danger" style="margin-top: 1rem;">✗ Connection failed: ${data.message || 'Unknown error'}</div>`;
         }
     } catch (error) {
-        testResult.innerHTML = `<article style="background-color: var(--del-color);">Connection failed: ${error.message}</article>`;
+        testResult.innerHTML = `<div class="alert alert-danger" style="margin-top: 1rem;">✗ Connection failed: ${error.message}</div>`;
     }
 }
 </script>

@@ -3,82 +3,61 @@
 {% block title %}Setup Complete - Vibe-Quality-Searcharr{% endblock %}
 
 {% block content %}
-<div style="max-width: 700px; margin: 3rem auto;">
+<div class="setup-wizard-container">
     <!-- Progress indicator -->
     <div class="setup-progress">
-        <span class="step">1. Welcome</span>
-        <span class="step">2. Admin Account</span>
-        <span class="step">3. Instance</span>
-        <span class="step active">4. Complete</span>
+        <span class="step completed" data-step="✓">Welcome</span>
+        <span class="step completed" data-step="✓">Admin Account</span>
+        <span class="step completed" data-step="✓">Instance</span>
+        <span class="step active" data-step="✓">Complete</span>
     </div>
 
-    <hgroup style="margin-top: 2rem;">
-        <h1>Setup Complete! 🎉</h1>
+    <hgroup>
+        <h1>Setup Complete!</h1>
         <p>Vibe-Quality-Searcharr is ready to automate your searches</p>
     </hgroup>
 
-    <article>
-        <h3>What's Next?</h3>
-        <p>You've successfully configured Vibe-Quality-Searcharr. Here's what you can do now:</p>
+    <div class="setup-content">
+        <article>
+            <div class="alert alert-success">
+                <strong>✓ Success!</strong> Your setup is complete and Vibe-Quality-Searcharr is ready to use.
+            </div>
 
-        <ol>
-            <li>
-                <strong>Create Search Queues</strong><br>
-                Set up automated searches with different strategies (recent, popular, oldest, random)
-            </li>
-            <li>
-                <strong>Add More Instances</strong><br>
-                Connect additional Sonarr or Radarr instances if you have multiple setups
-            </li>
-            <li>
-                <strong>Configure Schedules</strong><br>
-                Set up recurring searches to run automatically at specified intervals
-            </li>
-            <li>
-                <strong>Monitor Activity</strong><br>
-                Track search history and statistics from the dashboard
-            </li>
-        </ol>
+            <h3>What's Next?</h3>
+            <p>You've successfully configured Vibe-Quality-Searcharr. Here's what you can do now:</p>
 
-        <h3>Tips for Getting Started</h3>
-        <ul>
-            <li>Start with a small search queue to test the system (e.g., 10 items)</li>
-            <li>Use the "recent" strategy to prioritize newly added content</li>
-            <li>Check configuration drift regularly to keep settings in sync</li>
-            <li>Review search history to optimize your strategies</li>
-        </ul>
-    </article>
+            <ol>
+                <li>
+                    <strong>Create Search Queues</strong><br>
+                    <small style="color: var(--muted-color);">Set up automated searches with different strategies (recent, popular, oldest, random)</small>
+                </li>
+                <li>
+                    <strong>Add More Instances</strong><br>
+                    <small style="color: var(--muted-color);">Connect additional Sonarr or Radarr instances if you have multiple setups</small>
+                </li>
+                <li>
+                    <strong>Configure Schedules</strong><br>
+                    <small style="color: var(--muted-color);">Set up recurring searches to run automatically at specified intervals</small>
+                </li>
+                <li>
+                    <strong>Monitor Activity</strong><br>
+                    <small style="color: var(--muted-color);">Track search history and statistics from the dashboard</small>
+                </li>
+            </ol>
 
-    <div style="text-align: right;">
-        <a href="/dashboard" role="button">Go to Dashboard</a>
+            <h3>Tips for Getting Started</h3>
+            <ul>
+                <li>Start with a small search queue to test the system (e.g., 10 items)</li>
+                <li>Use the "recent" strategy to prioritize newly added content</li>
+                <li>Check configuration drift regularly to keep settings in sync</li>
+                <li>Review search history to optimize your strategies</li>
+            </ul>
+        </article>
+
+        <div class="setup-actions">
+            <div></div>
+            <a href="/dashboard" role="button">Go to Dashboard →</a>
+        </div>
     </div>
 </div>
-
-<style>
-.setup-progress {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    margin: 2rem 0;
-    padding: 0;
-}
-
-.setup-progress .step {
-    flex: 1;
-    text-align: center;
-    padding: 0.5rem 1rem;
-    background: var(--card-background-color);
-    border: 1px solid var(--card-border-color);
-    border-radius: var(--border-radius);
-    font-size: 0.875rem;
-    color: var(--muted-color);
-}
-
-.setup-progress .step.active {
-    background: var(--primary);
-    color: white;
-    border-color: var(--primary);
-    font-weight: bold;
-}
-</style>
 {% endblock %}

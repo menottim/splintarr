@@ -14,6 +14,7 @@ This module provides a robust logging setup with:
 import logging
 import logging.handlers
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +69,36 @@ def censor_sensitive_data(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
     return event_dict
 
 
+def rotation_namer(default_name: str) -> str:
+    """
+    Custom namer for rotated log files using datetime stamps.
+
+    Converts default rotation name (e.g., 'all.log.1') to datetime-based name
+    (e.g., 'all-2026-02-24_143052.log').
+
+    Args:
+        default_name: Default rotated filename from RotatingFileHandler
+
+    Returns:
+        str: New filename with datetime stamp
+    """
+    # Extract directory, base name, and extension
+    path = Path(default_name)
+    dir_name = path.parent
+
+    # Remove the numeric suffix (.1, .2, etc.) if present
+    name_parts = path.stem.split('.')
+    base_name = name_parts[0]  # e.g., 'all' from 'all.log.1'
+
+    # Generate timestamp
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+
+    # Create new filename: base-YYYY-MM-DD_HHMMSS.log
+    new_name = f"{base_name}-{timestamp}.log"
+
+    return str(dir_name / new_name)
+
+
 def configure_logging() -> None:
     """
     Configure comprehensive application logging.
@@ -80,9 +111,10 @@ def configure_logging() -> None:
        - debug.log - Everything (only created if LOG_LEVEL=DEBUG)
 
     Log rotation:
-    - Max file size: 10 MB
-    - Backup count: 5 (keeps 5 old files)
-    - Total max space per log: ~50 MB
+    - Max file size: 10 MB per file
+    - Rotated files named with datetime: all-2026-02-24_143052.log
+    - Backup count: 5 (keeps up to 5 old rotated files)
+    - Total max space per log type: ~60 MB (1 current + 5 backups)
 
     Log levels:
     - DEBUG: Very verbose, includes all operations (use for troubleshooting)
@@ -145,6 +177,7 @@ def configure_logging() -> None:
         backupCount=5,
         encoding="utf-8",
     )
+    all_file_handler.namer = rotation_namer  # Use datetime-based naming
     all_file_handler.setLevel(logging.DEBUG if is_debug else logging.INFO)
     all_file_formatter = logging.Formatter(
         "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -160,6 +193,7 @@ def configure_logging() -> None:
         backupCount=5,
         encoding="utf-8",
     )
+    error_file_handler.namer = rotation_namer  # Use datetime-based naming
     error_file_handler.setLevel(logging.ERROR)
     error_file_formatter = logging.Formatter(
         "%(asctime)s [%(levelname)s] %(name)s: %(message)s\n"
@@ -178,6 +212,7 @@ def configure_logging() -> None:
             backupCount=5,
             encoding="utf-8",
         )
+        debug_file_handler.namer = rotation_namer  # Use datetime-based naming
         debug_file_handler.setLevel(logging.DEBUG)
         debug_file_formatter = logging.Formatter(
             "%(asctime)s [%(levelname)s] %(name)s:%(funcName)s:%(lineno)d\n%(message)s\n",

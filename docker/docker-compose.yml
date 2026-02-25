@@ -67,6 +67,8 @@ services:
     volumes:
       # Data directory (read-write, persistent)
       - ../data:/data:rw
+      # Logs directory (read-write, persistent)
+      - ../logs:/app/logs:rw
       # Temp directory (for read-only filesystem)
       - /tmp
 
