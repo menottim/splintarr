@@ -54,7 +54,7 @@ This tool is **not intended for broad deployment**. It is specifically designed 
 ### Key Features
 
 - **Intelligent Search Scheduling** - Multiple strategies: round-robin, priority-based, aging-based
-- **Security First** - OWASP Top 10 2025 compliant, encrypted credentials, comprehensive audit logging
+- **Security First** - Implements OWASP Top 10 best practices, encrypted credentials, comprehensive audit logging
 - **Search History Tracking** - Never search the same item twice unnecessarily
 - **Rate Limit Aware** - Respects indexer API limits to prevent bans
 - **Multi-Instance Support** - Manage multiple Sonarr/Radarr instances from one interface

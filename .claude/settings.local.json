@@ -61,7 +61,15 @@
       "Bash(docker-compose exec:*)",
       "Bash(docker compose exec:*)",
       "WebFetch(domain:sqlalche.me)",
-      "WebFetch(domain:docs.sqlalchemy.org)"
+      "WebFetch(domain:docs.sqlalchemy.org)",
+      "Bash(for file in \"docs/tutorials/getting-started.md\" \"docs/how-to-guides/deploy-with-docker.md\" \"docs/how-to-guides/deploy-production.md\" \"docs/how-to-guides/backup-and-restore.md\" \"docs/how-to-guides/upgrade.md\" \"docs/how-to-guides/troubleshoot.md\" \"docs/reference/api.md\" \"docs/reference/configuration.md\" \"docs/reference/quality-gates.md\" \"docs/explanation/architecture.md\" \"docs/explanation/security.md\" \"docs/explanation/search-strategies.md\" \"docs/how-to-guides/windows-quick-start.md\")",
+      "Bash(do)",
+      "Bash(if [ -f \"$file\" ])",
+      "Bash(then)",
+      "Bash(echo:*)",
+      "Bash(else)",
+      "Bash(fi)",
+      "Bash(done)"
     ]
   }
 }

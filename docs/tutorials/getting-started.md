@@ -17,7 +17,7 @@ Vibe-Quality-Searcharr automates systematic backlog searching for your Sonarr an
 - ⚡ Upgrades content that doesn't meet quality profiles
 - 📊 Tracks search history to avoid duplicates
 - 🎯 Respects indexer API limits
-- 🔒 Secure by design (OWASP Top 10 compliant)
+- 🔒 Secure by design (implements OWASP Top 10 best practices)
 
 ---
 
@@ -444,16 +444,16 @@ sudo chown -R 1000:1000 data/
 
 ### Learn More
 
-- **[User Guide](USER_GUIDE.md)** - Complete feature reference
-- **[API Documentation](API_DOCUMENTATION.md)** - REST API reference
-- **[Security Guide](SECURITY_GUIDE.md)** - Security best practices
-- **[Troubleshooting](TROUBLESHOOTING.md)** - Detailed problem solving
+- **[API Documentation](../reference/api.md)** - REST API reference
+- **[Security Guide](../explanation/security.md)** - Security best practices
+- **[Troubleshooting](../how-to-guides/troubleshoot.md)** - Detailed problem solving
+- **[Configuration Reference](../reference/configuration.md)** - All configuration options
 
 ### Advanced Topics
 
-- **[Docker Deployment](DOCKER_DEPLOYMENT.md)** - Production deployment
-- **[Backup & Restore](BACKUP_RESTORE.md)** - Data protection
-- **[Upgrade Guide](UPGRADE_GUIDE.md)** - Keeping up-to-date
+- **[Docker Deployment](../how-to-guides/deploy-with-docker.md)** - Production deployment
+- **[Backup & Restore](../how-to-guides/backup-and-restore.md)** - Data protection
+- **[Upgrade Guide](../how-to-guides/upgrade.md)** - Keeping up-to-date
 
 ### Get Help
 
@@ -480,7 +480,7 @@ While implementing security best practices, this codebase:
 - Keep updated
 - Monitor logs
 
-See [SECURITY_GUIDE.md](SECURITY_GUIDE.md) for detailed security recommendations.
+See the [Security Guide](../explanation/security.md) for detailed security recommendations.
 
 ---
 
@@ -493,7 +493,7 @@ A: Unlimited. Tested with 20+.
 A: Yes - respects rate limits but uses API quota.
 
 **Q: Can I run without Docker?**
-A: Yes, see [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md).
+A: Yes, see the [Docker Deployment Guide](../how-to-guides/deploy-with-docker.md) for local development setup.
 
 **Q: Does this work with Radarr v4/v5?**
 A: Currently supports Radarr v3 API.
@@ -505,7 +505,7 @@ A: Yes, use tags in Sonarr/Radarr and Custom strategy.
 A: Yes, designed for continuous operation.
 
 **Q: How do I update?**
-A: See [UPGRADE_GUIDE.md](UPGRADE_GUIDE.md).
+A: See the [Upgrade Guide](../how-to-guides/upgrade.md).
 
 ---
 
