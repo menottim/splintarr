@@ -65,6 +65,58 @@ Check disk space:
 df -h /path/to/data
 ```
 
+#### Issue: "file is encrypted or is not a database"
+
+**Symptoms:**
+```
+sqlcipher3.dbapi2.DatabaseError: file is encrypted or is not a database
+```
+
+This error occurs during startup when trying to initialize the database.
+
+**Cause:**
+
+The database file exists but was encrypted with **different encryption keys** than what you're currently using. This commonly happens when:
+- You regenerated secrets (db_key.txt) but kept the old database
+- You're using a database backup from different keys
+- You copied a database from another installation
+
+**Solution:**
+
+**Option 1: Delete old database (fresh start)**
+```powershell
+# Windows
+docker-compose down
+Remove-Item -Force .\data\vibe-quality-searcharr.db*
+docker-compose up -d
+```
+
+```bash
+# Linux/macOS
+docker-compose down
+rm -f ./data/vibe-quality-searcharr.db*
+docker-compose up -d
+```
+
+**Option 2: Restore original keys**
+
+If you need the existing database, you must use the **original encryption keys** it was created with:
+- Restore the original `secrets/db_key.txt`
+- Restart the application
+
+**Option 3: Migrate to new keys (advanced)**
+
+There's no automatic migration. You would need to:
+1. Start application with old keys
+2. Export all data via API
+3. Stop application, delete database
+4. Start with new keys
+5. Import data via API
+
+**Prevention:**
+
+When regenerating encryption keys, always delete the old database or back it up with its keys together.
+
 #### Issue: Port Already in Use
 
 **Symptoms:**
