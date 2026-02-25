@@ -18,6 +18,18 @@ During this vibe-coding exercise, I made every effort to implement security best
 
 ---
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Quick Start](#quick-start)
+- [Documentation](#documentation)
+- [Architecture Overview](#architecture-overview)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
 ## Overview
 
 Vibe-Quality-Searcharr automates systematic backlog searching for missing and upgradeable media in your Sonarr and Radarr instances. It runs as a Docker container on your home network and intelligently schedules searches over time, respecting API rate limits while maximizing coverage.
