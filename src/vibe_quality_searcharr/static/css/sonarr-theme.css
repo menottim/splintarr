@@ -41,21 +41,21 @@
     --card-border-color: #e5e7eb;
     --card-sectionning-background-color: #f9fafb;
 
-    /* Text colors */
-    --color: #1f2937;
+    /* Text colors - improved contrast */
+    --color: #111827;
     --h1-color: #111827;
     --h2-color: #1f2937;
-    --h3-color: #374151;
-    --h4-color: #4b5563;
-    --h5-color: #6b7280;
-    --h6-color: #9ca3af;
-    --muted-color: #6b7280;
+    --h3-color: #1f2937;
+    --h4-color: #374151;
+    --h5-color: #4b5563;
+    --h6-color: #6b7280;
+    --muted-color: #4b5563;
     --muted-border-color: #e5e7eb;
 
     /* Form elements */
     --form-element-background-color: #ffffff;
     --form-element-border-color: #d1d5db;
-    --form-element-color: #1f2937;
+    --form-element-color: #111827;
     --form-element-placeholder-color: #9ca3af;
     --form-element-active-border-color: var(--brand-primary);
     --form-element-focus-color: var(--brand-primary);
@@ -125,19 +125,34 @@ h1, h2, h3, h4, h5, h6 {
 h1 {
     font-size: 2.25rem;
     letter-spacing: -0.025em;
+    color: var(--h1-color);
 }
 
 h2 {
     font-size: 1.875rem;
     letter-spacing: -0.025em;
+    color: var(--h2-color);
 }
 
 h3 {
     font-size: 1.5rem;
+    color: var(--h3-color);
 }
 
 h4 {
     font-size: 1.25rem;
+    color: var(--h4-color);
+}
+
+p {
+    color: var(--color);
+    line-height: 1.6;
+}
+
+ul li,
+ol li {
+    color: var(--color);
+    line-height: 1.6;
 }
 
 hgroup {
@@ -151,9 +166,10 @@ hgroup h3 {
 }
 
 hgroup p {
-    color: var(--muted-color);
+    color: #6b7280;
     font-size: 1.125rem;
     font-weight: 400;
+    line-height: 1.6;
 }
 
 /* Card improvements */
@@ -190,10 +206,15 @@ button,
 [type="reset"],
 [role="button"] {
     font-weight: 500;
-    padding: 0.625rem 1.25rem;
+    padding: 0.625rem 1.5rem;
     border-radius: var(--border-radius);
     transition: all var(--transition);
     box-shadow: var(--button-box-shadow);
+    min-height: 2.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
 }
 
 button:hover,
@@ -215,6 +236,12 @@ button:active,
 button:not([role="button"]),
 [type="submit"] {
     font-weight: 600;
+}
+
+/* Secondary button styling */
+button.secondary,
+[role="button"].secondary {
+    font-weight: 500;
 }
 
 /* Form improvements */
@@ -245,8 +272,9 @@ label small {
     display: block;
     margin-top: 0.25rem;
     font-weight: 400;
-    color: var(--muted-color);
+    color: #6b7280;
     font-size: 0.875rem;
+    line-height: 1.5;
 }
 
 /* Setup wizard specific styles */
@@ -369,6 +397,12 @@ label small {
 .setup-actions .btn-group {
     display: flex;
     gap: 0.75rem;
+    align-items: center;
+}
+
+.setup-actions button,
+.setup-actions [role="button"] {
+    min-width: 120px;
 }
 
 /* Status badges */
