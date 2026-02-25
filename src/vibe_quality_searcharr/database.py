@@ -162,8 +162,12 @@ def create_database_engine() -> Engine:
             # CRITICAL: Set encryption key IMMEDIATELY after connection
             cursor = conn.cursor()
             try:
-                cursor.execute(f"PRAGMA key = '{db_key}'")
-                cursor.execute(f"PRAGMA cipher = '{cipher}'")
+                # SQLCipher PRAGMA does not support parameterized queries.
+                # Escape single quotes to prevent SQL syntax errors (MED-01).
+                safe_key = db_key.replace("'", "''")
+                safe_cipher = cipher.replace("'", "''")
+                cursor.execute(f"PRAGMA key = '{safe_key}'")
+                cursor.execute(f"PRAGMA cipher = '{safe_cipher}'")
                 cursor.execute(f"PRAGMA kdf_iter = {kdf_iter}")
                 logger.debug("sqlcipher_pragmas_set", db_path=db_path)
             finally:

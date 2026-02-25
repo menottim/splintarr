@@ -58,9 +58,9 @@
 
         <footer>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                <button class="secondary" onclick="testInstance({{ instance.id }})">Test</button>
-                <button class="secondary" onclick="editInstance({{ instance.id }})">Edit</button>
-                <button class="secondary" style="color: var(--del-color);" onclick="deleteInstance({{ instance.id }}, '{{ instance.name }}')">Delete</button>
+                <button class="secondary" data-action="test-instance" data-id="{{ instance.id }}">Test</button>
+                <button class="secondary" data-action="edit-instance" data-id="{{ instance.id }}">Edit</button>
+                <button class="secondary" style="color: var(--del-color);" data-action="delete-instance" data-id="{{ instance.id }}" data-name="{{ instance.name }}">Delete</button>
             </div>
         </footer>
     </article>
@@ -78,12 +78,12 @@
 <dialog id="add-instance">
     <article>
         <header>
-            <a href="#close" aria-label="Close" class="close" onclick="closeModal()"></a>
+            <a href="#close" aria-label="Close" class="close" data-action="close-modal"></a>
             <h3>Add Instance</h3>
         </header>
         <p>Add instance functionality would go here (use existing API endpoint)</p>
         <footer>
-            <button class="secondary" onclick="closeModal()">Cancel</button>
+            <button class="secondary" data-action="close-modal">Cancel</button>
         </footer>
     </article>
 </dialog>
@@ -136,5 +136,15 @@ async function deleteInstance(instanceId, name) {
 function closeModal() {
     document.getElementById('add-instance').close();
 }
+
+document.addEventListener('click', function(e) {
+    var target = e.target.closest('[data-action]');
+    if (!target) return;
+    var action = target.dataset.action;
+    if (action === 'test-instance') testInstance(parseInt(target.dataset.id));
+    else if (action === 'edit-instance') editInstance(parseInt(target.dataset.id));
+    else if (action === 'delete-instance') deleteInstance(parseInt(target.dataset.id), target.dataset.name);
+    else if (action === 'close-modal') closeModal();
+});
 </script>
 {% endblock %}

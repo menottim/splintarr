@@ -22,6 +22,7 @@ from fastapi import APIRouter, Cookie, Depends, Form, HTTPException, Request, Re
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from vibe_quality_searcharr.api.auth import set_auth_cookies
@@ -127,7 +128,7 @@ async def get_current_user_from_cookie(
     except TokenError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
+            detail="Authentication failed",
         ) from e
 
 
@@ -290,14 +291,30 @@ async def setup_admin_create(
             status_code=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Validate password strength (basic validation for setup)
+    # Validate password strength using full policy (HIGH-01).
+    # Same rules as the API registration schema.
+    import re
+    password_errors = []
     if len(password) < 12:
+        password_errors.append("Password must be at least 12 characters long")
+    elif len(password) > 128:
+        password_errors.append("Password must not exceed 128 characters")
+    elif not re.search(r"[a-z]", password):
+        password_errors.append("Password must contain at least one lowercase letter")
+    elif not re.search(r"[A-Z]", password):
+        password_errors.append("Password must contain at least one uppercase letter")
+    elif not re.search(r"[0-9]", password):
+        password_errors.append("Password must contain at least one digit")
+    elif not re.search(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]', password):
+        password_errors.append("Password must contain at least one special character")
+
+    if password_errors:
         return templates.TemplateResponse(
             "setup/admin.html",
             {
                 "request": request,
                 "app_name": settings.app_name,
-                "error": "Password must be at least 12 characters long",
+                "error": password_errors[0],
                 "username": username,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -316,8 +333,24 @@ async def setup_admin_create(
         )
 
         db.add(user)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # Race condition: another request created a user concurrently (CRIT-02)
+            db.rollback()
+            logger.warning("setup_admin_race_condition", username=username)
+            return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
+
         db.refresh(user)
+
+        # Post-commit race condition check: verify we are the ONLY user (CRIT-02).
+        # Catches concurrent requests with different usernames.
+        final_user_count = db.query(User).count()
+        if final_user_count > 1:
+            db.delete(user)
+            db.commit()
+            logger.warning("setup_admin_race_concurrent", username=username)
+            return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
         logger.info("setup_admin_created", user_id=user.id, username=user.username)
 
@@ -393,6 +426,25 @@ async def setup_instance_create(
                     "error": "Invalid instance type",
                     "name": name,
                     "url": url,
+                },
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # SSRF protection: validate URL before connecting (HIGH-03/MED-03)
+        try:
+            from vibe_quality_searcharr.core.ssrf_protection import SSRFError, validate_instance_url
+            validate_instance_url(url, allow_local=settings.allow_local_instances)
+        except (SSRFError, ValueError) as e:
+            return templates.TemplateResponse(
+                "setup/instance.html",
+                {
+                    "request": request,
+                    "app_name": settings.app_name,
+                    "user": current_user,
+                    "error": "URL blocked for security reasons. Use a public hostname or enable local instances.",
+                    "name": name,
+                    "url": url,
+                    "instance_type": instance_type,
                 },
                 status_code=status.HTTP_400_BAD_REQUEST,
             )

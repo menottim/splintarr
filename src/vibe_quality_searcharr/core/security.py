@@ -436,6 +436,13 @@ token_generator = TokenGenerator()
 secure_comparison = SecureComparison()
 
 
+# Pre-computed dummy hash for timing equalization during authentication.
+# When a username is not found, we verify against this hash so response time
+# is indistinguishable from a valid-user-wrong-password case.
+# This prevents username enumeration via Argon2 timing oracle (CRIT-01).
+DUMMY_PASSWORD_HASH = password_security.hash_password("dummy-timing-equalization-value")
+
+
 # Convenience functions
 def hash_password(password: str) -> str:
     """Hash a password using Argon2id with pepper."""

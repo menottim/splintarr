@@ -76,12 +76,12 @@ Expected variables:
     <footer>
         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
             {% if queue.status == 'paused' %}
-            <button onclick="resumeQueue({{ queue.id }})">Resume</button>
+            <button data-action="resume-queue" data-id="{{ queue.id }}">Resume</button>
             {% elif queue.status in ['pending', 'running'] %}
-            <button class="secondary" onclick="pauseQueue({{ queue.id }})">Pause</button>
+            <button class="secondary" data-action="pause-queue" data-id="{{ queue.id }}">Pause</button>
             {% endif %}
-            <button class="secondary" onclick="viewQueue({{ queue.id }})">View</button>
-            <button class="secondary" style="color: var(--del-color);" onclick="deleteQueue({{ queue.id }}, '{{ queue.name }}')">Delete</button>
+            <button class="secondary" data-action="view-queue" data-id="{{ queue.id }}">View</button>
+            <button class="secondary" style="color: var(--del-color);" data-action="delete-queue" data-id="{{ queue.id }}" data-name="{{ queue.name }}">Delete</button>
         </div>
     </footer>
 </article>

@@ -152,17 +152,34 @@ class User(Base):
         """
         Increment failed login attempt counter and lock account if threshold exceeded.
 
+        Uses exponential backoff for lockout duration to mitigate account lockout
+        DoS attacks (MED-02) while still protecting against brute-force:
+          - First lockout (5 attempts):  1 minute
+          - Second tier (10 attempts):   5 minutes
+          - Third tier (15 attempts):    15 minutes
+          - Fourth tier (20+ attempts):  capped at lockout_duration_minutes
+
         Args:
-            max_attempts: Maximum allowed failed login attempts before lockout
-            lockout_duration_minutes: Duration of account lockout in minutes
+            max_attempts: Failed attempts before first lockout
+            lockout_duration_minutes: Maximum lockout duration in minutes (cap)
         """
         self.failed_login_attempts += 1
         self.last_failed_login = datetime.utcnow()
 
-        # Lock account if max attempts exceeded
+        # Lock account if max attempts exceeded, with escalating duration
         if self.failed_login_attempts >= max_attempts:
+            excess = self.failed_login_attempts - max_attempts
+            if excess < 5:
+                duration = 1
+            elif excess < 10:
+                duration = 5
+            elif excess < 15:
+                duration = 15
+            else:
+                duration = min(lockout_duration_minutes, 30)
+
             self.account_locked_until = datetime.utcnow() + timedelta(
-                minutes=lockout_duration_minutes
+                minutes=duration
             )
 
     def reset_failed_login(self) -> None:

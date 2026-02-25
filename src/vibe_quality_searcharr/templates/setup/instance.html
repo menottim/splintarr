@@ -76,7 +76,7 @@
                 <div id="testResult"></div>
 
                 <div class="setup-actions" style="margin-top: 1.5rem;">
-                    <button type="button" class="secondary" onclick="testConnection()">Test Connection</button>
+                    <button type="button" class="secondary" id="testConnectionBtn">Test Connection</button>
                     <div class="btn-group">
                         <a href="/setup/instance/skip" role="button" class="secondary">Skip (Add Later)</a>
                         <button type="submit" id="submitBtn">Continue →</button>
@@ -178,5 +178,7 @@ async function testConnection() {
         `;
     }
 }
+
+document.getElementById('testConnectionBtn').addEventListener('click', testConnection);
 </script>
 {% endblock %}

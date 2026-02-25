@@ -14,7 +14,7 @@ Expected variables:
 {% if error %}
 <div class="container" id="flash-message">
     <article style="background-color: var(--del-color); border-color: var(--del-color);">
-        <a href="#" aria-label="Close" class="close" onclick="this.parentElement.parentElement.remove(); return false;"></a>
+        <a href="#" aria-label="Close" class="close" data-action="dismiss-flash"></a>
         <strong>Error:</strong> {{ error }}
     </article>
 </div>
@@ -23,7 +23,7 @@ Expected variables:
 {% if success %}
 <div class="container" id="flash-message">
     <article style="background-color: var(--ins-color); border-color: var(--ins-color);">
-        <a href="#" aria-label="Close" class="close" onclick="this.parentElement.parentElement.remove(); return false;"></a>
+        <a href="#" aria-label="Close" class="close" data-action="dismiss-flash"></a>
         <strong>Success:</strong> {{ success }}
     </article>
 </div>
@@ -32,7 +32,7 @@ Expected variables:
 {% if warning %}
 <div class="container" id="flash-message">
     <article style="background-color: #f39c12; border-color: #f39c12;">
-        <a href="#" aria-label="Close" class="close" onclick="this.parentElement.parentElement.remove(); return false;"></a>
+        <a href="#" aria-label="Close" class="close" data-action="dismiss-flash"></a>
         <strong>Warning:</strong> {{ warning }}
     </article>
 </div>
@@ -41,13 +41,20 @@ Expected variables:
 {% if info %}
 <div class="container" id="flash-message">
     <article style="background-color: var(--primary); border-color: var(--primary);">
-        <a href="#" aria-label="Close" class="close" onclick="this.parentElement.parentElement.remove(); return false;"></a>
+        <a href="#" aria-label="Close" class="close" data-action="dismiss-flash"></a>
         <strong>Info:</strong> {{ info }}
     </article>
 </div>
 {% endif %}
 
 <script nonce="{{ request.state.csp_nonce }}">
+document.addEventListener('click', function(e) {
+    if (e.target.closest('[data-action="dismiss-flash"]')) {
+        e.preventDefault();
+        e.target.closest('[data-action="dismiss-flash"]').parentElement.parentElement.remove();
+    }
+});
+
 // Auto-dismiss flash messages after 5 seconds
 document.addEventListener('DOMContentLoaded', () => {
     const flashMessage = document.getElementById('flash-message');

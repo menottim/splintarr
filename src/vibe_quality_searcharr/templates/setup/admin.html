@@ -48,7 +48,6 @@
                             required
                             minlength="12"
                             autocomplete="new-password"
-                            oninput="checkPasswordStrength()"
                             placeholder="Enter a strong password">
                         <small>Minimum 12 characters, must include uppercase, lowercase, digit, and special character</small>
                         <div id="passwordStrength" style="margin-top: 0.5rem;"></div>
@@ -65,7 +64,6 @@
                             required
                             minlength="12"
                             autocomplete="new-password"
-                            oninput="checkPasswordMatch()"
                             placeholder="Re-enter your password">
                         <div id="passwordMatch" style="margin-top: 0.5rem;"></div>
                     </label>
@@ -93,6 +91,9 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+document.getElementById('password').addEventListener('input', checkPasswordStrength);
+document.getElementById('confirm_password').addEventListener('input', checkPasswordMatch);
+
 function checkPasswordStrength() {
     const password = document.getElementById('password').value;
     const strengthDiv = document.getElementById('passwordStrength');

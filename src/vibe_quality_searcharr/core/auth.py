@@ -18,7 +18,11 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from vibe_quality_searcharr.config import settings
-from vibe_quality_searcharr.core.security import constant_time_compare, verify_password
+from vibe_quality_searcharr.core.security import (
+    DUMMY_PASSWORD_HASH,
+    constant_time_compare,
+    verify_password,
+)
 from vibe_quality_searcharr.models.user import RefreshToken, User
 
 logger = structlog.get_logger()
@@ -26,6 +30,39 @@ logger = structlog.get_logger()
 # JWT algorithm whitelist - NEVER accept 'none' or algorithms from config
 # This prevents algorithm confusion attacks where attackers change algorithm
 ALLOWED_JWT_ALGORITHMS = ["HS256"]
+
+# In-memory access token blacklist for immediate revocation on logout (HIGH-02).
+# Maps JTI -> expiry datetime. Auto-cleaned on each check.
+# NOTE: Only works with a single worker process. For multi-worker, use Redis.
+_access_token_blacklist: dict[str, datetime] = {}
+
+
+def blacklist_access_token(token: str) -> None:
+    """Add an access token's JTI to the blacklist (called on logout)."""
+    try:
+        payload = jwt.decode(
+            token, settings.get_secret_key(), algorithms=ALLOWED_JWT_ALGORITHMS
+        )
+        jti = payload.get("jti")
+        if jti:
+            exp = payload.get("exp")
+            expiry = (
+                datetime.utcfromtimestamp(exp)
+                if exp
+                else datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
+            )
+            _access_token_blacklist[jti] = expiry
+            logger.debug("access_token_blacklisted", jti=jti)
+    except Exception as e:
+        logger.warning("failed_to_blacklist_access_token", error=str(e))
+
+
+def _cleanup_blacklist() -> None:
+    """Remove expired entries from the access token blacklist."""
+    now = datetime.utcnow()
+    expired = [jti for jti, exp in _access_token_blacklist.items() if exp <= now]
+    for jti in expired:
+        del _access_token_blacklist[jti]
 
 
 class AuthenticationError(Exception):
@@ -226,6 +263,14 @@ def verify_access_token(token: str) -> dict[str, Any]:
         # Verify token type
         if payload.get("type") != "access":
             raise TokenError("Invalid token type")
+
+        # Check if token has been revoked via blacklist (HIGH-02)
+        jti = payload.get("jti")
+        if jti and jti in _access_token_blacklist:
+            _cleanup_blacklist()
+            if jti in _access_token_blacklist:
+                logger.warning("access_token_blacklisted_rejected", jti=jti)
+                raise TokenError("Token has been revoked")
 
         # Token is valid
         logger.debug("access_token_verified", user_id=payload.get("sub"))
@@ -469,6 +514,11 @@ def authenticate_user(
         user = db.query(User).filter(User.username == username).first()
 
         if not user:
+            # Perform a dummy Argon2 verification to equalize response timing.
+            # Without this, "user not found" returns in ~1ms while "wrong password"
+            # takes ~500-2000ms (Argon2 computation), creating a timing oracle
+            # that reveals whether a username exists (CRIT-01).
+            verify_password("dummy", DUMMY_PASSWORD_HASH)
             logger.warning("authentication_failed_user_not_found", username=username)
             return None
 

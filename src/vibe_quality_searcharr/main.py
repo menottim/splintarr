@@ -236,10 +236,16 @@ async def health_check():
 
         db_health = database_health_check()
 
+        # Filter out sensitive details (cipher_version, pool internals)
+        # before returning to unauthenticated callers (LOW-03).
+        safe_db_health = {
+            "status": db_health.get("status", "unknown"),
+        }
+
         return {
             "status": "healthy" if db_health.get("status") == "healthy" else "unhealthy",
             "application": "operational",
-            "database": db_health,
+            "database": safe_db_health,
         }
 
     except Exception as e:

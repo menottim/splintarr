@@ -57,9 +57,9 @@ Expected variables:
 
     <footer>
         <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-            <button class="secondary" onclick="testInstance({{ instance.id }})">Test</button>
-            <button class="secondary" onclick="editInstance({{ instance.id }})">Edit</button>
-            <button class="secondary" style="color: var(--del-color);" onclick="deleteInstance({{ instance.id }}, '{{ instance.name }}')">Delete</button>
+            <button class="secondary" data-action="test-instance" data-id="{{ instance.id }}">Test</button>
+            <button class="secondary" data-action="edit-instance" data-id="{{ instance.id }}">Edit</button>
+            <button class="secondary" style="color: var(--del-color);" data-action="delete-instance" data-id="{{ instance.id }}" data-name="{{ instance.name }}">Delete</button>
         </div>
     </footer>
 </article>

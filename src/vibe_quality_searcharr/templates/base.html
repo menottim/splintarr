@@ -29,7 +29,7 @@
                     <summary>{{ user.username }}</summary>
                     <ul dir="rtl">
                         <li><a href="/dashboard/settings">Settings</a></li>
-                        <li><a href="#" onclick="logout(); return false;">Logout</a></li>
+                        <li><a href="#" data-action="logout">Logout</a></li>
                     </ul>
                 </details>
             </li>
@@ -55,6 +55,10 @@
 
     <!-- Scripts -->
     <script nonce="{{ request.state.csp_nonce }}">
+        document.querySelectorAll('[data-action="logout"]').forEach(function(el) {
+            el.addEventListener('click', function(e) { e.preventDefault(); logout(); });
+        });
+
         // Logout function
         function logout() {
             fetch('/api/auth/logout', {

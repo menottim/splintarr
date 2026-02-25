@@ -73,12 +73,12 @@
         <footer>
             <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
                 {% if queue.status == 'paused' %}
-                <button onclick="resumeQueue({{ queue.id }})">Resume</button>
+                <button data-action="resume-queue" data-id="{{ queue.id }}">Resume</button>
                 {% elif queue.status in ['pending', 'running'] %}
-                <button class="secondary" onclick="pauseQueue({{ queue.id }})">Pause</button>
+                <button class="secondary" data-action="pause-queue" data-id="{{ queue.id }}">Pause</button>
                 {% endif %}
-                <button class="secondary" onclick="viewQueue({{ queue.id }})">View</button>
-                <button class="secondary" style="color: var(--del-color);" onclick="deleteQueue({{ queue.id }}, '{{ queue.name }}')">Delete</button>
+                <button class="secondary" data-action="view-queue" data-id="{{ queue.id }}">View</button>
+                <button class="secondary" style="color: var(--del-color);" data-action="delete-queue" data-id="{{ queue.id }}" data-name="{{ queue.name }}">Delete</button>
             </div>
         </footer>
     </article>
@@ -96,7 +96,7 @@
 <dialog id="create-queue">
     <article style="max-width: 600px;">
         <header>
-            <a href="#close" aria-label="Close" class="close" onclick="closeCreateModal()"></a>
+            <a href="#close" aria-label="Close" class="close" data-action="close-create-modal"></a>
             <h3>Create Search Queue</h3>
         </header>
 
@@ -129,7 +129,7 @@
             </label>
 
             <label for="recurring">
-                <input type="checkbox" id="recurring" name="recurring" onchange="toggleRecurring()">
+                <input type="checkbox" id="recurring" name="recurring">
                 Recurring search
             </label>
 
@@ -141,7 +141,7 @@
 
             <footer>
                 <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
-                    <button type="button" class="secondary" onclick="closeCreateModal()">Cancel</button>
+                    <button type="button" class="secondary" data-action="close-create-modal">Cancel</button>
                     <button type="submit">Create Queue</button>
                 </div>
             </footer>
@@ -152,6 +152,18 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+document.getElementById('recurring').addEventListener('change', toggleRecurring);
+document.addEventListener('click', function(e) {
+    var target = e.target.closest('[data-action]');
+    if (!target) return;
+    var action = target.dataset.action;
+    if (action === 'resume-queue') resumeQueue(parseInt(target.dataset.id));
+    else if (action === 'pause-queue') pauseQueue(parseInt(target.dataset.id));
+    else if (action === 'view-queue') viewQueue(parseInt(target.dataset.id));
+    else if (action === 'delete-queue') deleteQueue(parseInt(target.dataset.id), target.dataset.name);
+    else if (action === 'close-create-modal') closeCreateModal();
+});
+
 function toggleRecurring() {
     const recurring = document.getElementById('recurring').checked;
     const intervalLabel = document.getElementById('intervalLabel');

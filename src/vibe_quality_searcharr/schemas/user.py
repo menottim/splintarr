@@ -240,7 +240,6 @@ class UserResponse(BaseModel):
     totp_enabled: bool = Field(default=False, description="Whether 2FA is enabled")
     created_at: str = Field(..., description="Account creation timestamp (ISO 8601)")
     last_login: str | None = Field(None, description="Last login timestamp (ISO 8601)")
-    last_login_ip: str | None = Field(None, description="Last login IP address")
 
     model_config = {
         "from_attributes": True,
@@ -254,7 +253,6 @@ class UserResponse(BaseModel):
                     "totp_enabled": False,
                     "created_at": "2024-01-15T10:30:00Z",
                     "last_login": "2024-01-15T14:22:15Z",
-                    "last_login_ip": "192.168.1.100",
                 }
             ]
         },
@@ -430,7 +428,6 @@ class LoginSuccess(BaseModel):
                         "totp_enabled": False,
                         "created_at": "2024-01-15T10:30:00Z",
                         "last_login": "2024-01-15T14:22:15Z",
-                        "last_login_ip": "192.168.1.100",
                     },
                     "token_type": "bearer",
                     "requires_2fa": False,

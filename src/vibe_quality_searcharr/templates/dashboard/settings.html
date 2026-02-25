@@ -84,7 +84,7 @@
     <p>
         <small>Your account is protected with an additional security layer using time-based one-time passwords (TOTP).</small>
     </p>
-    <button class="secondary" onclick="disable2FA()">Disable 2FA</button>
+    <button class="secondary" data-action="disable-2fa">Disable 2FA</button>
     {% else %}
     <p>
         <span style="color: var(--muted-color);">Two-factor authentication is not enabled</span>
@@ -92,7 +92,7 @@
     <p>
         <small>Add an extra layer of security to your account by requiring a code from your authenticator app during login.</small>
     </p>
-    <button onclick="setup2FA()">Enable 2FA</button>
+    <button data-action="setup-2fa">Enable 2FA</button>
     {% endif %}
 </article>
 
@@ -106,12 +106,21 @@
         <strong>Logout All Sessions</strong><br>
         <small>Revoke all active sessions and refresh tokens. You'll need to log in again on all devices.</small>
     </p>
-    <button class="secondary" style="color: var(--del-color);" onclick="logoutAllSessions()">Logout All Sessions</button>
+    <button class="secondary" style="color: var(--del-color);" data-action="logout-all">Logout All Sessions</button>
 </article>
 {% endblock %}
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+document.addEventListener('click', function(e) {
+    var target = e.target.closest('[data-action]');
+    if (!target) return;
+    var action = target.dataset.action;
+    if (action === 'disable-2fa') disable2FA();
+    else if (action === 'setup-2fa') setup2FA();
+    else if (action === 'logout-all') logoutAllSessions();
+});
+
 document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 

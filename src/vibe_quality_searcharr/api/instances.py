@@ -741,6 +741,10 @@ async def test_instance_connection(
         # Decrypt API key
         api_key = decrypt_field(instance.api_key)
 
+        # SSRF protection: re-validate URL at point of use (HIGH-03 DNS rebinding)
+        from vibe_quality_searcharr.core.ssrf_protection import validate_instance_url
+        validate_instance_url(instance.url, allow_local=settings.allow_local_instances)
+
         # Create appropriate client
         if instance.instance_type == "sonarr":
             client = SonarrClient(
@@ -866,6 +870,10 @@ async def check_configuration_drift(
 
         # Decrypt API key
         api_key = decrypt_field(instance.api_key)
+
+        # SSRF protection: re-validate URL at point of use (HIGH-03 DNS rebinding)
+        from vibe_quality_searcharr.core.ssrf_protection import validate_instance_url
+        validate_instance_url(instance.url, allow_local=settings.allow_local_instances)
 
         # Create appropriate client
         if instance.instance_type == "sonarr":

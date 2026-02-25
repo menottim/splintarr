@@ -26,6 +26,7 @@ from vibe_quality_searcharr.core.auth import (
     AuthenticationError,
     TokenError,
     authenticate_user,
+    blacklist_access_token,
     create_access_token,
     create_refresh_token,
     get_current_user_id_from_token,
@@ -100,13 +101,16 @@ def set_auth_cookies(
         refresh_token: JWT refresh token
     """
     # Access token cookie (15 minutes)
-    # Using SameSite=Strict for CSRF protection
+    # NOTE (MED-05): path="/" means this cookie is sent with all requests including
+    # static files. A more restrictive path is not feasible because the cookie is
+    # needed on /dashboard, /setup, /login, and /api -- which share no common prefix
+    # other than "/". The cookie is HttpOnly and SameSite=Strict, minimizing exposure.
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
         secure=settings.secure_cookies,
-        samesite="strict",  # Changed from 'lax' to 'strict' for CSRF protection
+        samesite="strict",
         max_age=settings.access_token_expire_minutes * 60,
         path="/",
     )
@@ -185,7 +189,7 @@ async def get_current_user(
     except TokenError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
+            detail="Authentication failed",
         ) from e
 
 
@@ -281,7 +285,6 @@ async def register(
             totp_enabled=user.totp_enabled,
             created_at=user.created_at.isoformat(),
             last_login=user.last_login.isoformat() if user.last_login else None,
-            last_login_ip=user.last_login_ip,
         )
 
     except HTTPException:
@@ -382,8 +385,7 @@ async def login(
                 totp_enabled=user.totp_enabled,
                 created_at=user.created_at.isoformat(),
                 last_login=user.last_login.isoformat() if user.last_login else None,
-                last_login_ip=user.last_login_ip,
-            ),
+                ),
             token_type="bearer",
             requires_2fa=False,  # 2FA not implemented
         )
@@ -405,6 +407,7 @@ async def login(
     description="Revoke refresh token and clear authentication cookies.",
 )
 async def logout(
+    request: Request,
     response: Response,
     refresh_token: Annotated[str | None, Cookie()] = None,
     db: Session = Depends(get_db),
@@ -412,9 +415,11 @@ async def logout(
     """
     Logout user and revoke refresh token.
 
-    Clears authentication cookies and marks refresh token as revoked.
+    Clears authentication cookies, blacklists the access token for immediate
+    revocation (HIGH-02), and marks refresh token as revoked.
 
     Args:
+        request: FastAPI request object
         response: FastAPI response object
         refresh_token: Refresh token from cookie
         db: Database session
@@ -424,11 +429,15 @@ async def logout(
 
     Raises:
         HTTPException:
-            - 401: No refresh token provided
             - 500: Server error during logout
     """
     try:
-        # Clear cookies first (always do this, even if token is invalid)
+        # Blacklist current access token for immediate revocation (HIGH-02)
+        access_token_value = request.cookies.get("access_token")
+        if access_token_value:
+            blacklist_access_token(access_token_value)
+
+        # Clear cookies (always do this, even if token is invalid)
         clear_auth_cookies(response)
 
         # If no refresh token, still return success (already logged out)
@@ -511,7 +520,7 @@ async def refresh(
         except TokenError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=str(e),
+                detail="Authentication failed",
             ) from e
 
         # Set new cookies
@@ -587,7 +596,7 @@ async def change_password(
         except TokenError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=str(e),
+                detail="Authentication failed",
             ) from e
 
         # Get user from database
