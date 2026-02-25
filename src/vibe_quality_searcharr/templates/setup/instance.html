@@ -94,6 +94,31 @@
                 <li>Copy the <strong>API Key</strong> value</li>
             </ol>
         </article>
+
+        <article>
+            <h4>Docker Networking Tips:</h4>
+            <div class="alert alert-info">
+                <strong>Connection Issues?</strong> If you're running this in Docker and Sonarr/Radarr is on the same machine:
+            </div>
+            <ul>
+                <li>
+                    <strong>Don't use <code>localhost</code> or <code>127.0.0.1</code></strong><br>
+                    <small style="color: #6b7280;">Inside Docker, these refer to the container, not your host machine</small>
+                </li>
+                <li>
+                    <strong>Windows/Mac:</strong> Use <code>http://host.docker.internal:8989</code><br>
+                    <small style="color: #6b7280;">This special hostname resolves to your host machine</small>
+                </li>
+                <li>
+                    <strong>Linux:</strong> Use your machine's IP address (e.g., <code>http://192.168.1.100:8989</code>)<br>
+                    <small style="color: #6b7280;">Find it with: <code>ip addr show</code> or <code>hostname -I</code></small>
+                </li>
+                <li>
+                    <strong>Remote machine:</strong> Use the machine's IP address or hostname<br>
+                    <small style="color: #6b7280;">Make sure Sonarr/Radarr is configured to listen on all interfaces (not just localhost)</small>
+                </li>
+            </ul>
+        </article>
     </div>
 </div>
 {% endblock %}
