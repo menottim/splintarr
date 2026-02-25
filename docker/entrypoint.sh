@@ -21,6 +21,31 @@ else
     log "WARNING: /data directory does not exist!"
 fi
 
+# Copy Docker secrets to a location accessible by appuser
+# Docker secrets are mounted as root-only readable files, so we copy them
+# to /tmp/secrets/ with appuser ownership before dropping privileges
+if [ -d "/run/secrets" ]; then
+    log "Copying Docker secrets for appuser access..."
+    mkdir -p /tmp/secrets
+
+    # Copy each secret file if it exists
+    for secret in db_key secret_key pepper; do
+        if [ -f "/run/secrets/$secret" ]; then
+            cp "/run/secrets/$secret" "/tmp/secrets/$secret"
+            chown appuser:appuser "/tmp/secrets/$secret"
+            chmod 400 "/tmp/secrets/$secret"
+            log "Copied secret: $secret"
+        fi
+    done
+
+    # Update environment variables to point to new secret locations
+    export DATABASE_KEY_FILE=/tmp/secrets/db_key
+    export SECRET_KEY_FILE=/tmp/secrets/secret_key
+    export PEPPER_FILE=/tmp/secrets/pepper
+
+    log "Secrets configured for appuser"
+fi
+
 # Test if appuser can write to /data
 log "Testing write permissions..."
 if gosu appuser touch /data/.write_test 2>/dev/null; then
