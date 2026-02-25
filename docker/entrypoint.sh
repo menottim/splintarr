@@ -21,6 +21,14 @@ else
     log "WARNING: /data directory does not exist!"
 fi
 
-# Drop to non-root user and execute the command
-log "Switching to appuser and starting application..."
-exec gosu appuser "$@"
+# Test if appuser can write to /data
+log "Testing write permissions..."
+if gosu appuser touch /data/.write_test 2>/dev/null; then
+    rm -f /data/.write_test
+    log "Write test successful - switching to appuser"
+    exec gosu appuser "$@"
+else
+    log "WARNING: appuser cannot write to /data (Windows limitation)"
+    log "Running as root for compatibility"
+    exec "$@"
+fi
