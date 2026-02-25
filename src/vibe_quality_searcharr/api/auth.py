@@ -334,9 +334,11 @@ async def login(
         try:
             user = authenticate_user(db, user_data.username, user_data.password, ip_address)
         except AuthenticationError as e:
+            # Use generic error message to prevent account enumeration
+            # Specific error is logged for debugging (see authenticate_user logs)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=str(e),
+                detail="Invalid username or password",
             ) from e
 
         if not user:
@@ -593,9 +595,10 @@ async def change_password(
         # Verify current password
         if not verify_password(password_data.current_password, user.password_hash):
             logger.warning("password_change_failed_invalid_current", user_id=user.id)
+            # Use generic error message to prevent information disclosure
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid current password",
+                detail="Password change failed",
             )
 
         # Hash new password

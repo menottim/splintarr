@@ -57,6 +57,19 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # Add CORS middleware
+# CORS Security Configuration:
+#   - allow_origins: Explicitly list allowed origins (no wildcards in production)
+#   - allow_credentials: True for cookie-based authentication (requires explicit origins)
+#   - allow_methods: Limited to necessary HTTP methods (no TRACE, CONNECT)
+#   - allow_headers: "*" is safe here (browser sends, server validates)
+#   - expose_headers: "*" exposes response headers to JavaScript
+#
+# Security Notes:
+#   1. NEVER use allow_origins=["*"] with allow_credentials=True (violates CORS spec)
+#   2. Default origin is localhost:8000 - change CORS_ORIGINS env var for production
+#   3. For production, use explicit domain: CORS_ORIGINS=["https://yourdomain.com"]
+#   4. CORS is enforced by browsers - it's NOT a server-side security mechanism
+#   5. API authentication (JWT, rate limiting) is the primary security layer
 if settings.cors_origins:
     app.add_middleware(
         CORSMiddleware,

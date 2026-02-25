@@ -406,6 +406,57 @@ class Settings(BaseSettings):
             raise ValueError("kdf_iter must not exceed 10,000,000 to prevent DoS")
         return v
 
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        """Validate JWT secret key meets minimum security requirements."""
+        if not v:
+            raise ValueError(
+                "JWT secret key is required. Set SECRET_KEY environment variable "
+                "or use SECRET_KEY_FILE for Docker secrets."
+            )
+        if len(v) < 32:
+            raise ValueError(
+                f"JWT secret key must be at least 32 bytes (256 bits). "
+                f"Current length: {len(v)} bytes. "
+                f"Generate a secure key with: openssl rand -base64 32"
+            )
+        return v
+
+    @field_validator("database_key")
+    @classmethod
+    def validate_database_key(cls, v: str) -> str:
+        """Validate database encryption key meets minimum security requirements."""
+        if not v:
+            raise ValueError(
+                "Database encryption key is required. Set DATABASE_KEY environment variable "
+                "or use DATABASE_KEY_FILE for Docker secrets."
+            )
+        if len(v) < 32:
+            raise ValueError(
+                f"Database encryption key must be at least 32 bytes (256 bits). "
+                f"Current length: {len(v)} bytes. "
+                f"Generate a secure key with: openssl rand -base64 32"
+            )
+        return v
+
+    @field_validator("pepper")
+    @classmethod
+    def validate_pepper(cls, v: str) -> str:
+        """Validate password hashing pepper meets minimum security requirements."""
+        if not v:
+            raise ValueError(
+                "Password hashing pepper is required. Set PEPPER environment variable "
+                "or use PEPPER_FILE for Docker secrets."
+            )
+        if len(v) < 32:
+            raise ValueError(
+                f"Password hashing pepper must be at least 32 bytes (256 bits). "
+                f"Current length: {len(v)} bytes. "
+                f"Generate a secure key with: openssl rand -base64 32"
+            )
+        return v
+
 
 # Global settings instance
 settings = Settings()

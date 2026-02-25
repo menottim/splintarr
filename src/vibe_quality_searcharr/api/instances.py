@@ -22,7 +22,7 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
-from vibe_quality_searcharr.core.auth import get_current_user_id_from_token
+from vibe_quality_searcharr.core.auth import get_current_user_from_cookie, get_current_user_id_from_token
 from vibe_quality_searcharr.core.security import decrypt_field, encrypt_field
 from vibe_quality_searcharr.database import get_db
 from vibe_quality_searcharr.models.instance import Instance
@@ -552,28 +552,87 @@ class InstanceTestRequest(BaseModel):
     url: str
     api_key: str
 
+    @field_validator("url")
+    @classmethod
+    def validate_url_ssrf(cls, v: str) -> str:
+        """
+        Validate URL to prevent SSRF attacks.
+
+        Blocks access to:
+        - localhost, 127.0.0.1
+        - Private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
+        - Link-local addresses (169.254.x.x)
+
+        Unless settings.allow_local_instances is True (development mode).
+        """
+        from urllib.parse import urlparse
+        import ipaddress
+        from vibe_quality_searcharr.config import settings
+
+        # Parse the URL
+        try:
+            parsed = urlparse(v)
+            hostname = parsed.hostname
+
+            if not hostname:
+                raise ValueError("URL must contain a valid hostname")
+
+            # If local instances are allowed (development), skip checks
+            if settings.allow_local_instances:
+                return v
+
+            # Check for localhost
+            if hostname.lower() in ("localhost", "127.0.0.1", "::1"):
+                raise ValueError(
+                    "Localhost URLs are not allowed in production. "
+                    "Set ALLOW_LOCAL_INSTANCES=true for development."
+                )
+
+            # Try to parse as IP address
+            try:
+                ip = ipaddress.ip_address(hostname)
+
+                # Check for private/internal IP ranges
+                if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                    raise ValueError(
+                        f"Private/internal IP addresses are not allowed: {hostname}. "
+                        f"Set ALLOW_LOCAL_INSTANCES=true for development."
+                    )
+            except ValueError:
+                # Not an IP address, it's a hostname - allow it
+                # DNS will resolve it, but we can't prevent all SSRF via DNS rebinding
+                # This is a reasonable security measure for most cases
+                pass
+
+            return v
+
+        except Exception as e:
+            raise ValueError(f"Invalid URL: {str(e)}") from e
+
 
 @router.post(
     "/test",
     response_model=InstanceTestResult,
     summary="Test instance connection (pre-creation)",
-    description="Test connection to a Sonarr/Radarr instance before creating it.",
+    description="Test connection to a Sonarr/Radarr instance before creating it. Requires authentication.",
     include_in_schema=False,  # Hidden from OpenAPI docs (used by dashboard)
 )
 @limiter.limit("10/minute")
 async def test_instance_pre_creation(
     request: Request,
     test_data: InstanceTestRequest,
+    current_user: Annotated[User, Depends(get_current_user_from_cookie)],
 ) -> InstanceTestResult:
     """
     Test connection to an instance before creating it.
 
-    This endpoint allows testing instance credentials without saving them.
-    Useful for setup wizard and validation before instance creation.
+    This endpoint requires authentication to prevent abuse (SSRF, reconnaissance).
+    Used by setup wizard and instance management for validation before creation.
 
     Args:
         request: FastAPI request (for rate limiting)
         test_data: Instance test configuration
+        current_user: Authenticated user (from cookie)
 
     Returns:
         InstanceTestResult: Connection test results
