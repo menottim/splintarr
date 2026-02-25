@@ -65,9 +65,10 @@ def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
     """
     Set SQLite PRAGMA settings for security and performance.
 
-    This event handler is called for every new database connection to configure:
-    - SQLCipher encryption key (MUST be set first!)
-    - Cipher algorithm and KDF iterations
+    Note: Encryption PRAGMA (key, cipher, kdf_iter) are set in the connection
+    creator function before this event fires.
+
+    This event handler configures:
     - Foreign key constraints
     - Write-Ahead Logging (WAL) for better concurrency
     - Full synchronous mode for crash safety
@@ -82,15 +83,6 @@ def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
     cursor = dbapi_conn.cursor()
 
     try:
-        # CRITICAL: Set encryption key FIRST, before any other operations
-        # This must be done immediately after connecting for SQLCipher to work
-        db_key = settings.get_database_key()
-        cursor.execute(f"PRAGMA key = '{db_key}'")
-
-        # Set cipher algorithm and KDF iterations
-        cursor.execute(f"PRAGMA cipher = '{settings.database_cipher}'")
-        cursor.execute(f"PRAGMA kdf_iter = {settings.database_kdf_iter}")
-
         # Enable foreign key constraints (referential integrity)
         cursor.execute("PRAGMA foreign_keys = ON")
 
@@ -129,6 +121,9 @@ def create_database_engine() -> Engine:
     """
     Create and configure the SQLAlchemy database engine with SQLCipher encryption.
 
+    Uses a custom connection creator to ensure PRAGMA key is set immediately
+    after connection, before SQLAlchemy tries to use the connection.
+
     Returns:
         Engine: Configured SQLAlchemy engine
 
@@ -136,16 +131,50 @@ def create_database_engine() -> Engine:
         RuntimeError: If database configuration is invalid
     """
     try:
+        import sqlcipher3
+        from urllib.parse import urlparse
+
         database_url = settings.get_database_url()
 
-        # Create engine with security and performance settings
+        # Extract the database path from the URL
+        parsed = urlparse(database_url)
+        db_path = parsed.path
+
+        # Get encryption settings
+        db_key = settings.get_database_key()
+        cipher = settings.database_cipher
+        kdf_iter = settings.database_kdf_iter
+
+        def creator():
+            """
+            Custom connection creator that sets up SQLCipher before returning connection.
+
+            This is necessary because SQLCipher requires PRAGMA key to be set BEFORE
+            any database operations, including creating the database file.
+            """
+            # Create connection using sqlcipher3 directly
+            conn = sqlcipher3.connect(
+                db_path,
+                check_same_thread=False,
+                timeout=30,
+            )
+
+            # CRITICAL: Set encryption key IMMEDIATELY after connection
+            cursor = conn.cursor()
+            try:
+                cursor.execute(f"PRAGMA key = '{db_key}'")
+                cursor.execute(f"PRAGMA cipher = '{cipher}'")
+                cursor.execute(f"PRAGMA kdf_iter = {kdf_iter}")
+                logger.debug("sqlcipher_pragmas_set", db_path=db_path)
+            finally:
+                cursor.close()
+
+            return conn
+
+        # Create engine with custom creator
         engine = create_engine(
             database_url,
-            # SQLite-specific connection arguments
-            connect_args={
-                "check_same_thread": False,  # Required for FastAPI async usage
-                "timeout": 30,  # Connection timeout in seconds
-            },
+            creator=creator,  # Use our custom connection creator
             # Connection pool settings
             poolclass=pool.StaticPool if settings.environment == "test" else pool.NullPool,
             # Test connections before use to detect stale connections
