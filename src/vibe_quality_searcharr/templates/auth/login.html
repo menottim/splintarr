@@ -2,48 +2,41 @@
 
 {% block title %}Login - Vibe-Quality-Searcharr{% endblock %}
 
-{% block content %}
-<div style="max-width: 500px; margin: 4rem auto;">
-    <hgroup>
-        <h1>Login</h1>
-        <p>Sign in to access your Vibe-Quality-Searcharr dashboard</p>
-    </hgroup>
+{% block unauthenticated_content %}
+<div class="login-container">
+    <article>
+        <h1>Searcharr</h1>
+        <p>Sign in to your account</p>
 
-    <form action="/api/auth/login" method="post" id="loginForm">
-        <label for="username">
-            Username
-            <input type="text" id="username" name="username" required autocomplete="username">
-        </label>
+        <form id="loginForm">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autocomplete="username" autofocus>
 
-        <label for="password">
-            Password
+            <label for="password">Password</label>
             <input type="password" id="password" name="password" required autocomplete="current-password">
-        </label>
 
-        <button type="submit" id="submitBtn">Login</button>
-    </form>
+            <button type="submit">Sign In</button>
+        </form>
+    </article>
 </div>
+{% endblock %}
 
+{% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
-
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.disabled = true;
-        submitBtn.setAttribute('aria-busy', 'true');
-
-        const formData = {
-            username: document.getElementById('username').value,
-            password: document.getElementById('password').value
-        };
+        const btn = this.querySelector('button[type="submit"]');
+        btn.setAttribute('aria-busy', 'true');
+        btn.textContent = 'Signing in...';
 
         try {
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: document.getElementById('username').value,
+                    password: document.getElementById('password').value
+                })
             });
 
             if (response.ok) {
@@ -51,13 +44,12 @@
             } else {
                 const data = await response.json();
                 alert(data.detail || 'Login failed');
-                submitBtn.disabled = false;
-                submitBtn.setAttribute('aria-busy', 'false');
             }
         } catch (error) {
-            alert('Login failed: ' + error.message);
-            submitBtn.disabled = false;
-            submitBtn.setAttribute('aria-busy', 'false');
+            alert('Connection error. Please try again.');
+        } finally {
+            btn.removeAttribute('aria-busy');
+            btn.textContent = 'Sign In';
         }
     });
 </script>
