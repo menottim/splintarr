@@ -8,12 +8,15 @@ This module provides JWT token management and two-factor authentication:
 - Helper functions for token extraction and user authentication
 """
 
+import base64
+import io
 import uuid
 from datetime import datetime, timedelta
 from typing import Annotated, Any
 
 import jwt
 import pyotp
+import qrcode
 import structlog
 from fastapi import Cookie, Depends, HTTPException, status
 from jwt.exceptions import InvalidTokenError as JWTError
@@ -642,6 +645,87 @@ def verify_totp_code(secret: str, code: str) -> bool:
     except Exception as e:
         logger.error("totp_verification_error", error=str(e))
         return False
+
+
+def create_2fa_pending_token(user_id: int, username: str) -> str:
+    """
+    Create a short-lived JWT for 2FA-pending state.
+
+    Issued after password verification succeeds for a 2FA-enabled user.
+    Only accepted by the /api/auth/2fa/login-verify endpoint.
+
+    Args:
+        user_id: User's database ID
+        username: User's username
+
+    Returns:
+        str: Signed JWT with type "2fa_pending" and 5-minute expiry
+    """
+    try:
+        expire = datetime.utcnow() + timedelta(minutes=5)
+        claims: dict[str, Any] = {
+            "sub": str(user_id),
+            "username": username,
+            "type": "2fa_pending",
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "jti": str(uuid.uuid4()),
+        }
+        token = jwt.encode(
+            claims,
+            settings.get_secret_key(),
+            algorithm=ALLOWED_JWT_ALGORITHMS[0],
+        )
+        logger.debug("2fa_pending_token_created", user_id=user_id)
+        return token
+    except Exception as e:
+        logger.error("failed_to_create_2fa_pending_token", user_id=user_id, error=str(e))
+        raise TokenError(f"Failed to create 2FA pending token: {e}") from e
+
+
+def verify_2fa_pending_token(token: str) -> dict[str, Any]:
+    """
+    Verify a 2FA-pending JWT token.
+
+    Args:
+        token: JWT token to verify
+
+    Returns:
+        dict: Decoded token claims
+
+    Raises:
+        TokenError: If token is invalid, expired, or not type "2fa_pending"
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            settings.get_secret_key(),
+            algorithms=ALLOWED_JWT_ALGORITHMS,
+        )
+        if payload.get("type") != "2fa_pending":
+            raise TokenError("Invalid token type")
+        logger.debug("2fa_pending_token_verified", user_id=payload.get("sub"))
+        return payload
+    except JWTError as e:
+        logger.warning("2fa_pending_token_verification_failed", error=str(e))
+        raise TokenError(f"Invalid 2FA pending token: {e}") from e
+
+
+def generate_totp_qr_code_base64(uri: str) -> str:
+    """
+    Render a TOTP provisioning URI as a base64-encoded PNG data URI.
+
+    Args:
+        uri: otpauth:// URI to encode
+
+    Returns:
+        str: data:image/png;base64,... string for embedding in HTML
+    """
+    img = qrcode.make(uri)
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    b64 = base64.b64encode(buffer.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
 
 
 def get_current_user_id_from_token(token: str) -> int:
