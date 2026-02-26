@@ -57,27 +57,11 @@
                             value="{{ url or '' }}">
                         <small>Full URL including port (e.g., http://localhost:8989 or http://192.168.1.100:7878)</small>
                     </label>
-                    <details style="margin-top: 0.5rem;">
-                        <summary><small><strong>Docker Networking Tips</strong></small></summary>
-                        <ul style="margin-top: 0.5rem; font-size: 0.875rem;">
-                            <li>
-                                <strong>Don't use <code>localhost</code> or <code>127.0.0.1</code></strong><br>
-                                <small style="color: #6b7280;">Inside Docker, these refer to the container, not your host machine</small>
-                            </li>
-                            <li>
-                                <strong>Windows/Mac:</strong> Use <code>http://host.docker.internal:8989</code><br>
-                                <small style="color: #6b7280;">This special hostname resolves to your host machine</small>
-                            </li>
-                            <li>
-                                <strong>Linux:</strong> Use your machine's IP address (e.g., <code>http://192.168.1.100:8989</code>)<br>
-                                <small style="color: #6b7280;">Find it with: <code>ip addr show</code> or <code>hostname -I</code></small>
-                            </li>
-                            <li>
-                                <strong>Remote machine:</strong> Use the machine's IP or hostname<br>
-                                <small style="color: #6b7280;">Make sure Sonarr/Radarr is configured to listen on all interfaces</small>
-                            </li>
-                        </ul>
-                    </details>
+                    <div class="alert alert-info" style="margin-top: 0.75rem; font-size: 0.875rem;">
+                        <strong>Docker Networking Tips:</strong> Don't use <code>localhost</code> inside Docker.
+                        Use <code>http://host.docker.internal:8989</code> on Windows/Mac,
+                        or your machine's IP on Linux (e.g., <code>http://192.168.1.100:8989</code>).
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -96,10 +80,10 @@
 
                 <div id="testResult"></div>
 
-                <div class="setup-actions" style="margin-top: 1.5rem;">
+                <div class="setup-actions">
                     <button type="button" class="secondary" id="testConnectionBtn">Test Connection</button>
                     <div class="btn-group">
-                        <a href="/setup/instance/skip" role="button" class="secondary">Skip (Add Later)</a>
+                        <a href="/setup/instance/skip" role="button" class="secondary">Skip</a>
                         <button type="submit" id="submitBtn">Continue →</button>
                     </div>
                 </div>

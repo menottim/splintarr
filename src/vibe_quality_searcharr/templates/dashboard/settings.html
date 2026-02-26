@@ -77,23 +77,11 @@
         <h3>Two-Factor Authentication</h3>
     </header>
 
-    {% if user.totp_enabled %}
-    <p>
-        <span style="color: var(--ins-color);">✓ Two-factor authentication is enabled</span>
-    </p>
-    <p>
-        <small>Your account is protected with an additional security layer using time-based one-time passwords (TOTP).</small>
-    </p>
-    <button class="secondary" data-action="disable-2fa">Disable 2FA</button>
-    {% else %}
-    <p>
-        <span style="color: var(--muted-color);">Two-factor authentication is not enabled</span>
-    </p>
     <p>
         <small>Add an extra layer of security to your account by requiring a code from your authenticator app during login.</small>
     </p>
-    <button data-action="setup-2fa">Enable 2FA</button>
-    {% endif %}
+    <button disabled class="secondary" style="opacity: 0.5; cursor: not-allowed;">Enable 2FA</button>
+    <small style="display: block; margin-top: 0.5rem; color: var(--muted-color);">Coming soon in a future release.</small>
 </article>
 
 <!-- Danger Zone -->
@@ -116,9 +104,7 @@ document.addEventListener('click', function(e) {
     var target = e.target.closest('[data-action]');
     if (!target) return;
     var action = target.dataset.action;
-    if (action === 'disable-2fa') disable2FA();
-    else if (action === 'setup-2fa') setup2FA();
-    else if (action === 'logout-all') logoutAllSessions();
+    if (action === 'logout-all') logoutAllSessions();
 });
 
 document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
@@ -164,16 +150,6 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
         submitBtn.setAttribute('aria-busy', 'false');
     }
 });
-
-function setup2FA() {
-    alert('2FA setup functionality coming soon!');
-}
-
-function disable2FA() {
-    if (confirm('Are you sure you want to disable two-factor authentication?\n\nThis will reduce the security of your account.')) {
-        alert('2FA disable functionality coming soon!');
-    }
-}
 
 async function logoutAllSessions() {
     if (!confirm('Are you sure you want to logout all sessions?\n\nYou will need to log in again on all devices.')) {
