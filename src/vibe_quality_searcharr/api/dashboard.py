@@ -31,6 +31,7 @@ from vibe_quality_searcharr.core.auth import (
     TokenError,
     create_access_token,
     create_refresh_token,
+    get_current_user_from_cookie,
     get_current_user_id_from_token,
 )
 from vibe_quality_searcharr.core.security import decrypt_field, hash_password
@@ -80,56 +81,6 @@ def _timeago(dt: datetime) -> str:
         return f"{days} day{'s' if days != 1 else ''} ago"
     else:
         return dt.strftime("%Y-%m-%d")
-
-
-async def get_current_user_from_cookie(
-    access_token: Annotated[str | None, Cookie()] = None,
-    db: Session = Depends(get_db),
-) -> User:
-    """
-    Get current user from access_token cookie.
-
-    Used for dashboard pages that require authentication.
-
-    Args:
-        access_token: Access token from cookie
-        db: Database session
-
-    Returns:
-        User: Current user object
-
-    Raises:
-        HTTPException: If not authenticated or user not found
-    """
-    if not access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
-    try:
-        user_id = get_current_user_id_from_token(access_token)
-        user = db.query(User).filter(User.id == user_id).first()
-
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
-            )
-
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Account is inactive",
-            )
-
-        return user
-
-    except TokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication failed",
-        ) from e
 
 
 # ============================================================================

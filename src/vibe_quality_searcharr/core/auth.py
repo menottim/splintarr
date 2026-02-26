@@ -10,11 +10,12 @@ This module provides JWT token management and two-factor authentication:
 
 import uuid
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Annotated, Any
 
 import pyotp
 import structlog
 import jwt
+from fastapi import Cookie, Depends, HTTPException, status
 from jwt.exceptions import InvalidTokenError as JWTError
 from sqlalchemy.orm import Session
 
@@ -24,6 +25,7 @@ from vibe_quality_searcharr.core.security import (
     constant_time_compare,
     verify_password,
 )
+from vibe_quality_searcharr.database import get_db
 from vibe_quality_searcharr.models.user import RefreshToken, User
 
 logger = structlog.get_logger()
@@ -709,3 +711,53 @@ def cleanup_expired_tokens(db: Session) -> int:
         db.rollback()
         logger.error("failed_to_cleanup_expired_tokens", error=str(e))
         raise TokenError(f"Failed to cleanup expired tokens: {e}") from e
+
+
+async def get_current_user_from_cookie(
+    access_token: Annotated[str | None, Cookie()] = None,
+    db: Session = Depends(get_db),
+) -> User:
+    """
+    Get current user from access_token cookie.
+
+    Used for dashboard pages and endpoints that require cookie-based authentication.
+
+    Args:
+        access_token: Access token from cookie
+        db: Database session
+
+    Returns:
+        User: Current user object
+
+    Raises:
+        HTTPException: If not authenticated or user not found
+    """
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    try:
+        user_id = get_current_user_id_from_token(access_token)
+        user = db.query(User).filter(User.id == user_id).first()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found",
+            )
+
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is inactive",
+            )
+
+        return user
+
+    except TokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+        ) from e
