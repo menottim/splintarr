@@ -411,6 +411,10 @@ class Settings(BaseSettings):
     def validate_secret_key(cls, v: str) -> str:
         """Validate JWT secret key meets minimum security requirements."""
         if not v:
+            # Allow empty when SECRET_KEY_FILE is set (Docker secrets mode).
+            # The get_secret_key() method will read from the file at runtime.
+            if os.environ.get("SECRET_KEY_FILE"):
+                return v
             raise ValueError(
                 "JWT secret key is required. Set SECRET_KEY environment variable "
                 "or use SECRET_KEY_FILE for Docker secrets."
@@ -428,6 +432,10 @@ class Settings(BaseSettings):
     def validate_database_key(cls, v: str) -> str:
         """Validate database encryption key meets minimum security requirements."""
         if not v:
+            # Allow empty when DATABASE_KEY_FILE is set (Docker secrets mode).
+            # The get_database_key() method will read from the file at runtime.
+            if os.environ.get("DATABASE_KEY_FILE"):
+                return v
             raise ValueError(
                 "Database encryption key is required. Set DATABASE_KEY environment variable "
                 "or use DATABASE_KEY_FILE for Docker secrets."
@@ -445,6 +453,10 @@ class Settings(BaseSettings):
     def validate_pepper(cls, v: str) -> str:
         """Validate password hashing pepper meets minimum security requirements."""
         if not v:
+            # Allow empty when PEPPER_FILE is set (Docker secrets mode).
+            # The get_pepper() method will read from the file at runtime.
+            if os.environ.get("PEPPER_FILE"):
+                return v
             raise ValueError(
                 "Password hashing pepper is required. Set PEPPER environment variable "
                 "or use PEPPER_FILE for Docker secrets."
