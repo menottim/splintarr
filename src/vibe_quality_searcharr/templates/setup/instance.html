@@ -2,7 +2,7 @@
 
 {% block title %}Add Instance - Vibe-Quality-Searcharr{% endblock %}
 
-{% block content %}
+{% block unauthenticated_content %}
 <div class="setup-wizard-container">
     <!-- Progress indicator -->
     <div class="setup-progress">
@@ -58,9 +58,8 @@
                         <small>Full URL including port (e.g., http://localhost:8989 or http://192.168.1.100:7878)</small>
                     </label>
                     <div class="alert alert-info" style="margin-top: 0.75rem; font-size: 0.875rem;">
-                        <strong>Docker Networking Tips:</strong> Don't use <code>localhost</code> inside Docker.
-                        Use <code>http://host.docker.internal:8989</code> on Windows/Mac,
-                        or your machine's IP on Linux (e.g., <code>http://192.168.1.100:8989</code>).
+                        <strong>Docker Networking Tip:</strong> If <code>localhost</code> or your machine's IP
+                        doesn't work inside Docker, try <code>http://host.docker.internal:8989</code> instead.
                     </div>
                 </div>
 
@@ -152,7 +151,7 @@ async function testConnection() {
             testResult.innerHTML = `
                 <div class="alert alert-danger" style="margin-top: 1rem;">
                     <strong>✗ Connection failed:</strong> ${errorMsg}<br>
-                    <small>Check <strong>Docker Networking Tips</strong> under the URL field if you're using localhost</small>
+                    <small>Check the <strong>Docker Networking Tip</strong> under the URL field if you're running inside Docker</small>
                 </div>
             `;
         }
@@ -160,7 +159,7 @@ async function testConnection() {
         testResult.innerHTML = `
             <div class="alert alert-danger" style="margin-top: 1rem;">
                 <strong>✗ Connection failed:</strong> ${error.message}<br>
-                <small>See <strong>Docker Networking Tips</strong> below if you're using localhost</small>
+                <small>See the <strong>Docker Networking Tip</strong> above if you're running inside Docker</small>
             </div>
         `;
     }
