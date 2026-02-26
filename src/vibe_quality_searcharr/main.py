@@ -9,14 +9,17 @@ Main application entry point with:
 - Database initialization
 """
 
+import logging as stdlib_logging
 import secrets
 
 import structlog
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -37,6 +40,8 @@ from vibe_quality_searcharr.services import start_scheduler, stop_scheduler
 # Configure comprehensive logging system
 configure_logging()
 logger = structlog.get_logger(__name__)
+# stdlib logger for exception handlers — caplog captures msg as a plain string
+_handler_logger = stdlib_logging.getLogger(__name__)
 
 # Initialize rate limiter
 limiter = Limiter(
@@ -119,7 +124,23 @@ async def add_security_headers(request: Request, call_next):
     nonce = secrets.token_urlsafe(16)
     request.state.csp_nonce = nonce
 
-    response = await call_next(request)
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        # Catch unhandled exceptions here so they don't propagate through
+        # ServerErrorMiddleware (which always re-raises after handling).
+        # This ensures the test client receives a proper 500 response.
+        _handler_logger.error(
+            "unhandled_exception: path=%s method=%s error=%s",
+            request.url.path,
+            request.method,
+            str(exc),
+            exc_info=True,
+        )
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Internal server error"},
+        )
 
     # Basic security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -288,20 +309,58 @@ async def api_info():
     }
 
 
-# Error handlers
-@app.exception_handler(404)
-async def not_found_handler(request: Request, exc):
-    """Custom 404 handler."""
+# Error handlers — tiered logging for all HTTP errors
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    """Log validation errors at WARNING level."""
+    _handler_logger.warning(
+        "http_validation_error: path=%s method=%s errors=%s",
+        request.url.path,
+        request.method,
+        exc.errors(),
+    )
     return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content={"detail": "Resource not found"},
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
     )
 
 
-@app.exception_handler(500)
-async def internal_error_handler(request: Request, exc):
-    """Custom 500 handler."""
-    logger.error("internal_server_error", path=request.url.path, error=str(exc))
+@app.exception_handler(HTTPException)
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Log HTTP exceptions — WARNING for 4xx, ERROR for 5xx."""
+    if exc.status_code >= 500:
+        _handler_logger.error(
+            "http_server_error: path=%s method=%s status_code=%s detail=%s",
+            request.url.path,
+            request.method,
+            exc.status_code,
+            str(exc.detail),
+        )
+    else:
+        _handler_logger.warning(
+            "http_client_error: path=%s method=%s status_code=%s detail=%s",
+            request.url.path,
+            request.method,
+            exc.status_code,
+            str(exc.detail),
+        )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    """Catch-all for unhandled exceptions — always ERROR level."""
+    _handler_logger.error(
+        "unhandled_exception: path=%s method=%s error=%s",
+        request.url.path,
+        request.method,
+        str(exc),
+        exc_info=True,
+    )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "Internal server error"},
