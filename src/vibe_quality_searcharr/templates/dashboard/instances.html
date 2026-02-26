@@ -134,21 +134,21 @@ async function testInstance(instanceId) {
         const data = await response.json();
 
         if (response.ok && data.success) {
-            alert('Connection successful!\n\nVersion: ' + (data.version || 'Unknown'));
+            showNotification('Connection successful! Version: ' + (data.version || 'Unknown'), 'success');
         } else {
             let errorMsg = data.message || '';
             if (!errorMsg && data.detail) {
                 errorMsg = Array.isArray(data.detail) ? data.detail.map(e => e.msg || e).join('; ') : data.detail;
             }
-            alert('Connection failed: ' + (errorMsg || 'Unknown error'));
+            showNotification('Connection failed: ' + (errorMsg || 'Unknown error'));
         }
     } catch (error) {
-        alert('Connection failed: ' + error.message);
+        showNotification('Connection failed: ' + error.message);
     }
 }
 
 function editInstance(instanceId) {
-    alert('Edit functionality coming soon! Instance ID: ' + instanceId);
+    showNotification('Edit functionality coming soon!', 'info');
 }
 
 async function deleteInstance(instanceId, name) {
@@ -165,10 +165,10 @@ async function deleteInstance(instanceId, name) {
             location.reload();
         } else {
             const data = await response.json();
-            alert('Delete failed: ' + (data.detail || 'Unknown error'));
+            showNotification('Delete failed: ' + (data.detail || 'Unknown error'));
         }
     } catch (error) {
-        alert('Delete failed: ' + error.message);
+        showNotification('Delete failed: ' + error.message);
     }
 }
 

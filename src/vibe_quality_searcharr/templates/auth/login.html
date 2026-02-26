@@ -8,6 +8,8 @@
         <h1>Searcharr</h1>
         <p>Sign in to your account</p>
 
+        <div id="loginError" class="alert alert-danger" style="display: none;" role="alert"></div>
+
         <form id="loginForm">
             <label for="username">Username</label>
             <input type="text" id="username" name="username" required autocomplete="username" autofocus>
@@ -23,8 +25,20 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+    const errorEl = document.getElementById('loginError');
+
+    function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
+    }
+
+    function hideError() {
+        errorEl.style.display = 'none';
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
         e.preventDefault();
+        hideError();
         const btn = this.querySelector('button[type="submit"]');
         btn.setAttribute('aria-busy', 'true');
         btn.textContent = 'Signing in...';
@@ -43,10 +57,10 @@
                 window.location.href = '/dashboard';
             } else {
                 const data = await response.json();
-                alert(data.detail || 'Login failed');
+                showError(data.detail || 'Login failed');
             }
         } catch (error) {
-            alert('Connection error. Please try again.');
+            showError('Connection error. Please try again.');
         } finally {
             btn.removeAttribute('aria-busy');
             btn.textContent = 'Sign In';

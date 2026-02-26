@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Vibe-Quality-Searcharr{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
 
     <!-- Pico CSS -->
     <link rel="stylesheet" href="/static/css/pico.min.css">
@@ -90,6 +91,7 @@
     {% endif %}
 
     <!-- Scripts -->
+    <script src="/static/js/app.js" nonce="{{ request.state.csp_nonce }}"></script>
     <script nonce="{{ request.state.csp_nonce }}">
         document.querySelectorAll('[data-action="logout"]').forEach(function(el) {
             el.addEventListener('click', function(e) { e.preventDefault(); logout(); });

@@ -204,10 +204,10 @@ document.getElementById('createQueueForm').addEventListener('submit', async (e) 
             location.reload();
         } else {
             const data = await response.json();
-            alert('Failed to create queue: ' + (data.detail || 'Unknown error'));
+            showNotification('Failed to create queue: ' + (data.detail || 'Unknown error'));
         }
     } catch (error) {
-        alert('Failed to create queue: ' + error.message);
+        showNotification('Failed to create queue: ' + error.message);
     }
 });
 
@@ -221,10 +221,10 @@ async function pauseQueue(queueId) {
             location.reload();
         } else {
             const data = await response.json();
-            alert('Failed to pause queue: ' + (data.detail || 'Unknown error'));
+            showNotification('Failed to pause queue: ' + (data.detail || 'Unknown error'));
         }
     } catch (error) {
-        alert('Failed to pause queue: ' + error.message);
+        showNotification('Failed to pause queue: ' + error.message);
     }
 }
 
@@ -238,10 +238,10 @@ async function resumeQueue(queueId) {
             location.reload();
         } else {
             const data = await response.json();
-            alert('Failed to resume queue: ' + (data.detail || 'Unknown error'));
+            showNotification('Failed to resume queue: ' + (data.detail || 'Unknown error'));
         }
     } catch (error) {
-        alert('Failed to resume queue: ' + error.message);
+        showNotification('Failed to resume queue: ' + error.message);
     }
 }
 
@@ -263,15 +263,21 @@ async function deleteQueue(queueId, name) {
             location.reload();
         } else {
             const data = await response.json();
-            alert('Delete failed: ' + (data.detail || 'Unknown error'));
+            showNotification('Delete failed: ' + (data.detail || 'Unknown error'));
         }
     } catch (error) {
-        alert('Delete failed: ' + error.message);
+        showNotification('Delete failed: ' + error.message);
     }
 }
 
 function closeCreateModal() {
     document.getElementById('create-queue').close();
 }
+
+// Open modal from the Create Queue link
+document.querySelector('a[href="#create-queue"]').addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('create-queue').showModal();
+});
 </script>
 {% endblock %}

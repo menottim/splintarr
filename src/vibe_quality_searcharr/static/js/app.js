@@ -35,14 +35,33 @@ async function apiCall(url, options = {}) {
     }
 }
 
-// Show notification (using browser alert for simplicity)
-function showNotification(message, type = 'info') {
-    // In a production app, this would use a toast/notification library
+// Show toast notification
+function showNotification(message, type = 'error') {
+    const existing = document.getElementById('toast-notification');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'toast-notification';
+    toast.setAttribute('role', 'alert');
+    toast.style.cssText = 'position:fixed;top:1rem;right:1rem;z-index:9999;padding:0.75rem 1rem;border-radius:0.25rem;font-size:0.875rem;max-width:400px;box-shadow:0 4px 12px rgba(0,0,0,0.4);transition:opacity 0.3s;';
+
     if (type === 'error') {
-        alert('Error: ' + message);
+        toast.style.background = 'rgba(255,85,85,0.15)';
+        toast.style.border = '1px solid #ff5555';
+        toast.style.color = '#ff5555';
+    } else if (type === 'success') {
+        toast.style.background = 'rgba(72,199,116,0.15)';
+        toast.style.border = '1px solid #48c774';
+        toast.style.color = '#48c774';
+    } else {
+        toast.style.background = 'rgba(168,85,247,0.15)';
+        toast.style.border = '1px solid #a855f7';
+        toast.style.color = '#a855f7';
     }
-    // Success/info notifications are silent in production to avoid
-    // leaking application internals via browser console
+
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 5000);
 }
 
 // Confirm dialog

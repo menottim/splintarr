@@ -590,6 +590,11 @@ label small {
     padding: 2rem;
 }
 
+.login-container input {
+    padding: 0.5rem 0.75rem;
+    height: auto;
+}
+
 .login-container h1 {
     text-align: center;
     margin-bottom: 0.5rem;
@@ -664,4 +669,7 @@ label small {
     outline-offset: 2px;
 }
 
-html { scroll-behavior: smooth; }
+html {
+    scroll-behavior: smooth;
+    background-color: var(--background-color);
+}
