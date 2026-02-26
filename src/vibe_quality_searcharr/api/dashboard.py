@@ -568,6 +568,64 @@ async def dashboard_instances(
     )
 
 
+@router.post("/dashboard/instances/add", include_in_schema=False)
+async def dashboard_add_instance(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
+    instance_type: str = Form(...),
+    name: str = Form(...),
+    url: str = Form(...),
+    api_key: str = Form(...),
+) -> Response:
+    """Add a new instance from the dashboard."""
+    from vibe_quality_searcharr.core.security import encrypt_field
+    from vibe_quality_searcharr.core.ssrf_protection import SSRFError, validate_instance_url
+
+    try:
+        validate_instance_url(url, allow_local=settings.allow_local_instances)
+    except (SSRFError, ValueError) as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": str(e)},
+        )
+
+    try:
+        encrypted_api_key = encrypt_field(api_key)
+
+        instance = Instance(
+            user_id=current_user.id,
+            name=name,
+            instance_type=instance_type,
+            url=url,
+            api_key=encrypted_api_key,
+            is_active=True,
+        )
+
+        db.add(instance)
+        db.commit()
+
+        logger.info(
+            "dashboard_instance_created",
+            instance_id=instance.id,
+            user_id=current_user.id,
+            instance_type=instance_type,
+        )
+
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"detail": "Instance created successfully"},
+        )
+
+    except Exception as e:
+        logger.error("dashboard_add_instance_failed", error=str(e))
+        db.rollback()
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Failed to create instance. Please try again."},
+        )
+
+
 @router.get("/dashboard/search-queues", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_search_queues(
     request: Request,

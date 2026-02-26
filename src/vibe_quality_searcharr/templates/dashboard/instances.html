@@ -74,17 +74,52 @@
 </article>
 {% endif %}
 
-<!-- Add Instance Modal (placeholder) -->
+<!-- Add Instance Modal -->
 <dialog id="add-instance">
     <article>
         <header>
-            <a href="#close" aria-label="Close" class="close" data-action="close-modal"></a>
+            <button aria-label="Close" class="close" data-action="close-modal"></button>
             <h3>Add Instance</h3>
         </header>
-        <p>Add instance functionality would go here (use existing API endpoint)</p>
-        <footer>
-            <button class="secondary" data-action="close-modal">Cancel</button>
-        </footer>
+
+        <form id="addInstanceForm">
+            <label for="add_instance_type">
+                Instance Type
+                <select id="add_instance_type" name="instance_type" required>
+                    <option value="">Select type...</option>
+                    <option value="sonarr">Sonarr (TV Shows)</option>
+                    <option value="radarr">Radarr (Movies)</option>
+                </select>
+            </label>
+
+            <label for="add_name">
+                Instance Name
+                <input type="text" id="add_name" name="name" required placeholder="e.g., Main Sonarr, 4K Radarr">
+                <small>Friendly name to identify this instance</small>
+            </label>
+
+            <label for="add_url">
+                URL
+                <input type="url" id="add_url" name="url" required placeholder="http://host.docker.internal:8989">
+                <small>Full URL including port</small>
+            </label>
+
+            <label for="add_api_key">
+                API Key
+                <input type="text" id="add_api_key" name="api_key" required placeholder="Enter your API key" autocomplete="off">
+                <small>Found in Settings > General > Security in Sonarr/Radarr</small>
+            </label>
+
+            <div id="addTestResult"></div>
+
+            <footer>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="secondary" id="addTestBtn">Test Connection</button>
+                    <button type="button" class="secondary" data-action="close-modal">Cancel</button>
+                    <button type="submit" id="addSubmitBtn">Add Instance</button>
+                </div>
+            </footer>
+        </form>
     </article>
 </dialog>
 {% endblock %}
@@ -137,10 +172,100 @@ async function deleteInstance(instanceId, name) {
     }
 }
 
-function closeModal() {
-    document.getElementById('add-instance').close();
+// Modal management
+const addDialog = document.getElementById('add-instance');
+
+function openAddModal() {
+    document.getElementById('addInstanceForm').reset();
+    document.getElementById('addTestResult').innerHTML = '';
+    addDialog.showModal();
 }
 
+function closeModal() {
+    addDialog.close();
+}
+
+// Test connection from the add modal
+document.getElementById('addTestBtn').addEventListener('click', async function() {
+    const resultDiv = document.getElementById('addTestResult');
+    const instanceType = document.getElementById('add_instance_type').value;
+    const url = document.getElementById('add_url').value;
+    const apiKey = document.getElementById('add_api_key').value;
+
+    if (!instanceType || !url || !apiKey) {
+        resultDiv.innerHTML = '<div class="alert alert-danger">Please fill in all fields</div>';
+        return;
+    }
+
+    resultDiv.innerHTML = '<div class="alert alert-info"><progress></progress> Testing connection...</div>';
+
+    try {
+        const response = await fetch('/api/instances/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instance_type: instanceType, url: url, api_key: apiKey })
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            const itemLabel = instanceType === 'sonarr' ? 'Series' : 'Movies';
+            const countText = data.items_count != null ? data.items_count : 'N/A';
+            const infoLine = data.instance_info ? `<br>Instance: ${data.instance_info}` : '';
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>Connection successful!</strong><br>
+                    Version: ${data.version || 'Unknown'}${infoLine}<br>
+                    ${itemLabel}: ${countText}
+                </div>`;
+        } else {
+            let errorMsg = data.message || '';
+            if (!errorMsg && data.detail) {
+                errorMsg = Array.isArray(data.detail) ? data.detail.map(e => e.msg || e).join('; ') : data.detail;
+            }
+            resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${errorMsg || 'Unknown error'}</div>`;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${error.message}</div>`;
+    }
+});
+
+// Add instance form submission
+document.getElementById('addInstanceForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('addSubmitBtn');
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    const formData = new FormData(this);
+
+    try {
+        const response = await fetch('/dashboard/instances/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(formData).toString()
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const text = await response.text();
+            let errorMsg = 'Failed to add instance';
+            try {
+                const data = JSON.parse(text);
+                errorMsg = data.detail || data.error || errorMsg;
+            } catch { errorMsg = text || errorMsg; }
+            document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${errorMsg}</div>`;
+            btn.disabled = false;
+            btn.setAttribute('aria-busy', 'false');
+        }
+    } catch (error) {
+        document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
+    }
+});
+
+// Event delegation
 document.addEventListener('click', function(e) {
     var target = e.target.closest('[data-action]');
     if (!target) return;
@@ -149,6 +274,12 @@ document.addEventListener('click', function(e) {
     else if (action === 'edit-instance') editInstance(parseInt(target.dataset.id));
     else if (action === 'delete-instance') deleteInstance(parseInt(target.dataset.id), target.dataset.name);
     else if (action === 'close-modal') closeModal();
+});
+
+// Open modal from the Add Instance link
+document.querySelector('a[href="#add-instance"]').addEventListener('click', function(e) {
+    e.preventDefault();
+    openAddModal();
 });
 </script>
 {% endblock %}
