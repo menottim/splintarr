@@ -2,6 +2,10 @@
 
 **Version 0.1.0-alpha** | Automated backlog search for Sonarr and Radarr, designed for homelab use.
 
+> **Status: Active Development -- Not Ready for Use**
+>
+> This project is under active development and is **not a stable or working release**. Many core features are incomplete, untested, or broken. There is significant work remaining before this is ready for others to test. **Do not use this expecting a functional application.**
+
 ---
 
 ## AI-Generated Code Warning
