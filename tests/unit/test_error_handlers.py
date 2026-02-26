@@ -2,8 +2,6 @@
 
 import logging
 
-import pytest
-
 
 class TestRequestValidationErrorHandler:
     """Tests for 422 validation error logging."""
@@ -22,13 +20,11 @@ class TestRequestValidationErrorHandler:
             client.post(
                 "/api/auth/login",
                 json={"username": 123},
+                cookies=client.cookies,
             )
-
-        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
-        assert any(
-            "http_validation_error" in getattr(r, "msg", str(r.getMessage()))
-            for r in warning_records
-        ), "Expected a WARNING log containing 'http_validation_error'"
+        assert (
+            "http_validation_error" in caplog.text
+        ), f"Expected 'http_validation_error' in logs, got: {caplog.text}"
 
     def test_validation_error_response_contains_details(self, client):
         """Validation error response includes field-level error details."""
@@ -54,9 +50,28 @@ class TestHTTPExceptionHandler:
         """404 errors are logged at WARNING level."""
         with caplog.at_level(logging.WARNING):
             client.get("/api/nonexistent-endpoint-that-does-not-exist")
+        assert (
+            "http_client_error" in caplog.text
+        ), f"Expected 'http_client_error' in logs, got: {caplog.text}"
 
-        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
-        assert len(warning_records) > 0, "Expected a WARNING log for 404 error"
+    def test_5xx_logs_error(self, client, caplog):
+        """5xx HTTP errors are logged at ERROR level."""
+        from fastapi import HTTPException, Request
+
+        from vibe_quality_searcharr.main import app
+
+        @app.get("/test-5xx")
+        async def error_500_endpoint(request: Request):
+            raise HTTPException(status_code=500, detail="test server error")
+
+        try:
+            with caplog.at_level(logging.ERROR):
+                client.get("/test-5xx")
+            assert (
+                "http_server_error" in caplog.text
+            ), f"Expected 'http_server_error' in logs, got: {caplog.text}"
+        finally:
+            app.routes[:] = [r for r in app.routes if getattr(r, "path", None) != "/test-5xx"]
 
 
 class TestUnhandledExceptionHandler:
@@ -64,8 +79,9 @@ class TestUnhandledExceptionHandler:
 
     def test_unhandled_exception_returns_500(self, client):
         """Unhandled exceptions return 500 with generic message."""
-        from vibe_quality_searcharr.main import app
         from fastapi import Request
+
+        from vibe_quality_searcharr.main import app
 
         @app.get("/test-crash")
         async def crash_endpoint(request: Request):
@@ -82,9 +98,9 @@ class TestUnhandledExceptionHandler:
 
     def test_unhandled_exception_logs_error(self, client, caplog):
         """Unhandled exceptions are logged at ERROR level."""
-        import logging
-        from vibe_quality_searcharr.main import app
         from fastapi import Request
+
+        from vibe_quality_searcharr.main import app
 
         @app.get("/test-crash-log")
         async def crash_log_endpoint(request: Request):
@@ -93,11 +109,8 @@ class TestUnhandledExceptionHandler:
         try:
             with caplog.at_level(logging.ERROR):
                 client.get("/test-crash-log")
-
-            error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
-            assert any(
-                "unhandled" in getattr(r, "msg", str(r.getMessage())).lower()
-                for r in error_records
-            ), "Expected an ERROR log containing 'unhandled'"
+            assert (
+                "unhandled_exception" in caplog.text
+            ), f"Expected 'unhandled_exception' in logs, got: {caplog.text}"
         finally:
             app.routes[:] = [r for r in app.routes if getattr(r, "path", None) != "/test-crash-log"]

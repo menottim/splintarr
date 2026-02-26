@@ -9,7 +9,6 @@ Main application entry point with:
 - Database initialization
 """
 
-import logging as stdlib_logging
 import secrets
 
 import structlog
@@ -19,11 +18,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException as StarletteHTTPException
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from vibe_quality_searcharr.api import auth, dashboard, instances, search_history, search_queue
 from vibe_quality_searcharr.config import settings
@@ -40,8 +39,6 @@ from vibe_quality_searcharr.services import start_scheduler, stop_scheduler
 # Configure comprehensive logging system
 configure_logging()
 logger = structlog.get_logger(__name__)
-# stdlib logger for exception handlers — caplog captures msg as a plain string
-_handler_logger = stdlib_logging.getLogger(__name__)
 
 # Initialize rate limiter
 limiter = Limiter(
@@ -127,14 +124,14 @@ async def add_security_headers(request: Request, call_next):
     try:
         response = await call_next(request)
     except Exception as exc:
-        # Catch unhandled exceptions here so they don't propagate through
-        # ServerErrorMiddleware (which always re-raises after handling).
-        # This ensures the test client receives a proper 500 response.
-        _handler_logger.error(
-            "unhandled_exception: path=%s method=%s error=%s",
-            request.url.path,
-            request.method,
-            str(exc),
+        # BaseHTTPMiddleware.call_next() re-raises app exceptions even after
+        # ExceptionMiddleware handles them, so we must catch here to return
+        # a proper 500 response to the client.
+        logger.error(
+            "unhandled_exception",
+            path=request.url.path,
+            method=request.method,
+            error=str(exc),
             exc_info=True,
         )
         return JSONResponse(
@@ -311,39 +308,39 @@ async def api_info():
 
 # Error handlers — tiered logging for all HTTP errors
 @app.exception_handler(RequestValidationError)
-async def validation_error_handler(request: Request, exc: RequestValidationError):
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     """Log validation errors at WARNING level."""
-    _handler_logger.warning(
-        "http_validation_error: path=%s method=%s errors=%s",
-        request.url.path,
-        request.method,
-        exc.errors(),
+    logger.warning(
+        "http_validation_error",
+        path=request.url.path,
+        method=request.method,
+        errors=exc.errors(),
     )
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content={"detail": exc.errors()},
     )
 
 
 @app.exception_handler(HTTPException)
 @app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Log HTTP exceptions — WARNING for 4xx, ERROR for 5xx."""
     if exc.status_code >= 500:
-        _handler_logger.error(
-            "http_server_error: path=%s method=%s status_code=%s detail=%s",
-            request.url.path,
-            request.method,
-            exc.status_code,
-            str(exc.detail),
+        logger.error(
+            "http_server_error",
+            path=request.url.path,
+            method=request.method,
+            status_code=exc.status_code,
+            detail=str(exc.detail),
         )
     else:
-        _handler_logger.warning(
-            "http_client_error: path=%s method=%s status_code=%s detail=%s",
-            request.url.path,
-            request.method,
-            exc.status_code,
-            str(exc.detail),
+        logger.warning(
+            "http_client_error",
+            path=request.url.path,
+            method=request.method,
+            status_code=exc.status_code,
+            detail=str(exc.detail),
         )
     return JSONResponse(
         status_code=exc.status_code,
@@ -352,13 +349,13 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 @app.exception_handler(Exception)
-async def unhandled_exception_handler(request: Request, exc: Exception):
+async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch-all for unhandled exceptions — always ERROR level."""
-    _handler_logger.error(
-        "unhandled_exception: path=%s method=%s error=%s",
-        request.url.path,
-        request.method,
-        str(exc),
+    logger.error(
+        "unhandled_exception",
+        path=request.url.path,
+        method=request.method,
+        error=str(exc),
         exc_info=True,
     )
     return JSONResponse(
