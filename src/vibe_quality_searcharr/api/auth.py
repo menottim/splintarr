@@ -12,7 +12,6 @@ All endpoints use HTTP-only, Secure, SameSite cookies for tokens.
 Rate limiting is applied to prevent brute-force attacks.
 """
 
-from datetime import datetime
 from typing import Annotated
 
 import structlog
@@ -33,7 +32,6 @@ from vibe_quality_searcharr.core.auth import (
     revoke_all_user_tokens,
     revoke_refresh_token,
     rotate_refresh_token,
-    verify_refresh_token,
 )
 from vibe_quality_searcharr.core.security import hash_password, verify_password
 from vibe_quality_searcharr.database import get_db
@@ -385,7 +383,7 @@ async def login(
                 totp_enabled=user.totp_enabled,
                 created_at=user.created_at.isoformat(),
                 last_login=user.last_login.isoformat() if user.last_login else None,
-                ),
+            ),
             token_type="bearer",
             requires_2fa=False,  # 2FA not implemented
         )
@@ -587,9 +585,6 @@ async def change_password(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Not authenticated",
             )
-
-        # Verify access token and get user
-        from vibe_quality_searcharr.core.auth import get_current_user_id_from_token
 
         try:
             user_id = get_current_user_id_from_token(access_token)

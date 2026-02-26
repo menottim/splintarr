@@ -355,9 +355,7 @@ class Settings(BaseSettings):
         """Validate environment setting."""
         valid_environments = {"development", "production", "test"}
         if v not in valid_environments:
-            raise ValueError(
-                f"Invalid environment: {v}. Must be one of {valid_environments}"
-            )
+            raise ValueError(f"Invalid environment: {v}. Must be one of {valid_environments}")
         return v
 
     @field_validator("reload")

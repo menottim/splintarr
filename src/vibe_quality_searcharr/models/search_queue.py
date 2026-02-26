@@ -24,7 +24,7 @@ from sqlalchemy.sql import func
 from vibe_quality_searcharr.database import Base
 
 if TYPE_CHECKING:
-    from vibe_quality_searcharr.models.instance import Instance
+    pass
 
 # Search queue status
 SearchStatus = Literal["pending", "in_progress", "completed", "failed", "cancelled"]

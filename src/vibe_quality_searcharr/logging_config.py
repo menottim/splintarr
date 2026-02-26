@@ -87,7 +87,7 @@ def rotation_namer(default_name: str) -> str:
     dir_name = path.parent
 
     # Remove the numeric suffix (.1, .2, etc.) if present
-    name_parts = path.stem.split('.')
+    name_parts = path.stem.split(".")
     base_name = name_parts[0]  # e.g., 'all' from 'all.log.1'
 
     # Generate timestamp
@@ -248,7 +248,9 @@ def configure_logging() -> None:
         # Final rendering
         processors=[
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            structlog.processors.JSONRenderer() if is_production else structlog.dev.ConsoleRenderer(),
+            structlog.processors.JSONRenderer()
+            if is_production
+            else structlog.dev.ConsoleRenderer(),
         ],
     )
 
@@ -311,11 +313,13 @@ def get_log_info() -> dict[str, Any]:
     for log_file in log_dir.glob("*.log*"):
         size = log_file.stat().st_size
         total_size += size
-        log_files.append({
-            "name": log_file.name,
-            "size_bytes": size,
-            "size_mb": round(size / (1024 * 1024), 2),
-        })
+        log_files.append(
+            {
+                "name": log_file.name,
+                "size_bytes": size,
+                "size_mb": round(size / (1024 * 1024), 2),
+            }
+        )
 
     return {
         "log_level": settings.log_level,

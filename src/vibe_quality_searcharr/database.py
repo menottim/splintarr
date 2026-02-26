@@ -131,8 +131,9 @@ def create_database_engine() -> Engine:
         RuntimeError: If database configuration is invalid
     """
     try:
-        import sqlcipher3
         from urllib.parse import urlparse
+
+        import sqlcipher3
 
         database_url = settings.get_database_url()
 
@@ -278,7 +279,7 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
-def get_db() -> Generator[Session, None, None]:
+def get_db() -> Generator[Session]:
     """
     Dependency function for FastAPI to get database session.
 

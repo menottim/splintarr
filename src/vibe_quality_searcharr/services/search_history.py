@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
-from sqlalchemy import and_, func
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from vibe_quality_searcharr.models import SearchHistory
@@ -238,17 +238,16 @@ class SearchHistoryService:
                 day = start_date + timedelta(days=day_offset)
                 day_end = day + timedelta(days=1)
 
-                day_records = [
-                    r for r in records
-                    if day <= r.started_at < day_end
-                ]
+                day_records = [r for r in records if day <= r.started_at < day_end]
 
-                searches_by_day.append({
-                    "date": day.date().isoformat(),
-                    "count": len(day_records),
-                    "successful": sum(1 for r in day_records if r.was_successful),
-                    "failed": sum(1 for r in day_records if r.status == "failed"),
-                })
+                searches_by_day.append(
+                    {
+                        "date": day.date().isoformat(),
+                        "count": len(day_records),
+                        "successful": sum(1 for r in day_records if r.was_successful),
+                        "failed": sum(1 for r in day_records if r.status == "failed"),
+                    }
+                )
 
             return {
                 "total_searches": total_searches,
@@ -285,14 +284,10 @@ class SearchHistoryService:
             cutoff_date = datetime.utcnow() - timedelta(days=days)
 
             # Count records to delete
-            count = db.query(SearchHistory).filter(
-                SearchHistory.started_at < cutoff_date
-            ).count()
+            count = db.query(SearchHistory).filter(SearchHistory.started_at < cutoff_date).count()
 
             # Delete old records
-            db.query(SearchHistory).filter(
-                SearchHistory.started_at < cutoff_date
-            ).delete()
+            db.query(SearchHistory).filter(SearchHistory.started_at < cutoff_date).delete()
 
             db.commit()
 
@@ -326,9 +321,7 @@ class SearchHistoryService:
         db = self.db_session_factory()
 
         try:
-            query = db.query(SearchHistory).filter(
-                SearchHistory.status == "failed"
-            )
+            query = db.query(SearchHistory).filter(SearchHistory.status == "failed")
 
             if instance_id is not None:
                 query = query.filter(SearchHistory.instance_id == instance_id)
@@ -362,10 +355,14 @@ class SearchHistoryService:
         try:
             start_date = datetime.utcnow() - timedelta(days=days)
 
-            records = db.query(SearchHistory).filter(
-                SearchHistory.search_queue_id == queue_id,
-                SearchHistory.started_at >= start_date,
-            ).all()
+            records = (
+                db.query(SearchHistory)
+                .filter(
+                    SearchHistory.search_queue_id == queue_id,
+                    SearchHistory.started_at >= start_date,
+                )
+                .all()
+            )
 
             if not records:
                 return {
@@ -390,14 +387,8 @@ class SearchHistoryService:
             successful_records = [r for r in records if r.was_successful]
             failed_records = [r for r in records if r.status == "failed"]
 
-            last_success = max(
-                (r.started_at for r in successful_records),
-                default=None
-            )
-            last_failure = max(
-                (r.started_at for r in failed_records),
-                default=None
-            )
+            last_success = max((r.started_at for r in successful_records), default=None)
+            last_failure = max((r.started_at for r in failed_records), default=None)
 
             return {
                 "total_executions": total_executions,

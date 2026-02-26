@@ -9,15 +9,17 @@ This module provides cryptographic operations following OWASP best practices:
 - HMAC-based pepper mixing to prevent timing attacks
 """
 
+import base64
 import hashlib
 import hmac
 import secrets
 import string
-from typing import Any
 
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from vibe_quality_searcharr.config import settings
 
@@ -82,13 +84,7 @@ class PasswordSecurity:
 
         try:
             # Use HMAC for constant-time pepper mixing (prevents timing attacks)
-            peppered = hmac.new(
-                self._pepper.encode(), password.encode(), hashlib.sha256
-            ).digest()
-
-            # Hash the HMAC output with Argon2id
-            # Convert bytes to base64 for Argon2 (expects string input)
-            import base64
+            peppered = hmac.new(self._pepper.encode(), password.encode(), hashlib.sha256).digest()
 
             peppered_str = base64.b64encode(peppered).decode("ascii")
             return self._hasher.hash(peppered_str)
@@ -118,12 +114,7 @@ class PasswordSecurity:
 
         try:
             # Use HMAC for constant-time pepper mixing (same as hash_password)
-            peppered = hmac.new(
-                self._pepper.encode(), password.encode(), hashlib.sha256
-            ).digest()
-
-            # Convert to base64 (same format as hash_password)
-            import base64
+            peppered = hmac.new(self._pepper.encode(), password.encode(), hashlib.sha256).digest()
 
             peppered_str = base64.b64encode(peppered).decode("ascii")
 
@@ -179,11 +170,6 @@ class FieldEncryption:
 
         Security: Uses SHA256 HKDF with application-specific salt and info.
         """
-        import base64
-
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-
         secret_key = settings.get_secret_key()
 
         # Use HKDF to derive a proper 32-byte key from secret key

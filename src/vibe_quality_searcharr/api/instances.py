@@ -22,8 +22,14 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
-from vibe_quality_searcharr.core.auth import get_current_user_from_cookie, get_current_user_id_from_token
+from vibe_quality_searcharr.config import settings
+from vibe_quality_searcharr.core.auth import (
+    TokenError,
+    get_current_user_from_cookie,
+    get_current_user_id_from_token,
+)
 from vibe_quality_searcharr.core.security import decrypt_field, encrypt_field
+from vibe_quality_searcharr.core.ssrf_protection import SSRFError, validate_instance_url
 from vibe_quality_searcharr.database import get_db
 from vibe_quality_searcharr.models.instance import Instance
 from vibe_quality_searcharr.models.user import User
@@ -69,8 +75,6 @@ async def get_current_user(
     Raises:
         HTTPException: If token is invalid, user not found, or account inactive
     """
-    from vibe_quality_searcharr.core.auth import TokenError
-
     try:
         # Extract token and get user ID
         token = credentials.credentials
@@ -548,6 +552,7 @@ async def delete_instance(
 
 class InstanceTestRequest(BaseModel):
     """Request body for testing instance connection."""
+
     instance_type: str
     url: str
     api_key: str
@@ -564,9 +569,6 @@ class InstanceTestRequest(BaseModel):
         - Prevents DNS rebinding attacks
         - Respects allow_local_instances setting for development
         """
-        from vibe_quality_searcharr.config import settings
-        from vibe_quality_searcharr.core.ssrf_protection import SSRFError, validate_instance_url
-
         try:
             validate_instance_url(v, allow_local=settings.allow_local_instances)
         except SSRFError as e:
@@ -749,8 +751,6 @@ async def test_instance_connection(
         # Decrypt API key
         api_key = decrypt_field(instance.api_key)
 
-        # SSRF protection: re-validate URL at point of use (HIGH-03 DNS rebinding)
-        from vibe_quality_searcharr.core.ssrf_protection import validate_instance_url
         validate_instance_url(instance.url, allow_local=settings.allow_local_instances)
 
         # Create appropriate client
@@ -879,8 +879,6 @@ async def check_configuration_drift(
         # Decrypt API key
         api_key = decrypt_field(instance.api_key)
 
-        # SSRF protection: re-validate URL at point of use (HIGH-03 DNS rebinding)
-        from vibe_quality_searcharr.core.ssrf_protection import validate_instance_url
         validate_instance_url(instance.url, allow_local=settings.allow_local_instances)
 
         # Create appropriate client
@@ -925,7 +923,9 @@ async def check_configuration_drift(
             "drift_detected": drift_detected,
             "drift_details": drift_details,
             "current_version": current_version,
-            "quality_profiles_count": len(quality_profiles) if isinstance(quality_profiles, list) else 0,
+            "quality_profiles_count": len(quality_profiles)
+            if isinstance(quality_profiles, list)
+            else 0,
             "system_status": {
                 "version": current_version,
                 "instance_name": system_status.get("instanceName"),

@@ -17,6 +17,7 @@ Features:
 - Configurable timeouts and SSL verification
 """
 
+import asyncio
 import time
 from typing import Any
 
@@ -174,9 +175,6 @@ class SonarrClient:
                 url=self.url,
                 sleep_time=sleep_time,
             )
-            # Use asyncio sleep for async context
-            import asyncio
-
             await asyncio.sleep(sleep_time)
 
         self._last_request_time = time.time()
@@ -523,7 +521,9 @@ class SonarrClient:
 
         return result
 
-    async def get_series(self, series_id: int | None = None) -> dict[str, Any] | list[dict[str, Any]]:
+    async def get_series(
+        self, series_id: int | None = None
+    ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Get series information.
 

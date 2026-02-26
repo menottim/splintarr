@@ -6,18 +6,14 @@ to Sonarr and Radarr instances with encrypted API keys.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
+from urllib.parse import urlparse, urlunparse
 
 from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from vibe_quality_searcharr.database import Base
-
-if TYPE_CHECKING:
-    from vibe_quality_searcharr.models.search_history import SearchHistory
-    from vibe_quality_searcharr.models.search_queue import SearchQueue
-    from vibe_quality_searcharr.models.user import User
 
 # Instance types
 InstanceType = Literal["sonarr", "radarr"]
@@ -215,9 +211,6 @@ class Instance(Base):
         Returns:
             str: URL with basic auth credentials removed
         """
-        # Remove basic auth credentials if present
-        from urllib.parse import urlparse, urlunparse
-
         parsed = urlparse(self.url)
         if parsed.username or parsed.password:
             # Reconstruct URL without credentials

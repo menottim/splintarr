@@ -13,9 +13,8 @@ The scheduler orchestrates automated searches across Sonarr/Radarr instances,
 respecting rate limits and preventing duplicate searches within cooldown periods.
 """
 
-import asyncio
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -25,12 +24,9 @@ from apscheduler.jobstores.sqlalchemy import SQLAlchemyJobStore
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
-from vibe_quality_searcharr.config import settings
 from vibe_quality_searcharr.database import get_engine
-from vibe_quality_searcharr.models import Instance, SearchQueue
-from vibe_quality_searcharr.services.radarr import RadarrClient
+from vibe_quality_searcharr.models import SearchQueue
 from vibe_quality_searcharr.services.search_queue import SearchQueueManager
-from vibe_quality_searcharr.services.sonarr import SonarrClient
 
 logger = structlog.get_logger()
 
@@ -454,12 +450,14 @@ class SearchScheduler:
 
         jobs = []
         for job in self.scheduler.get_jobs():
-            jobs.append({
-                "id": job.id,
-                "name": job.name,
-                "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
-                "trigger": str(job.trigger),
-            })
+            jobs.append(
+                {
+                    "id": job.id,
+                    "name": job.name,
+                    "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+                    "trigger": str(job.trigger),
+                }
+            )
 
         return {
             "running": self._running,

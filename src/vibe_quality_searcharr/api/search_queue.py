@@ -17,15 +17,15 @@ from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from vibe_quality_searcharr.api.auth import get_current_user
-from vibe_quality_searcharr.database import get_db
-from vibe_quality_searcharr.models import SearchQueue, User
+from vibe_quality_searcharr.database import get_db, get_session_factory
+from vibe_quality_searcharr.models import Instance, SearchQueue, User
 from vibe_quality_searcharr.schemas import (
     MessageResponse,
     SearchQueueCreate,
     SearchQueueResponse,
     SearchQueueUpdate,
 )
-from vibe_quality_searcharr.services import get_scheduler
+from vibe_quality_searcharr.services import SearchQueueManager, get_history_service, get_scheduler
 
 logger = structlog.get_logger()
 
@@ -55,12 +55,14 @@ async def create_search_queue(
     """
     try:
         # Verify instance exists and belongs to user
-        from vibe_quality_searcharr.models import Instance
-
-        instance = db.query(Instance).filter(
-            Instance.id == queue_data.instance_id,
-            Instance.user_id == current_user.id,
-        ).first()
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == queue_data.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
 
         if not instance:
             raise HTTPException(
@@ -101,8 +103,6 @@ async def create_search_queue(
 
         # Schedule in scheduler
         try:
-            from vibe_quality_searcharr.database import get_session_factory
-
             scheduler = get_scheduler(get_session_factory())
             await scheduler.schedule_queue(queue.id)
         except Exception as e:
@@ -153,16 +153,17 @@ async def list_search_queues(
     """
     try:
         # Get all instances for user
-        from vibe_quality_searcharr.models import Instance
-
         user_instance_ids = [
             i.id for i in db.query(Instance).filter(Instance.user_id == current_user.id).all()
         ]
 
         # Get all queues for user's instances
-        queues = db.query(SearchQueue).filter(
-            SearchQueue.instance_id.in_(user_instance_ids)
-        ).order_by(SearchQueue.created_at.desc()).all()
+        queues = (
+            db.query(SearchQueue)
+            .filter(SearchQueue.instance_id.in_(user_instance_ids))
+            .order_by(SearchQueue.created_at.desc())
+            .all()
+        )
 
         return [
             SearchQueueResponse(
@@ -210,8 +211,6 @@ async def get_search_queue(
     """
     try:
         # Get queue and verify ownership
-        from vibe_quality_searcharr.models import Instance
-
         queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
 
         if not queue:
@@ -221,10 +220,14 @@ async def get_search_queue(
             )
 
         # Verify instance belongs to user
-        instance = db.query(Instance).filter(
-            Instance.id == queue.instance_id,
-            Instance.user_id == current_user.id,
-        ).first()
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == queue.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
 
         if not instance:
             raise HTTPException(
@@ -278,8 +281,6 @@ async def update_search_queue(
     """
     try:
         # Get queue and verify ownership
-        from vibe_quality_searcharr.models import Instance
-
         queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
 
         if not queue:
@@ -289,10 +290,14 @@ async def update_search_queue(
             )
 
         # Verify instance belongs to user
-        instance = db.query(Instance).filter(
-            Instance.id == queue.instance_id,
-            Instance.user_id == current_user.id,
-        ).first()
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == queue.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
 
         if not instance:
             raise HTTPException(
@@ -334,8 +339,6 @@ async def update_search_queue(
         # Reschedule if active
         if queue.is_active:
             try:
-                from vibe_quality_searcharr.database import get_session_factory
-
                 scheduler = get_scheduler(get_session_factory())
                 await scheduler.schedule_queue(queue.id, reschedule=True)
             except Exception as e:
@@ -386,8 +389,6 @@ async def delete_search_queue(
     """
     try:
         # Get queue and verify ownership
-        from vibe_quality_searcharr.models import Instance
-
         queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
 
         if not queue:
@@ -397,10 +398,14 @@ async def delete_search_queue(
             )
 
         # Verify instance belongs to user
-        instance = db.query(Instance).filter(
-            Instance.id == queue.instance_id,
-            Instance.user_id == current_user.id,
-        ).first()
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == queue.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
 
         if not instance:
             raise HTTPException(
@@ -410,8 +415,6 @@ async def delete_search_queue(
 
         # Unschedule from scheduler
         try:
-            from vibe_quality_searcharr.database import get_session_factory
-
             scheduler = get_scheduler(get_session_factory())
             await scheduler.unschedule_queue(queue_id)
         except Exception as e:
@@ -458,10 +461,6 @@ async def start_search_queue(
     Triggers immediate execution regardless of schedule.
     """
     try:
-        # Get queue and verify ownership
-        from vibe_quality_searcharr.models import Instance
-        from vibe_quality_searcharr.services import SearchQueueManager
-
         queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
 
         if not queue:
@@ -471,19 +470,20 @@ async def start_search_queue(
             )
 
         # Verify instance belongs to user
-        instance = db.query(Instance).filter(
-            Instance.id == queue.instance_id,
-            Instance.user_id == current_user.id,
-        ).first()
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == queue.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
 
         if not instance:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this search queue",
             )
-
-        # Execute queue immediately
-        from vibe_quality_searcharr.database import get_session_factory
 
         queue_manager = SearchQueueManager(get_session_factory())
         result = await queue_manager.execute_queue(queue_id)
@@ -497,7 +497,7 @@ async def start_search_queue(
 
         return MessageResponse(
             message=f"Search queue started: {result['status']} "
-                    f"({result['items_found']}/{result['items_searched']} items found)"
+            f"({result['items_found']}/{result['items_searched']} items found)"
         )
 
     except HTTPException:
@@ -530,8 +530,6 @@ async def pause_search_queue(
     """
     try:
         # Get queue and verify ownership
-        from vibe_quality_searcharr.models import Instance
-
         queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
 
         if not queue:
@@ -541,10 +539,14 @@ async def pause_search_queue(
             )
 
         # Verify instance belongs to user
-        instance = db.query(Instance).filter(
-            Instance.id == queue.instance_id,
-            Instance.user_id == current_user.id,
-        ).first()
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == queue.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
 
         if not instance:
             raise HTTPException(
@@ -558,8 +560,6 @@ async def pause_search_queue(
 
         # Unschedule from scheduler
         try:
-            from vibe_quality_searcharr.database import get_session_factory
-
             scheduler = get_scheduler(get_session_factory())
             await scheduler.unschedule_queue(queue_id)
         except Exception as e:
@@ -603,8 +603,6 @@ async def resume_search_queue(
     """
     try:
         # Get queue and verify ownership
-        from vibe_quality_searcharr.models import Instance
-
         queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
 
         if not queue:
@@ -614,10 +612,14 @@ async def resume_search_queue(
             )
 
         # Verify instance belongs to user
-        instance = db.query(Instance).filter(
-            Instance.id == queue.instance_id,
-            Instance.user_id == current_user.id,
-        ).first()
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == queue.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
 
         if not instance:
             raise HTTPException(
@@ -631,8 +633,6 @@ async def resume_search_queue(
 
         # Reschedule in scheduler
         try:
-            from vibe_quality_searcharr.database import get_session_factory
-
             scheduler = get_scheduler(get_session_factory())
             await scheduler.schedule_queue(queue_id, reschedule=True)
         except Exception as e:
@@ -675,10 +675,6 @@ async def get_queue_status(
     Returns current status and recent performance statistics.
     """
     try:
-        # Get queue and verify ownership
-        from vibe_quality_searcharr.models import Instance
-        from vibe_quality_searcharr.services import get_history_service
-
         queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
 
         if not queue:
@@ -688,19 +684,20 @@ async def get_queue_status(
             )
 
         # Verify instance belongs to user
-        instance = db.query(Instance).filter(
-            Instance.id == queue.instance_id,
-            Instance.user_id == current_user.id,
-        ).first()
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == queue.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
 
         if not instance:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied to this search queue",
             )
-
-        # Get performance metrics
-        from vibe_quality_searcharr.database import get_session_factory
 
         history_service = get_history_service(get_session_factory())
         performance = history_service.get_queue_performance(queue_id, days=30)

@@ -17,8 +17,8 @@ from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from vibe_quality_searcharr.api.auth import get_current_user
-from vibe_quality_searcharr.database import get_db
-from vibe_quality_searcharr.models import User
+from vibe_quality_searcharr.database import get_db, get_session_factory
+from vibe_quality_searcharr.models import Instance, SearchQueue, User
 from vibe_quality_searcharr.schemas import MessageResponse, SearchHistoryResponse
 from vibe_quality_searcharr.services import get_history_service
 
@@ -55,9 +55,6 @@ async def list_search_history(
     """
     try:
         # Get user's instance IDs
-        from vibe_quality_searcharr.models import Instance
-        from vibe_quality_searcharr.database import get_session_factory
-
         user_instance_ids = [
             i.id for i in db.query(Instance).filter(Instance.user_id == current_user.id).all()
         ]
@@ -159,9 +156,6 @@ async def get_search_statistics(
     """
     try:
         # Get user's instance IDs
-        from vibe_quality_searcharr.models import Instance
-        from vibe_quality_searcharr.database import get_session_factory
-
         user_instance_ids = [
             i.id for i in db.query(Instance).filter(Instance.user_id == current_user.id).all()
         ]
@@ -215,8 +209,6 @@ async def cleanup_search_history(
     Minimum 30 days, maximum 365 days.
     """
     try:
-        from vibe_quality_searcharr.database import get_session_factory
-
         history_service = get_history_service(get_session_factory())
 
         # Clean up old history
@@ -262,9 +254,6 @@ async def get_recent_failures(
     """
     try:
         # Get user's instance IDs
-        from vibe_quality_searcharr.models import Instance
-        from vibe_quality_searcharr.database import get_session_factory
-
         user_instance_ids = [
             i.id for i in db.query(Instance).filter(Instance.user_id == current_user.id).all()
         ]
@@ -335,10 +324,6 @@ async def get_queue_history(
     Returns all history records for the specified queue.
     """
     try:
-        # Verify queue belongs to user
-        from vibe_quality_searcharr.models import Instance, SearchQueue
-        from vibe_quality_searcharr.database import get_session_factory
-
         queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
 
         if not queue:
@@ -348,10 +333,14 @@ async def get_queue_history(
             )
 
         # Verify instance belongs to user
-        instance = db.query(Instance).filter(
-            Instance.id == queue.instance_id,
-            Instance.user_id == current_user.id,
-        ).first()
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == queue.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
 
         if not instance:
             raise HTTPException(

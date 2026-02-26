@@ -9,6 +9,7 @@ Usage:
 """
 
 import getpass
+import re
 import sys
 
 import structlog
@@ -43,9 +44,6 @@ def reset_password() -> None:
         if new_password != confirm_password:
             print("Error: Passwords do not match")
             sys.exit(1)
-
-        # Validate password strength using the same rules as registration
-        import re
 
         if len(new_password) < 12:
             print("Error: Password must be at least 12 characters long")

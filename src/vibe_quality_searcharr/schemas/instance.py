@@ -67,6 +67,7 @@ class InstanceCreate(BaseModel):
             raise ValueError(f"Invalid URL: {e}") from e
 
         return v
+
     timeout_seconds: int = Field(
         default=30,
         ge=5,
@@ -265,21 +266,15 @@ class InstanceResponse(BaseModel):
     url: str = Field(..., description="Base URL of the instance")
     verify_ssl: bool = Field(..., description="Whether SSL verification is enabled")
     timeout_seconds: int = Field(..., description="HTTP request timeout in seconds")
-    rate_limit_per_minute: int = Field(
-        ..., description="Maximum requests per minute"
-    )
-    is_healthy: bool = Field(
-        ..., description="Whether last connection test was successful"
-    )
+    rate_limit_per_minute: int = Field(..., description="Maximum requests per minute")
+    is_healthy: bool = Field(..., description="Whether last connection test was successful")
     last_connection_test: datetime | None = Field(
         None, description="Last connection test timestamp (ISO 8601)"
     )
     last_connection_success: bool | None = Field(
         None, description="Result of last connection test (NULL if never tested)"
     )
-    last_error: str | None = Field(
-        None, description="Error message from last failed connection"
-    )
+    last_error: str | None = Field(None, description="Error message from last failed connection")
     created_at: datetime = Field(..., description="Instance creation timestamp (ISO 8601)")
     updated_at: datetime = Field(..., description="Last update timestamp (ISO 8601)")
     security_warning: str | None = Field(
@@ -333,18 +328,12 @@ class InstanceTestResult(BaseModel):
 
     success: bool = Field(..., description="Whether the connection test succeeded")
     message: str = Field(..., description="Human-readable test result message")
-    version: str | None = Field(
-        None, description="Sonarr/Radarr version if connection successful"
-    )
-    response_time_ms: int | None = Field(
-        None, description="Response time in milliseconds"
-    )
+    version: str | None = Field(None, description="Sonarr/Radarr version if connection successful")
+    response_time_ms: int | None = Field(None, description="Response time in milliseconds")
     items_count: int | None = Field(
         None, description="Number of series (Sonarr) or movies (Radarr) in the library"
     )
-    error_details: str | None = Field(
-        None, description="Detailed error information if test failed"
-    )
+    error_details: str | None = Field(None, description="Detailed error information if test failed")
     instance_info: str | None = Field(
         None, description="Instance details from system status (e.g., app name, OS)"
     )

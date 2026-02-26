@@ -15,7 +15,7 @@ from sqlalchemy.sql import func
 from vibe_quality_searcharr.database import Base
 
 if TYPE_CHECKING:
-    from vibe_quality_searcharr.models.instance import Instance
+    pass
 
 
 class User(Base):
@@ -178,9 +178,7 @@ class User(Base):
             else:
                 duration = min(lockout_duration_minutes, 30)
 
-            self.account_locked_until = datetime.utcnow() + timedelta(
-                minutes=duration
-            )
+            self.account_locked_until = datetime.utcnow() + timedelta(minutes=duration)
 
     def reset_failed_login(self) -> None:
         """

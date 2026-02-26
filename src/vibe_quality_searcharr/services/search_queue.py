@@ -13,7 +13,6 @@ The queue manager coordinates with the scheduler to execute automated searches
 across configured instances.
 """
 
-import asyncio
 import json
 from collections.abc import Callable
 from datetime import datetime, timedelta
@@ -270,7 +269,9 @@ class SearchQueueManager:
 
                             except Exception as e:
                                 errors.append(f"Episode {episode_id}: {str(e)}")
-                                logger.error("episode_search_failed", episode_id=episode_id, error=str(e))
+                                logger.error(
+                                    "episode_search_failed", episode_id=episode_id, error=str(e)
+                                )
 
                         # Check if there are more pages
                         if page >= result.get("totalRecords", 0) / 50:

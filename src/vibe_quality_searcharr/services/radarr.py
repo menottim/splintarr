@@ -17,6 +17,7 @@ Features:
 - Configurable timeouts and SSL verification
 """
 
+import asyncio
 import time
 from typing import Any
 
@@ -174,9 +175,6 @@ class RadarrClient:
                 url=self.url,
                 sleep_time=sleep_time,
             )
-            # Use asyncio sleep for async context
-            import asyncio
-
             await asyncio.sleep(sleep_time)
 
         self._last_request_time = time.time()
@@ -494,7 +492,9 @@ class RadarrClient:
 
         return result
 
-    async def get_movies(self, movie_id: int | None = None) -> dict[str, Any] | list[dict[str, Any]]:
+    async def get_movies(
+        self, movie_id: int | None = None
+    ) -> dict[str, Any] | list[dict[str, Any]]:
         """
         Get movie information.
 

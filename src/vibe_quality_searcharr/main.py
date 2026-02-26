@@ -24,7 +24,13 @@ from slowapi.util import get_remote_address
 
 from vibe_quality_searcharr.api import auth, dashboard, instances, search_history, search_queue
 from vibe_quality_searcharr.config import settings
-from vibe_quality_searcharr.database import close_db, get_session_factory, init_db, test_database_connection
+from vibe_quality_searcharr.database import (
+    close_db,
+    database_health_check,
+    get_session_factory,
+    init_db,
+    test_database_connection,
+)
 from vibe_quality_searcharr.logging_config import configure_logging
 from vibe_quality_searcharr.services import start_scheduler, stop_scheduler
 
@@ -232,8 +238,6 @@ async def health_check():
     Returns application and database health status.
     """
     try:
-        from vibe_quality_searcharr.database import database_health_check
-
         db_health = database_health_check()
 
         # Filter out sensitive details (cipher_version, pool internals)

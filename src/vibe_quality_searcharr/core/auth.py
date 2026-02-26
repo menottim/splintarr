@@ -12,9 +12,9 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Annotated, Any
 
+import jwt
 import pyotp
 import structlog
-import jwt
 from fastapi import Cookie, Depends, HTTPException, status
 from jwt.exceptions import InvalidTokenError as JWTError
 from sqlalchemy.orm import Session
@@ -22,7 +22,6 @@ from sqlalchemy.orm import Session
 from vibe_quality_searcharr.config import settings
 from vibe_quality_searcharr.core.security import (
     DUMMY_PASSWORD_HASH,
-    constant_time_compare,
     verify_password,
 )
 from vibe_quality_searcharr.database import get_db
@@ -43,9 +42,7 @@ _access_token_blacklist: dict[str, datetime] = {}
 def blacklist_access_token(token: str) -> None:
     """Add an access token's JTI to the blacklist (called on logout)."""
     try:
-        payload = jwt.decode(
-            token, settings.get_secret_key(), algorithms=ALLOWED_JWT_ALGORITHMS
-        )
+        payload = jwt.decode(token, settings.get_secret_key(), algorithms=ALLOWED_JWT_ALGORITHMS)
         jti = payload.get("jti")
         if jti:
             exp = payload.get("exp")
@@ -128,9 +125,7 @@ def create_access_token(
             reserved_claims = {"sub", "exp", "iat", "jti", "type", "username"}
             injected = set(additional_claims.keys()) & reserved_claims
             if injected:
-                raise TokenError(
-                    f"Cannot override reserved JWT claims: {', '.join(injected)}"
-                )
+                raise TokenError(f"Cannot override reserved JWT claims: {', '.join(injected)}")
             claims.update(additional_claims)
 
         # Sign and encode token using hardcoded algorithm (prevent algorithm confusion)
@@ -696,11 +691,7 @@ def cleanup_expired_tokens(db: Session) -> int:
     """
     try:
         # Delete expired tokens
-        count = (
-            db.query(RefreshToken)
-            .filter(RefreshToken.expires_at < datetime.utcnow())
-            .delete()
-        )
+        count = db.query(RefreshToken).filter(RefreshToken.expires_at < datetime.utcnow()).delete()
 
         db.commit()
 

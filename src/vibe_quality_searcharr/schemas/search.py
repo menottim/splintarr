@@ -244,15 +244,9 @@ class SearchQueueResponse(BaseModel):
     )
     is_active: bool = Field(..., description="Whether search is active")
     status: SearchQueueStatus = Field(..., description="Current execution status")
-    next_run: datetime | None = Field(
-        None, description="Next scheduled execution time (ISO 8601)"
-    )
-    last_run: datetime | None = Field(
-        None, description="Last execution time (ISO 8601)"
-    )
-    consecutive_failures: int = Field(
-        ..., description="Number of consecutive failed executions"
-    )
+    next_run: datetime | None = Field(None, description="Next scheduled execution time (ISO 8601)")
+    last_run: datetime | None = Field(None, description="Last execution time (ISO 8601)")
+    consecutive_failures: int = Field(..., description="Number of consecutive failed executions")
     created_at: datetime = Field(..., description="Queue item creation timestamp (ISO 8601)")
 
     model_config = {
@@ -296,16 +290,12 @@ class SearchHistoryResponse(BaseModel):
     completed_at: datetime | None = Field(
         None, description="Search completion timestamp (ISO 8601, NULL if running)"
     )
-    duration_seconds: int | None = Field(
-        None, description="Total execution time in seconds"
-    )
+    duration_seconds: int | None = Field(None, description="Total execution time in seconds")
     status: SearchExecutionStatus = Field(..., description="Execution status")
     items_searched: int = Field(..., description="Number of items searched")
     items_found: int = Field(..., description="Number of items matching criteria")
     searches_triggered: int = Field(..., description="Number of searches triggered")
-    error_message: str | None = Field(
-        None, description="Error message if search failed"
-    )
+    error_message: str | None = Field(None, description="Error message if search failed")
 
     model_config = {
         "from_attributes": True,
