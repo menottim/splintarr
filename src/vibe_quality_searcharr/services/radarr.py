@@ -143,7 +143,7 @@ class RadarrClient:
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.timeout),
                 verify=self.verify_ssl,
-                follow_redirects=False,  # Disabled: redirects could leak API key to third-party servers
+                follow_redirects=True,  # httpx strips sensitive headers on cross-origin redirects
                 headers={
                     "X-Api-Key": self.api_key,
                     "User-Agent": f"{settings.app_name}/0.1.0",

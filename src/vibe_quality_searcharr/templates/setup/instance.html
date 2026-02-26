@@ -158,7 +158,7 @@ async function testConnection() {
                 <div class="alert alert-success" style="margin-top: 1rem;">
                     <strong>✓ Connection successful!</strong><br>
                     Version: ${data.version || 'Unknown'}<br>
-                    ${instanceType === 'sonarr' ? 'Series' : 'Movies'}: ${data.items_count || 0}
+                    ${instanceType === 'sonarr' ? 'Series' : 'Movies'}: ${data.items_count != null ? data.items_count : 'N/A'}
                 </div>
             `;
         } else {
