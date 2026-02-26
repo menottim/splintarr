@@ -154,11 +154,19 @@ async function testConnection() {
         const data = await response.json();
 
         if (response.ok && data.success) {
+            const itemLabel = instanceType === 'sonarr' ? 'Series' : 'Movies';
+            let countLine;
+            if (data.items_count != null) {
+                countLine = `${itemLabel}: ${data.items_count}`;
+            } else {
+                countLine = `${itemLabel} count: unavailable <small>(library count could not be retrieved, but the connection is working)</small>`;
+            }
+            const infoLine = data.instance_info ? `<br>Instance: ${data.instance_info}` : '';
             testResult.innerHTML = `
                 <div class="alert alert-success" style="margin-top: 1rem;">
                     <strong>✓ Connection successful!</strong><br>
-                    Version: ${data.version || 'Unknown'}<br>
-                    ${instanceType === 'sonarr' ? 'Series' : 'Movies'}: ${data.items_count != null ? data.items_count : 'N/A'}
+                    Version: ${data.version || 'Unknown'}${infoLine}<br>
+                    ${countLine}
                 </div>
             `;
         } else {

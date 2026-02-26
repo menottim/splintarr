@@ -652,11 +652,19 @@ async def test_instance_pre_creation(
                     version=system_status.get("version", "unknown"),
                 )
 
+                # Build a summary string from system status for the user
+                app_name = system_status.get("appName", "")
+                os_name = system_status.get("osName", "")
+                runtime = system_status.get("runtimeName", "")
+                info_parts = [p for p in [app_name, os_name, runtime] if p]
+                instance_info = " / ".join(info_parts) if info_parts else None
+
                 return InstanceTestResult(
                     success=True,
                     message="Connection successful",
                     version=system_status.get("version"),
                     items_count=items_count,
+                    instance_info=instance_info,
                 )
 
         except (SonarrError, RadarrError) as e:

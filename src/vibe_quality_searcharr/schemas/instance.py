@@ -339,8 +339,14 @@ class InstanceTestResult(BaseModel):
     response_time_ms: int | None = Field(
         None, description="Response time in milliseconds"
     )
+    items_count: int | None = Field(
+        None, description="Number of series (Sonarr) or movies (Radarr) in the library"
+    )
     error_details: str | None = Field(
         None, description="Detailed error information if test failed"
+    )
+    instance_info: str | None = Field(
+        None, description="Instance details from system status (e.g., app name, OS)"
     )
 
     model_config = {
@@ -351,14 +357,18 @@ class InstanceTestResult(BaseModel):
                     "message": "Successfully connected to Sonarr instance",
                     "version": "3.0.10.1567",
                     "response_time_ms": 245,
+                    "items_count": 42,
                     "error_details": None,
+                    "instance_info": "Sonarr on linux (docker)",
                 },
                 {
                     "success": False,
                     "message": "Failed to connect to instance",
                     "version": None,
                     "response_time_ms": None,
+                    "items_count": None,
                     "error_details": "Connection timeout after 30 seconds",
+                    "instance_info": None,
                 },
             ]
         }
