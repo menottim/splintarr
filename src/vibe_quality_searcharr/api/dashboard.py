@@ -348,7 +348,7 @@ async def setup_instance_page(
     """
     return templates.TemplateResponse(
         "setup/instance.html",
-        {"request": request, "app_name": settings.app_name, "user": current_user},
+        {"request": request, "app_name": settings.app_name, "user": current_user, "no_sidebar": True},
     )
 
 
@@ -374,6 +374,7 @@ async def setup_instance_create(
                     "request": request,
                     "app_name": settings.app_name,
                     "user": current_user,
+                    "no_sidebar": True,
                     "error": "Invalid instance type",
                     "name": name,
                     "url": url,
@@ -392,6 +393,7 @@ async def setup_instance_create(
                     "request": request,
                     "app_name": settings.app_name,
                     "user": current_user,
+                    "no_sidebar": True,
                     "error": "URL blocked for security reasons. Use a public hostname or enable local instances.",
                     "name": name,
                     "url": url,
@@ -415,6 +417,7 @@ async def setup_instance_create(
                     "request": request,
                     "app_name": settings.app_name,
                     "user": current_user,
+                    "no_sidebar": True,
                     "error": "Connection test failed. Check the URL and API key. If running inside Docker, see the networking tip below.",
                     "name": name,
                     "url": url,
@@ -500,7 +503,7 @@ async def setup_complete(
     """
     return templates.TemplateResponse(
         "setup/complete.html",
-        {"request": request, "app_name": settings.app_name, "user": current_user},
+        {"request": request, "app_name": settings.app_name, "user": current_user, "no_sidebar": True},
     )
 
 
