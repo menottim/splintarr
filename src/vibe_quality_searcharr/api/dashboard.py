@@ -415,7 +415,7 @@ async def setup_instance_create(
                     "request": request,
                     "app_name": settings.app_name,
                     "user": current_user,
-                    "error": "Connection test failed. Check the URL and API key, and see Docker Networking Tips below.",
+                    "error": "Connection test failed. Check the URL and API key. If running inside Docker, see the networking tip below.",
                     "name": name,
                     "url": url,
                     "instance_type": instance_type,
@@ -538,6 +538,7 @@ async def dashboard_index(
             "user": current_user,
             "stats": stats,
             "recent_searches": recent_searches,
+            "active_page": "dashboard",
         },
     )
 
@@ -564,6 +565,7 @@ async def dashboard_instances(
             "request": request,
             "user": current_user,
             "instances": instances,
+            "active_page": "instances",
         },
     )
 
@@ -657,6 +659,7 @@ async def dashboard_search_queues(
             "user": current_user,
             "queues": queues,
             "instances": instances,
+            "active_page": "queues",
         },
     )
 
@@ -707,6 +710,7 @@ async def dashboard_search_history(
             "per_page": per_page,
             "total_count": total_count,
             "total_pages": total_pages,
+            "active_page": "history",
         },
     )
 
@@ -724,6 +728,7 @@ async def dashboard_settings(
         {
             "request": request,
             "user": current_user,
+            "active_page": "settings",
         },
     )
 
