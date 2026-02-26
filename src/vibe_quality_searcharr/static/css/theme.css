@@ -1,5 +1,5 @@
 /**
- * Sonarr-inspired dark theme for Vibe-Quality-Searcharr
+ * Dark theme for Vibe-Quality-Searcharr
  *
  * Dark-first design with left sidebar navigation.
  * Built on top of Pico CSS with variable overrides.
@@ -135,9 +135,9 @@ hgroup p {
     font-weight: 400;
 }
 
-/* Links — light grey, purple on hover */
-a { color: var(--slate-200); transition: color var(--transition); }
-a:hover { color: var(--brand-primary); }
+/* Links — light grey, purple on hover (exclude buttons) */
+a:not([role="button"]) { color: var(--slate-200); transition: color var(--transition); }
+a:not([role="button"]):hover { color: var(--brand-primary); }
 
 /* ============================================
    App Layout — Sidebar + Content
@@ -348,7 +348,7 @@ button,
     font-weight: 500;
     padding: 0.5rem 1rem;
     border-radius: var(--border-radius);
-    transition: all var(--transition);
+    transition: background-color var(--transition), border-color var(--transition), box-shadow var(--transition);
     box-shadow: var(--button-box-shadow);
     height: auto;
     line-height: 1.5;
@@ -361,16 +361,40 @@ button,
     font-size: 0.875rem;
 }
 
-button:hover,
+/* Primary buttons — purple, white text */
+button:not(.secondary):not(.outline):not([type="reset"]),
+[type="submit"],
+[role="button"]:not(.secondary):not(.outline) {
+    background-color: var(--brand-primary);
+    border-color: var(--brand-primary);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+button:not(.secondary):not(.outline):not([type="reset"]):hover,
 [type="submit"]:hover,
-[type="button"]:hover,
-[role="button"]:hover {
+[role="button"]:not(.secondary):not(.outline):hover {
+    background-color: var(--brand-primary-hover);
+    border-color: var(--brand-primary-hover);
+    color: #ffffff;
     box-shadow: var(--button-hover-box-shadow);
 }
 
-button:not([role="button"]),
-[type="submit"] {
-    font-weight: 600;
+/* Secondary buttons — grey, light text */
+button.secondary,
+[role="button"].secondary {
+    background-color: var(--slate-600);
+    border-color: var(--slate-600);
+    color: var(--slate-200);
+    font-weight: 500;
+}
+
+button.secondary:hover,
+[role="button"].secondary:hover {
+    background-color: var(--slate-500);
+    border-color: var(--slate-500);
+    color: var(--slate-200);
+    box-shadow: var(--button-hover-box-shadow);
 }
 
 /* ============================================
@@ -543,6 +567,12 @@ label small {
 
 .setup-actions > *:first-child { margin-right: auto; }
 .setup-actions .btn-group { display: flex; gap: 0.5rem; }
+
+.setup-actions button,
+.setup-actions [role="button"] {
+    width: auto;
+    margin-bottom: 0;
+}
 
 /* ============================================
    Login Page (centered, no sidebar)
