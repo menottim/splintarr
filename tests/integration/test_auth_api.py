@@ -7,11 +7,17 @@ Tests all API endpoints, rate limiting, error cases, and cookie handling.
 import time
 from datetime import datetime, timedelta
 
+import pyotp
 import pytest
 from fastapi.testclient import TestClient
 
 from vibe_quality_searcharr.config import settings
-from vibe_quality_searcharr.core.auth import create_access_token, create_refresh_token
+from vibe_quality_searcharr.core.auth import (
+    create_2fa_pending_token,
+    create_access_token,
+    create_refresh_token,
+    generate_totp_secret,
+)
 from vibe_quality_searcharr.core.security import hash_password
 from vibe_quality_searcharr.models.user import RefreshToken, User
 
@@ -468,11 +474,10 @@ class TestRefreshEndpoint:
 
 
 class TestTwoFactorEndpoints:
-    """Tests for 2FA setup and verification endpoints."""
+    """Tests for 2FA setup, verification, login, and disable endpoints."""
 
     def test_2fa_setup_success(self, client: TestClient, db_session):
         """Test successful 2FA setup."""
-        # Create user
         user = User(
             username="testuser",
             password_hash=hash_password("TestP@ssw0rd123!"),
@@ -481,32 +486,53 @@ class TestTwoFactorEndpoints:
         db_session.add(user)
         db_session.commit()
 
-        # Create access token
         access_token = create_access_token(user.id, user.username)
         client.cookies.set("access_token", access_token)
 
-        # Setup 2FA
         response = client.post("/api/auth/2fa/setup")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Verify response
         assert "secret" in data
         assert "qr_code_uri" in data
-        assert len(data["secret"]) == 32  # Base32 encoded
+        assert "qr_code_data_uri" in data
+        assert len(data["secret"]) == 32
         assert data["qr_code_uri"].startswith("otpauth://")
+        assert data["qr_code_data_uri"].startswith("data:image/png;base64,")
         assert "testuser" in data["qr_code_uri"]
+
+        # Verify secret was stored on user
+        db_session.refresh(user)
+        assert user.totp_secret == data["secret"]
+        assert user.totp_enabled is False  # Not yet enabled
 
     def test_2fa_setup_without_auth(self, client: TestClient):
         """Test 2FA setup without authentication."""
         response = client.post("/api/auth/2fa/setup")
-
         assert response.status_code == 401
 
-    def test_2fa_verify_placeholder(self, client: TestClient, db_session):
-        """Test 2FA verification (placeholder implementation)."""
-        # Create user
+    def test_2fa_setup_already_enabled(self, client: TestClient, db_session):
+        """Test 2FA setup when already enabled."""
+        user = User(
+            username="testuser",
+            password_hash=hash_password("TestP@ssw0rd123!"),
+            is_active=True,
+            totp_secret=generate_totp_secret(),
+            totp_enabled=True,
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        access_token = create_access_token(user.id, user.username)
+        client.cookies.set("access_token", access_token)
+
+        response = client.post("/api/auth/2fa/setup")
+        assert response.status_code == 400
+        assert "already enabled" in response.json()["detail"].lower()
+
+    def test_2fa_full_setup_flow(self, client: TestClient, db_session):
+        """Test complete 2FA setup: generate secret, verify with valid code, enable."""
         user = User(
             username="testuser",
             password_hash=hash_password("TestP@ssw0rd123!"),
@@ -515,70 +541,305 @@ class TestTwoFactorEndpoints:
         db_session.add(user)
         db_session.commit()
 
-        # Create access token
         access_token = create_access_token(user.id, user.username)
         client.cookies.set("access_token", access_token)
 
-        # Verify 2FA (placeholder - will succeed)
+        # Step 1: Setup
+        setup_response = client.post("/api/auth/2fa/setup")
+        assert setup_response.status_code == 200
+        secret = setup_response.json()["secret"]
+
+        # Step 2: Generate valid TOTP code and verify
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+
+        verify_response = client.post(
+            "/api/auth/2fa/verify",
+            json={"code": code},
+        )
+
+        assert verify_response.status_code == 200
+        assert "enabled" in verify_response.json()["message"].lower()
+
+        # Verify user has 2FA enabled
+        db_session.refresh(user)
+        assert user.totp_enabled is True
+        assert user.totp_secret == secret
+
+    def test_2fa_verify_invalid_code(self, client: TestClient, db_session):
+        """Test 2FA verification with invalid TOTP code."""
+        user = User(
+            username="testuser",
+            password_hash=hash_password("TestP@ssw0rd123!"),
+            is_active=True,
+            totp_secret=generate_totp_secret(),
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        access_token = create_access_token(user.id, user.username)
+        client.cookies.set("access_token", access_token)
+
+        response = client.post(
+            "/api/auth/2fa/verify",
+            json={"code": "000000"},
+        )
+
+        assert response.status_code == 400
+        assert "invalid" in response.json()["detail"].lower()
+
+    def test_2fa_verify_invalid_code_format(self, client: TestClient, db_session):
+        """Test 2FA verification with invalid code format."""
+        user = User(
+            username="testuser",
+            password_hash=hash_password("TestP@ssw0rd123!"),
+            is_active=True,
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        access_token = create_access_token(user.id, user.username)
+        client.cookies.set("access_token", access_token)
+
+        response = client.post(
+            "/api/auth/2fa/verify",
+            json={"code": "abc123"},
+        )
+
+        assert response.status_code == 422
+
+    def test_2fa_verify_no_setup(self, client: TestClient, db_session):
+        """Test 2FA verify without calling setup first."""
+        user = User(
+            username="testuser",
+            password_hash=hash_password("TestP@ssw0rd123!"),
+            is_active=True,
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        access_token = create_access_token(user.id, user.username)
+        client.cookies.set("access_token", access_token)
+
         response = client.post(
             "/api/auth/2fa/verify",
             json={"code": "123456"},
         )
 
-        assert response.status_code == 200
-        data = response.json()
-        assert "enabled" in data["message"].lower()
+        assert response.status_code == 400
+        assert "setup" in response.json()["detail"].lower()
 
-    def test_2fa_verify_invalid_code_format(self, client: TestClient, db_session):
-        """Test 2FA verification with invalid code format."""
-        # Create user
+    def test_login_with_2fa_full_flow(self, client: TestClient, db_session):
+        """Test login flow for a 2FA-enabled user."""
+        password = "TestP@ssw0rd123!"
+        secret = generate_totp_secret()
         user = User(
             username="testuser",
-            password_hash=hash_password("TestP@ssw0rd123!"),
+            password_hash=hash_password(password),
             is_active=True,
+            totp_secret=secret,
+            totp_enabled=True,
         )
         db_session.add(user)
         db_session.commit()
 
-        # Create access token
-        access_token = create_access_token(user.id, user.username)
-        client.cookies.set("access_token", access_token)
+        # Step 1: Login with password — should get requires_2fa
+        login_response = client.post(
+            "/api/auth/login",
+            json={"username": "testuser", "password": password},
+        )
 
-        # Verify with invalid code
+        assert login_response.status_code == 200
+        login_data = login_response.json()
+        assert login_data["requires_2fa"] is True
+        assert login_data["message"] == "2FA verification required"
+
+        # Should NOT have access/refresh tokens, should have pending token
+        assert "access_token" not in login_response.cookies
+        assert "2fa_pending_token" in login_response.cookies
+
+        # Step 2: Submit valid TOTP code
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+
+        verify_response = client.post(
+            "/api/auth/2fa/login-verify",
+            json={"code": code},
+        )
+
+        assert verify_response.status_code == 200
+        verify_data = verify_response.json()
+        assert verify_data["message"] == "Login successful"
+        assert verify_data["requires_2fa"] is False
+
+        # Should have full tokens now
+        assert "access_token" in verify_response.cookies
+        assert "refresh_token" in verify_response.cookies
+
+    def test_login_verify_invalid_totp(self, client: TestClient, db_session):
+        """Test login-verify with invalid TOTP code."""
+        password = "TestP@ssw0rd123!"
+        secret = generate_totp_secret()
+        user = User(
+            username="testuser",
+            password_hash=hash_password(password),
+            is_active=True,
+            totp_secret=secret,
+            totp_enabled=True,
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        # Login
+        client.post(
+            "/api/auth/login",
+            json={"username": "testuser", "password": password},
+        )
+
+        # Submit invalid code
         response = client.post(
-            "/api/auth/2fa/verify",
-            json={"code": "abc123"},  # Not numeric
+            "/api/auth/2fa/login-verify",
+            json={"code": "000000"},
         )
 
-        assert response.status_code == 422  # Validation error
+        assert response.status_code == 401
+        assert "invalid" in response.json()["detail"].lower()
 
-    def test_2fa_disable_placeholder(self, client: TestClient, db_session):
-        """Test 2FA disable (placeholder implementation)."""
-        # Create user
+    def test_login_verify_no_pending_token(self, client: TestClient):
+        """Test login-verify without a pending token."""
+        response = client.post(
+            "/api/auth/2fa/login-verify",
+            json={"code": "123456"},
+        )
+
+        assert response.status_code == 401
+        assert "pending" in response.json()["detail"].lower()
+
+    def test_2fa_disable_success(self, client: TestClient, db_session):
+        """Test disabling 2FA with valid password and TOTP code."""
+        password = "TestP@ssw0rd123!"
+        secret = generate_totp_secret()
         user = User(
             username="testuser",
-            password_hash=hash_password("TestP@ssw0rd123!"),
+            password_hash=hash_password(password),
             is_active=True,
+            totp_secret=secret,
+            totp_enabled=True,
         )
         db_session.add(user)
         db_session.commit()
 
-        # Create access token
         access_token = create_access_token(user.id, user.username)
         client.cookies.set("access_token", access_token)
 
-        # Disable 2FA
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+
         response = client.post(
             "/api/auth/2fa/disable",
-            json={
-                "password": "TestP@ssw0rd123!",
-                "code": "123456",
-            },
+            json={"password": password, "code": code},
+        )
+
+        assert response.status_code == 200
+        assert "disabled" in response.json()["message"].lower()
+
+        # Verify 2FA is disabled and secret cleared
+        db_session.refresh(user)
+        assert user.totp_enabled is False
+        assert user.totp_secret is None
+
+    def test_2fa_disable_wrong_password(self, client: TestClient, db_session):
+        """Test disabling 2FA with wrong password."""
+        secret = generate_totp_secret()
+        user = User(
+            username="testuser",
+            password_hash=hash_password("TestP@ssw0rd123!"),
+            is_active=True,
+            totp_secret=secret,
+            totp_enabled=True,
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        access_token = create_access_token(user.id, user.username)
+        client.cookies.set("access_token", access_token)
+
+        totp = pyotp.TOTP(secret)
+        code = totp.now()
+
+        response = client.post(
+            "/api/auth/2fa/disable",
+            json={"password": "WrongPassword123!", "code": code},
+        )
+
+        assert response.status_code == 401
+
+    def test_2fa_disable_wrong_totp(self, client: TestClient, db_session):
+        """Test disabling 2FA with wrong TOTP code."""
+        password = "TestP@ssw0rd123!"
+        secret = generate_totp_secret()
+        user = User(
+            username="testuser",
+            password_hash=hash_password(password),
+            is_active=True,
+            totp_secret=secret,
+            totp_enabled=True,
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        access_token = create_access_token(user.id, user.username)
+        client.cookies.set("access_token", access_token)
+
+        response = client.post(
+            "/api/auth/2fa/disable",
+            json={"password": password, "code": "000000"},
+        )
+
+        assert response.status_code == 400
+
+    def test_2fa_disable_not_enabled(self, client: TestClient, db_session):
+        """Test disabling 2FA when not enabled."""
+        user = User(
+            username="testuser",
+            password_hash=hash_password("TestP@ssw0rd123!"),
+            is_active=True,
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        access_token = create_access_token(user.id, user.username)
+        client.cookies.set("access_token", access_token)
+
+        response = client.post(
+            "/api/auth/2fa/disable",
+            json={"password": "TestP@ssw0rd123!", "code": "123456"},
+        )
+
+        assert response.status_code == 400
+
+    def test_login_without_2fa_no_change(self, client: TestClient, db_session):
+        """Test that login still works normally for users without 2FA."""
+        password = "TestP@ssw0rd123!"
+        user = User(
+            username="testuser",
+            password_hash=hash_password(password),
+            is_active=True,
+        )
+        db_session.add(user)
+        db_session.commit()
+
+        response = client.post(
+            "/api/auth/login",
+            json={"username": "testuser", "password": password},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert "disabled" in data["message"].lower()
+        assert data["requires_2fa"] is False
+        assert data["message"] == "Login successful"
+        assert "access_token" in response.cookies
+        assert "refresh_token" in response.cookies
 
 
 class TestPasswordChangeEndpoint:

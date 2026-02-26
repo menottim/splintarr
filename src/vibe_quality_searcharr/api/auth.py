@@ -12,7 +12,6 @@ All endpoints use HTTP-only, Secure, SameSite cookies for tokens.
 Rate limiting is applied to prevent brute-force attacks.
 """
 
-from datetime import datetime
 from typing import Annotated
 
 import structlog
@@ -27,13 +26,18 @@ from vibe_quality_searcharr.core.auth import (
     TokenError,
     authenticate_user,
     blacklist_access_token,
+    create_2fa_pending_token,
     create_access_token,
     create_refresh_token,
+    generate_totp_qr_code_base64,
+    generate_totp_secret,
+    generate_totp_uri,
     get_current_user_id_from_token,
     revoke_all_user_tokens,
     revoke_refresh_token,
     rotate_refresh_token,
-    verify_refresh_token,
+    verify_2fa_pending_token,
+    verify_totp_code,
 )
 from vibe_quality_searcharr.core.security import hash_password, verify_password
 from vibe_quality_searcharr.database import get_db
@@ -42,6 +46,9 @@ from vibe_quality_searcharr.schemas.user import (
     LoginSuccess,
     MessageResponse,
     PasswordChange,
+    TwoFactorDisable,
+    TwoFactorSetup,
+    TwoFactorVerify,
     UserLogin,
     UserRegister,
     UserResponse,
@@ -354,7 +361,43 @@ async def login(
                 detail="Invalid username or password",
             )
 
-        # Create tokens (2FA not implemented - see note above)
+        # Check if 2FA is enabled for this user
+        if user.totp_enabled:
+            # Issue a restricted 2FA pending token instead of full tokens
+            pending_token = create_2fa_pending_token(user.id, user.username)
+            response.set_cookie(
+                key="2fa_pending_token",
+                value=pending_token,
+                httponly=True,
+                secure=settings.secure_cookies,
+                samesite="strict",
+                max_age=300,  # 5 minutes
+                path="/",
+            )
+
+            logger.info(
+                "login_requires_2fa",
+                user_id=user.id,
+                username=user.username,
+                ip=ip_address,
+            )
+
+            return LoginSuccess(
+                message="2FA verification required",
+                user=UserResponse(
+                    id=user.id,
+                    username=user.username,
+                    is_active=user.is_active,
+                    is_superuser=user.is_superuser,
+                    totp_enabled=user.totp_enabled,
+                    created_at=user.created_at.isoformat(),
+                    last_login=user.last_login.isoformat() if user.last_login else None,
+                ),
+                token_type="bearer",
+                requires_2fa=True,
+            )
+
+        # No 2FA — issue full tokens
         access_token = create_access_token(user.id, user.username)
         user_agent = request.headers.get("User-Agent", "unknown")
         refresh_token, _ = create_refresh_token(
@@ -385,9 +428,9 @@ async def login(
                 totp_enabled=user.totp_enabled,
                 created_at=user.created_at.isoformat(),
                 last_login=user.last_login.isoformat() if user.last_login else None,
-                ),
+            ),
             token_type="bearer",
-            requires_2fa=False,  # 2FA not implemented
+            requires_2fa=False,
         )
 
     except HTTPException:
@@ -540,10 +583,296 @@ async def refresh(
         ) from e
 
 
-# NOTE: Two-factor authentication (2FA/TOTP) is not currently implemented.
-# The User model includes totp_enabled/totp_secret fields for future implementation,
-# but no functional 2FA endpoints exist. This prevents false security claims.
-# See SECURITY_PENETRATION_TEST_REPORT.md for details.
+# Two-Factor Authentication (TOTP) endpoints
+
+
+@router.post(
+    "/2fa/setup",
+    response_model=TwoFactorSetup,
+    summary="Setup two-factor authentication",
+    description="Generate TOTP secret and QR code for 2FA setup. Requires authentication.",
+)
+async def setup_2fa(
+    access_token: Annotated[str | None, Cookie()] = None,
+    db: Session = Depends(get_db),
+) -> TwoFactorSetup:
+    """
+    Begin 2FA setup by generating a TOTP secret and QR code.
+
+    The secret is stored on the user but 2FA is NOT enabled until verification.
+
+    **Authentication Required:** Access token cookie
+    """
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    try:
+        user_id = get_current_user_id_from_token(access_token)
+    except TokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+        ) from e
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if user.totp_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is already enabled",
+        )
+
+    # Generate and store secret (not yet enabled)
+    secret = generate_totp_secret()
+    user.totp_secret = secret
+    db.commit()
+
+    uri = generate_totp_uri(secret, user.username)
+    qr_data_uri = generate_totp_qr_code_base64(uri)
+
+    logger.info("2fa_setup_initiated", user_id=user.id)
+
+    return TwoFactorSetup(
+        secret=secret,
+        qr_code_uri=uri,
+        qr_code_data_uri=qr_data_uri,
+    )
+
+
+@router.post(
+    "/2fa/verify",
+    response_model=MessageResponse,
+    summary="Verify and enable two-factor authentication",
+    description="Verify a TOTP code to complete 2FA setup. Requires authentication.",
+)
+async def verify_2fa(
+    verify_data: TwoFactorVerify,
+    access_token: Annotated[str | None, Cookie()] = None,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    """
+    Complete 2FA setup by verifying a TOTP code from the authenticator app.
+
+    **Authentication Required:** Access token cookie
+    """
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    try:
+        user_id = get_current_user_id_from_token(access_token)
+    except TokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+        ) from e
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if user.totp_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is already enabled",
+        )
+
+    if not user.totp_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA setup not initiated. Call /2fa/setup first.",
+        )
+
+    if not verify_totp_code(user.totp_secret, verify_data.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid TOTP code",
+        )
+
+    # Enable 2FA
+    user.totp_enabled = True
+    db.commit()
+
+    logger.info("2fa_enabled", user_id=user.id)
+
+    return MessageResponse(message="Two-factor authentication enabled successfully")
+
+
+@router.post(
+    "/2fa/login-verify",
+    response_model=LoginSuccess,
+    summary="Complete login with TOTP code",
+    description="Verify TOTP code after password authentication for 2FA-enabled accounts.",
+)
+@limiter.limit("5/minute")
+async def login_verify_2fa(
+    verify_data: TwoFactorVerify,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> LoginSuccess:
+    """
+    Complete 2FA login by verifying the TOTP code.
+
+    Reads the 2FA pending token from cookie, verifies the TOTP code,
+    and issues full access + refresh tokens.
+
+    **Rate Limit:** 5 requests per minute per IP
+    """
+    pending_token = request.cookies.get("2fa_pending_token")
+    if not pending_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No 2FA pending session",
+        )
+
+    try:
+        payload = verify_2fa_pending_token(pending_token)
+    except TokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="2FA session expired or invalid",
+        ) from e
+
+    user_id = int(payload["sub"])
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user or not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+        )
+
+    if not user.totp_secret or not user.totp_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is not enabled for this account",
+        )
+
+    if not verify_totp_code(user.totp_secret, verify_data.code):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid TOTP code",
+        )
+
+    # 2FA passed — issue full tokens
+    ip_address = get_client_ip(request)
+    access_token = create_access_token(user.id, user.username)
+    user_agent = request.headers.get("User-Agent", "unknown")
+    refresh_token, _ = create_refresh_token(
+        db=db,
+        user_id=user.id,
+        device_info=user_agent,
+        ip_address=ip_address,
+    )
+
+    set_auth_cookies(response, access_token, refresh_token)
+
+    # Clear the pending token cookie
+    response.delete_cookie(key="2fa_pending_token", path="/")
+
+    logger.info(
+        "user_logged_in_with_2fa",
+        user_id=user.id,
+        username=user.username,
+        ip=ip_address,
+    )
+
+    return LoginSuccess(
+        message="Login successful",
+        user=UserResponse(
+            id=user.id,
+            username=user.username,
+            is_active=user.is_active,
+            is_superuser=user.is_superuser,
+            totp_enabled=user.totp_enabled,
+            created_at=user.created_at.isoformat(),
+            last_login=user.last_login.isoformat() if user.last_login else None,
+        ),
+        token_type="bearer",
+        requires_2fa=False,
+    )
+
+
+@router.post(
+    "/2fa/disable",
+    response_model=MessageResponse,
+    summary="Disable two-factor authentication",
+    description="Disable 2FA. Requires password and current TOTP code.",
+)
+async def disable_2fa(
+    disable_data: TwoFactorDisable,
+    access_token: Annotated[str | None, Cookie()] = None,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    """
+    Disable 2FA for the current user.
+
+    Requires password and valid TOTP code for security.
+
+    **Authentication Required:** Access token cookie
+    """
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    try:
+        user_id = get_current_user_id_from_token(access_token)
+    except TokenError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication failed",
+        ) from e
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if not user.totp_enabled or not user.totp_secret:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="2FA is not enabled",
+        )
+
+    # Verify password
+    if not verify_password(disable_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid password",
+        )
+
+    # Verify TOTP code
+    if not verify_totp_code(user.totp_secret, disable_data.code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid TOTP code",
+        )
+
+    # Clear secret and disable
+    user.totp_secret = None
+    user.totp_enabled = False
+    db.commit()
+
+    logger.info("2fa_disabled", user_id=user.id)
+
+    return MessageResponse(message="Two-factor authentication disabled successfully")
 
 
 @router.post(

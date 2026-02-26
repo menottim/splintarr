@@ -6,7 +6,7 @@
 <div style="max-width: 500px; margin: 4rem auto;">
     <hgroup>
         <h1>Login</h1>
-        <p>Sign in to access your Vibe-Quality-Searcharr dashboard</p>
+        <p id="loginSubtitle">Sign in to access your Vibe-Quality-Searcharr dashboard</p>
     </hgroup>
 
     <form action="/api/auth/login" method="post" id="loginForm">
@@ -21,6 +21,18 @@
         </label>
 
         <button type="submit" id="submitBtn">Login</button>
+    </form>
+
+    <form id="totpForm" style="display: none;">
+        <label for="totp_code">
+            Authenticator Code
+            <input type="text" id="totp_code" name="code" required autocomplete="one-time-code"
+                   inputmode="numeric" pattern="\d{6}" maxlength="6"
+                   placeholder="Enter 6-digit code">
+        </label>
+
+        <button type="submit" id="totpSubmitBtn">Verify</button>
+        <a href="/login" role="button" class="secondary outline" style="margin-top: 0.5rem; display: block; text-align: center;">Use a different account</a>
     </form>
 </div>
 
@@ -46,16 +58,59 @@
                 body: JSON.stringify(formData)
             });
 
+            const data = await response.json();
+
             if (response.ok) {
-                window.location.href = '/dashboard';
+                if (data.requires_2fa) {
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('totpForm').style.display = 'block';
+                    document.getElementById('loginSubtitle').textContent = 'Enter the code from your authenticator app';
+                    document.getElementById('totp_code').focus();
+                } else {
+                    window.location.href = '/dashboard';
+                }
             } else {
-                const data = await response.json();
                 alert(data.detail || 'Login failed');
                 submitBtn.disabled = false;
                 submitBtn.setAttribute('aria-busy', 'false');
             }
         } catch (error) {
             alert('Login failed: ' + error.message);
+            submitBtn.disabled = false;
+            submitBtn.setAttribute('aria-busy', 'false');
+        }
+    });
+
+    document.getElementById('totpForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('totpSubmitBtn');
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+
+        const code = document.getElementById('totp_code').value;
+
+        try {
+            const response = await fetch('/api/auth/2fa/login-verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ code: code })
+            });
+
+            if (response.ok) {
+                window.location.href = '/dashboard';
+            } else {
+                const data = await response.json();
+                alert(data.detail || 'Verification failed');
+                submitBtn.disabled = false;
+                submitBtn.setAttribute('aria-busy', 'false');
+                document.getElementById('totp_code').value = '';
+                document.getElementById('totp_code').focus();
+            }
+        } catch (error) {
+            alert('Verification failed: ' + error.message);
             submitBtn.disabled = false;
             submitBtn.setAttribute('aria-busy', 'false');
         }
