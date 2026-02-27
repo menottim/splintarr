@@ -895,5 +895,5 @@ async def get_current_user_from_cookie(
     except TokenError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(e),
+            detail="Authentication failed",
         ) from e
