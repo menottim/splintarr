@@ -80,6 +80,12 @@
     <p>
         <small>Add an extra layer of security to your account by requiring a code from your authenticator app during login.</small>
     </p>
+    <p>
+        <small style="color: var(--muted-color);">
+            <strong>Note:</strong> This 2FA implementation is AI-generated and has not been independently verified by security experts.
+            See the <a href="https://github.com/menottim/vibe-quality-searcharr#ai-generated-code-warning" target="_blank" rel="noopener">project README</a> for details.
+        </small>
+    </p>
 
     {% if user.totp_enabled %}
     <p><mark>Enabled</mark></p>
