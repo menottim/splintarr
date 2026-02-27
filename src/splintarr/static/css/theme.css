@@ -175,15 +175,10 @@ a:not([role="button"]):hover { color: var(--brand-primary); }
 .sidebar-brand-icon {
     width: 28px;
     height: 28px;
-    background: var(--brand-primary);
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 700;
-    font-size: 0.875rem;
+    border-radius: 4px;
     flex-shrink: 0;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
 }
 
 .sidebar-brand-text {
@@ -209,6 +204,7 @@ a:not([role="button"]):hover { color: var(--brand-primary); }
 .sidebar-nav li {
     margin: 0;
     padding: 0;
+    overflow: hidden;
 }
 
 .sidebar-nav a {
@@ -216,19 +212,25 @@ a:not([role="button"]):hover { color: var(--brand-primary); }
     align-items: center;
     gap: 0.75rem;
     padding: 0.625rem 1rem;
+    margin: 0;
     color: var(--slate-300);
     text-decoration: none;
     font-size: 0.875rem;
     font-weight: 500;
     border-left: 3px solid transparent;
+    border-radius: 0;
     transition: all var(--transition);
     white-space: nowrap;
     overflow: hidden;
 }
 
-.sidebar-nav a:hover {
+.sidebar-nav a:hover,
+.sidebar-nav a:focus-visible {
     color: var(--slate-100);
     background: rgba(255, 255, 255, 0.05);
+    box-shadow: none;
+    text-decoration: none;
+    outline: none;
 }
 
 .sidebar-nav a.active {
@@ -570,6 +572,9 @@ label small {
 .setup-actions [role="button"] {
     width: auto;
     margin-bottom: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* ============================================

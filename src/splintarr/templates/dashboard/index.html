@@ -57,7 +57,7 @@
             <tbody>
                 {% for search in recent_searches %}
                 <tr>
-                    <td>{{ search.instance.name }}</td>
+                    <td><a href="/dashboard/instances">{{ search.instance.name }}</a></td>
                     <td><code>{{ search.strategy }}</code></td>
                     <td>
                         {% if search.status == 'completed' %}
@@ -121,7 +121,7 @@
                 {% else %}
                 <span style="color: var(--muted-color);" title="Unknown">●</span>
                 {% endif %}
-                <span>{{ instance.name }}</span>
+                <a href="/dashboard/instances" style="text-decoration: none;">{{ instance.name }}</a>
                 <small style="color: var(--muted-color);">({{ instance.instance_type }})</small>
                 <small style="color: var(--muted-color); margin-left: auto;">
                     {% if instance.last_connection_test %}
@@ -194,7 +194,9 @@ function buildStatusRow(inst) {
     dot.textContent = '\u25cf';
     row.appendChild(dot);
 
-    var name = document.createElement('span');
+    var name = document.createElement('a');
+    name.href = '/dashboard/instances';
+    name.style.textDecoration = 'none';
     name.textContent = inst.name;
     row.appendChild(name);
 
