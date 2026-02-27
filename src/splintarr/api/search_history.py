@@ -211,8 +211,10 @@ async def cleanup_search_history(
     try:
         history_service = get_history_service(get_session_factory())
 
-        # Clean up old history
-        deleted_count = history_service.cleanup_old_history(days=days)
+        # Clean up old history scoped to the current user's instances
+        deleted_count = history_service.cleanup_old_history(
+            days=days, user_id=current_user.id
+        )
 
         logger.info(
             "search_history_cleaned_up",
