@@ -17,7 +17,7 @@ import structlog
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from splintarr.models import SearchHistory
+from splintarr.models import Instance, SearchHistory
 
 logger = structlog.get_logger()
 
@@ -265,12 +265,17 @@ class SearchHistoryService:
         finally:
             db.close()
 
-    def cleanup_old_history(self, days: int = 90) -> int:
+    def cleanup_old_history(self, days: int = 90, user_id: int | None = None) -> int:
         """
         Delete history records older than specified days.
 
+        When user_id is provided, only deletes history for instances owned by
+        that user (tenant isolation). When user_id is None, deletes all old
+        history (for admin/system cleanup).
+
         Args:
             days: Number of days to keep (default: 90)
+            user_id: Optional user ID to scope deletion to that user's instances
 
         Returns:
             int: Number of records deleted
@@ -283,21 +288,36 @@ class SearchHistoryService:
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-            # Count records to delete
-            count = db.query(SearchHistory).filter(SearchHistory.started_at < cutoff_date).count()
+            query = db.query(SearchHistory).filter(
+                SearchHistory.started_at < cutoff_date
+            )
 
-            # Delete old records
-            db.query(SearchHistory).filter(SearchHistory.started_at < cutoff_date).delete()
+            # Scope to user's instances when user_id is provided
+            if user_id is not None:
+                query = query.filter(
+                    SearchHistory.instance_id.in_(
+                        db.query(Instance.id).filter(Instance.user_id == user_id)
+                    )
+                )
+
+            # delete() returns the count of deleted rows, no need for a
+            # separate count() query
+            deleted_count = query.delete(synchronize_session=False)
 
             db.commit()
 
-            logger.info("history_cleanup_completed", deleted_count=count, days=days)
+            logger.info(
+                "history_cleanup_completed",
+                deleted_count=deleted_count,
+                days=days,
+                user_id=user_id,
+            )
 
-            return count
+            return deleted_count
 
         except Exception as e:
             db.rollback()
-            logger.error("history_cleanup_failed", error=str(e))
+            logger.error("history_cleanup_failed", error=str(e), user_id=user_id)
             raise SearchHistoryError(f"Failed to cleanup history: {e}") from e
 
         finally:

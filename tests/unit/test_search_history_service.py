@@ -240,27 +240,40 @@ class TestStatistics:
 class TestCleanup:
     """Test history cleanup operations."""
 
-    def test_cleanup_old_history(self, history_service, mock_db_session):
-        """Test cleaning up old history records."""
-        # Mock query
+    def test_cleanup_old_history_no_user_id(self, history_service, mock_db_session):
+        """Test cleaning up old history without user scoping (system cleanup)."""
+        # Mock query chain
         mock_query = mock_db_session.query.return_value
         mock_query.filter.return_value = mock_query
-        mock_query.count.return_value = 10
-        mock_query.delete.return_value = None
+        mock_query.delete.return_value = 10
 
-        # Cleanup
+        # Cleanup without user_id
         deleted_count = history_service.cleanup_old_history(days=90)
 
-        # Verify
+        # Verify delete() return value is used directly (no separate count query)
         assert deleted_count == 10
+        mock_db_session.commit.assert_called_once()
+
+    def test_cleanup_old_history_with_user_id(self, history_service, mock_db_session):
+        """Test cleaning up old history scoped to a specific user."""
+        # Mock query chain
+        mock_query = mock_db_session.query.return_value
+        mock_query.filter.return_value = mock_query
+        mock_query.delete.return_value = 5
+
+        # Cleanup with user_id
+        deleted_count = history_service.cleanup_old_history(days=90, user_id=42)
+
+        # Verify delete() return value is used and filter was applied
+        assert deleted_count == 5
         mock_db_session.commit.assert_called_once()
 
     def test_cleanup_with_database_error(self, history_service, mock_db_session):
         """Test cleanup with database error."""
-        # Mock query to raise error
+        # Mock query to raise error on filter (first call in the chain)
         mock_query = mock_db_session.query.return_value
         mock_query.filter.return_value = mock_query
-        mock_query.count.side_effect = Exception("Database error")
+        mock_query.delete.side_effect = Exception("Database error")
 
         # Cleanup should raise error
         with pytest.raises(SearchHistoryError):
