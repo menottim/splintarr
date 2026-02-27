@@ -6,7 +6,7 @@ searches for media items in Sonarr/Radarr.
 """
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from sqlalchemy import (
     Boolean,
@@ -22,9 +22,6 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from splintarr.database import Base
-
-if TYPE_CHECKING:
-    pass
 
 # Search queue status
 SearchStatus = Literal["pending", "in_progress", "completed", "failed", "cancelled"]

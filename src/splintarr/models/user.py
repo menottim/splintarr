@@ -6,16 +6,12 @@ for JWT refresh token tracking and revocation.
 """
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from splintarr.database import Base
-
-if TYPE_CHECKING:
-    pass
 
 
 class User(Base):

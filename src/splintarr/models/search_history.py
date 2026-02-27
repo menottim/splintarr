@@ -6,16 +6,13 @@ of all search operations performed.
 """
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from splintarr.database import Base
-
-if TYPE_CHECKING:
-    pass
 
 # Search execution status
 SearchExecutionStatus = Literal["success", "partial_success", "failed"]

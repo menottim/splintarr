@@ -221,14 +221,13 @@ class TestCreateDatabaseEngine:
         # This is critical for async FastAPI usage
 
     def test_create_engine_pool_settings(self, test_settings):
-        """Test that engine has correct connection pool settings."""
+        """Test that engine uses StaticPool in test and NullPool otherwise."""
         engine = create_database_engine()
 
-        # Pool should be configured with pre-ping for stale connection detection
-        assert engine.pool._pre_ping is True
+        # In test environment, StaticPool is used for in-memory database sharing
+        from sqlalchemy import pool
 
-        # Pool should recycle connections
-        assert engine.pool._recycle == 3600
+        assert isinstance(engine.pool, pool.StaticPool)
 
     def test_create_engine_error_handling(self):
         """Test that engine creation errors are handled properly."""

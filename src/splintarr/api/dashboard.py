@@ -23,7 +23,7 @@ from fastapi import APIRouter, Cookie, Depends, Form, Query, Request, Response, 
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from splintarr.api.auth import set_auth_cookies
 from splintarr.config import settings
@@ -525,9 +525,10 @@ async def dashboard_index(
     # Get statistics
     stats = await get_dashboard_stats(db, current_user)
 
-    # Get recent activity
+    # Get recent activity (joinedload prevents N+1 lazy loads on search.instance.name)
     recent_searches = (
         db.query(SearchHistory)
+        .options(joinedload(SearchHistory.instance))
         .join(Instance)
         .filter(Instance.user_id == current_user.id)
         .order_by(SearchHistory.started_at.desc())
@@ -907,6 +908,7 @@ async def api_dashboard_activity(
     """
     recent_searches = (
         db.query(SearchHistory)
+        .options(joinedload(SearchHistory.instance))
         .join(Instance)
         .filter(Instance.user_id == current_user.id)
         .order_by(SearchHistory.started_at.desc())

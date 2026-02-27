@@ -177,20 +177,15 @@ def create_database_engine() -> Engine:
             return conn
 
         # Create engine with custom creator
+        # NullPool: SQLCipher requires a fresh connection per operation for thread safety.
+        # StaticPool is used in tests for in-memory database sharing.
+        # pool_pre_ping and pool_recycle are not applicable with NullPool.
         engine = create_engine(
             database_url,
-            creator=creator,  # Use our custom connection creator
-            # Connection pool settings
+            creator=creator,
             poolclass=pool.StaticPool if settings.environment == "test" else pool.NullPool,
-            # Test connections before use to detect stale connections
-            pool_pre_ping=True,
-            # Recycle connections after 1 hour to prevent stale connections
-            pool_recycle=3600,
-            # Echo SQL statements in development
             echo=settings.log_level == "DEBUG",
-            # Raise exceptions on warnings
             echo_pool=settings.log_level == "DEBUG",
-            # Hide parameters in logs for security
             hide_parameters=settings.environment == "production",
         )
 
