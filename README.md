@@ -29,6 +29,7 @@ During this vibe-coding exercise, I made every effort to implement security best
 ## Table of Contents
 
 - [Overview](#overview)
+- [Screenshots](#screenshots)
 - [Quick Start](#quick-start)
 - [Documentation](#documentation)
 - [Architecture Overview](#architecture-overview)
@@ -55,6 +56,30 @@ This tool is designed for **homelab enthusiasts** running personal Sonarr and Ra
 - **Local Authentication** -- Secure password storage with Argon2id hashing
 - **Configuration Drift Detection** -- Alerts when Sonarr or Radarr configuration changes
 - **Encrypted Database** -- AES-256 encryption via SQLCipher
+
+---
+
+## Screenshots
+
+### Dashboard
+
+![Dashboard — overview of search queues, recent activity, and system status](docs/images/dashboard.png)
+
+### Instance Management
+
+![Add Instance — connect Sonarr or Radarr with URL and API key](docs/images/instances.png)
+
+### Search Queue Creation
+
+![Create Search Queue — choose instance, strategy, and schedule](docs/images/search-queues.png)
+
+### Settings
+
+![Settings — account info, password management, 2FA, and session control](docs/images/settings.png)
+
+### Login
+
+![Login — secure authentication with optional two-factor support](docs/images/login.png)
 
 ---
 

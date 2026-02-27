@@ -15,11 +15,15 @@ This tutorial walks you through the post-install experience: completing the setu
 
 Open your browser and go to **http://localhost:7337/setup** (or substitute your server's IP address).
 
+![Setup wizard welcome page](../images/setup-welcome.png)
+
 ### Create Your Admin Account
 
 - Choose a username (3-50 characters)
 - Set a strong password (minimum 12 characters, mix of uppercase, lowercase, numbers, and symbols)
 - Confirm your password
+
+![Create admin account form](../images/setup-admin.png)
 
 Click **Create Account** to continue.
 
@@ -39,17 +43,25 @@ You will need the URL and API key for at least one Sonarr or Radarr instance on 
 - **Sonarr:** Settings > General > Security > API Key
 - **Radarr:** Settings > General > Security > API Key
 
+![Add instance form with connection test](../images/setup-instance.png)
+
 Click **Test Connection** to verify, then **Add Instance**.
 
 ### Finish Setup
 
-The wizard will confirm everything is configured. Click **Complete Setup** to proceed to the dashboard.
+The wizard will confirm everything is configured. Click **Go to Dashboard** to proceed.
+
+![Setup complete — ready to use](../images/setup-complete.png)
 
 ---
 
 ## Step 2: Understand the Dashboard
 
-After setup, you land on the main dashboard. It shows:
+After setup, you land on the main dashboard.
+
+![Main dashboard with stats, activity, and system status](../images/dashboard.png)
+
+It shows:
 
 - **Instance Status** -- Health and connectivity of each Sonarr/Radarr instance
 - **Active Search Queues** -- Any currently running or scheduled searches
@@ -70,7 +82,9 @@ The navigation bar gives you access to:
 
 A search queue tells Splintarr what to search for and when.
 
-Go to **Search Queues** and click **Add Queue**. Fill in the following:
+Go to **Search Queues** and click **Create Queue**. Fill in the following:
+
+![Create search queue dialog](../images/search-queues.png)
 
 | Field | Description | Recommendation |
 |-------|-------------|----------------|

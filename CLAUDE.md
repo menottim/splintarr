@@ -86,3 +86,34 @@ Pydantic Settings in `config.py`. Secrets can come from environment variables or
 - **structlog** for all logging — JSON-structured, no print statements
 - **Async**: httpx for external HTTP calls, APScheduler for background jobs. DB operations are synchronous (SQLAlchemy sync session)
 - **Tests**: pytest-asyncio with `asyncio_mode = "auto"`. Fixtures scope: `test_settings` is session-scoped, `db_engine`/`db_session`/`client` are function-scoped
+
+## Documentation Screenshots
+
+Screenshots live in `docs/images/` and are referenced from `README.md` and `docs/tutorials/getting-started.md`. When the UI changes, regenerate them:
+
+### How to Regenerate Screenshots
+1. Remove existing data: `rm -rf data/` (fresh install required for setup wizard screenshots)
+2. Build and start: `docker-compose build && docker-compose up -d`
+3. Wait for health: `curl http://localhost:7337/health`
+4. Use Playwright (MCP tool) at 1280x800 viewport to:
+   - Navigate through the setup wizard (welcome, admin account, instance, complete)
+   - Screenshot each setup step to `docs/images/setup-*.png`
+   - Go to Dashboard, capture `docs/images/dashboard.png`
+   - Open Add Instance modal on Instances page, capture `docs/images/instances.png`
+   - Open Create Queue modal on Search Queues page, capture `docs/images/search-queues.png`
+   - Capture Settings page (full page), `docs/images/settings.png`
+   - Clear cookies, capture Login page, `docs/images/login.png`
+5. Tear down: `docker-compose down`
+
+### Screenshot inventory
+| File | Used in | Shows |
+|------|---------|-------|
+| `setup-welcome.png` | getting-started.md | Setup wizard welcome |
+| `setup-admin.png` | getting-started.md | Admin account creation |
+| `setup-instance.png` | getting-started.md | Instance configuration |
+| `setup-complete.png` | getting-started.md | Setup completion |
+| `dashboard.png` | README.md, getting-started.md | Main dashboard |
+| `instances.png` | README.md | Add Instance modal |
+| `search-queues.png` | README.md, getting-started.md | Create Queue modal |
+| `settings.png` | README.md | Settings page |
+| `login.png` | README.md | Login form |
