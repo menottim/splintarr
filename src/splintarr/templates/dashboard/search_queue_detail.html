@@ -137,11 +137,13 @@
                     </td>
                 </tr>
                 {% if entry.search_metadata %}
+                {% set log_entries = entry.search_metadata|parse_search_log %}
+                {% if log_entries %}
                 <tr>
                     <td colspan="5" style="padding: 0 1rem 1rem;">
                         <details>
                             <summary style="cursor: pointer; font-size: 0.85rem; color: var(--muted-color);">
-                                API details ({{ entry.search_metadata|parse_search_log|length }} items)
+                                API details ({{ log_entries|length }} items)
                             </summary>
                             <div style="max-height: 300px; overflow-y: auto; margin-top: 0.5rem;">
                                 <table role="grid" style="font-size: 0.8rem; margin: 0;">
@@ -153,7 +155,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {% for log_entry in entry.search_metadata|parse_search_log %}
+                                        {% for log_entry in log_entries %}
                                         <tr>
                                             <td>{{ log_entry.item }}</td>
                                             <td><code>{{ log_entry.action }}</code></td>
@@ -176,6 +178,7 @@
                         </details>
                     </td>
                 </tr>
+                {% endif %}
                 {% endif %}
                 {% endfor %}
             </tbody>

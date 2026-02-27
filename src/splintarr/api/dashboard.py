@@ -14,6 +14,7 @@ All dashboard pages require authentication except the setup wizard.
 The setup wizard is only accessible when no users exist.
 """
 
+import json
 import re
 from datetime import datetime, timedelta
 from typing import Annotated, Any
@@ -84,14 +85,15 @@ def _timeago(dt: datetime) -> str:
         return dt.strftime("%Y-%m-%d")
 
 
-def _parse_search_log(value: str | None) -> list[dict]:
+def _parse_search_log(value: str | None) -> list[dict[str, Any]]:
     """Parse JSON search_metadata into a list of log entries for template rendering."""
     if not value:
         return []
     try:
-        import json
-
-        return json.loads(value)
+        data = json.loads(value)
+        if not isinstance(data, list):
+            return []
+        return [entry for entry in data if isinstance(entry, dict)]
     except (json.JSONDecodeError, TypeError):
         return []
 
