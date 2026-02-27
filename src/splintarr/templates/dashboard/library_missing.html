@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}Missing Content - Splintarr{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Missing Content</h1>
+    <p>{{ items|length }} items with missing content across all instances</p>
+</hgroup>
+
+<!-- Filters -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;">
+    <select id="filter-instance" onchange="applyFilters()" style="max-width: 200px; margin-bottom: 0;">
+        <option value="">All Instances</option>
+        {% for inst in instances %}
+        <option value="{{ inst.id }}" {{ 'selected' if selected_instance_id == inst.id else '' }}>{{ inst.name }}</option>
+        {% endfor %}
+    </select>
+
+    <select id="filter-type" onchange="applyFilters()" style="max-width: 150px; margin-bottom: 0;">
+        <option value="">All Types</option>
+        <option value="series" {{ 'selected' if selected_content_type == 'series' else '' }}>Series</option>
+        <option value="movie" {{ 'selected' if selected_content_type == 'movie' else '' }}>Movies</option>
+    </select>
+
+    <a href="/dashboard/library" role="button" class="secondary" style="margin-left: auto; margin-bottom: 0;">Back to Library</a>
+</div>
+
+<!-- Missing items grid -->
+{% if items %}
+<div class="poster-grid">
+    {% for item in items %}
+    <a href="/dashboard/library/{{ item.id }}" class="poster-card">
+        {% if item.poster_path %}
+        <img src="/posters/{{ item.poster_path }}" alt="{{ item.title }}" class="poster-img" loading="lazy" />
+        {% else %}
+        <div class="poster-placeholder">
+            <svg viewBox="0 0 100 150" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100" height="150" fill="#1a1a2e"/>
+                <text x="50" y="70" text-anchor="middle" fill="#4a4a6a" font-size="10">No Poster</text>
+            </svg>
+        </div>
+        {% endif %}
+        <div class="poster-info">
+            <div class="poster-title">{{ item.title }}</div>
+            {% if item.year %}<div class="poster-year">{{ item.year }}</div>{% endif %}
+            <div class="poster-progress">
+                <span class="text-warning">{{ item.missing_count }} missing</span>
+                <small>({{ item.episode_have }}/{{ item.episode_count }})</small>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<article>
+    <p class="empty-state">
+        No missing content found. Your library is complete!
+    </p>
+</article>
+{% endif %}
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.state.csp_nonce }}">
+function applyFilters() {
+    var params = new URLSearchParams();
+    var inst = document.getElementById('filter-instance').value;
+    var type = document.getElementById('filter-type').value;
+    if (inst) params.set('instance_id', inst);
+    if (type) params.set('content_type', type);
+    var qs = params.toString();
+    window.location.href = '/dashboard/library/missing' + (qs ? '?' + qs : '');
+}
+</script>
+{% endblock %}

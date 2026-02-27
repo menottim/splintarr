@@ -26,7 +26,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from splintarr.api import auth, dashboard, instances, search_history, search_queue
+from splintarr.api import auth, dashboard, instances, library, search_history, search_queue
 from splintarr.config import settings
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import (
@@ -261,6 +261,7 @@ app.include_router(auth.router)
 app.include_router(instances.router)
 app.include_router(search_queue.router)
 app.include_router(search_history.router)
+app.include_router(library.router)
 
 
 # Root endpoint removed - handled by dashboard.router

@@ -118,6 +118,79 @@ article hgroup p {
     .flash-container { padding: 0 1rem; }
 }
 
+/* Poster grid */
+.poster-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.poster-card {
+    display: block;
+    text-decoration: none;
+    color: var(--color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    background: var(--card-background-color);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.poster-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.poster-img {
+    width: 100%;
+    aspect-ratio: 2/3;
+    object-fit: cover;
+    display: block;
+}
+
+.poster-placeholder {
+    width: 100%;
+    aspect-ratio: 2/3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a2e;
+}
+
+.poster-placeholder svg { width: 100%; height: 100%; }
+
+.poster-info {
+    padding: 0.5rem;
+}
+
+.poster-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.poster-year {
+    font-size: 0.7rem;
+    color: var(--muted-color);
+}
+
+.poster-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-top: 0.25rem;
+}
+
+.poster-progress progress {
+    flex: 1;
+    height: 4px;
+    margin: 0;
+}
+
+.poster-progress small { font-size: 0.65rem; }
+
 /* Loading states */
 [aria-busy="true"] { pointer-events: none; }
 
