@@ -2,7 +2,7 @@
 
 ## Overview
 
-Vibe-Quality-Searcharr is a homelab application designed to run on your local network. This guide documents the security measures implemented in the codebase and practical steps for keeping your deployment secure.
+Splintarr is a homelab application designed to run on your local network. This guide documents the security measures implemented in the codebase and practical steps for keeping your deployment secure.
 
 This is not an enterprise application. There is no SSO, no compliance framework, and no security team on call. The goal is defense-in-depth appropriate for a self-hosted tool that stores API keys for your Sonarr and Radarr instances.
 
@@ -170,7 +170,7 @@ The production Docker Compose file (`docker/docker-compose.production.yml`) appl
 
 ```yaml
 services:
-  vibe-quality-searcharr:
+  splintarr:
     user: "1000:1000"           # Non-root user
     read_only: true             # Read-only root filesystem
     cap_drop:
@@ -217,12 +217,12 @@ The `generate-secrets.sh` script will warn you before overwriting existing secre
 
 ## 8. Network Security
 
-Vibe-Quality-Searcharr does not handle TLS itself. For HTTPS, place it behind a reverse proxy.
+Splintarr does not handle TLS itself. For HTTPS, place it behind a reverse proxy.
 
 **Caddy Example (recommended for homelabs):**
 
 ```
-searcharr.home.lan {
+splintarr.home.lan {
     reverse_proxy localhost:7337
     tls internal
 }
@@ -246,7 +246,7 @@ sudo ufw allow 443/tcp
 If you forget your password or lock yourself out, use the CLI tool from the host machine (or `docker exec` into the container):
 
 ```bash
-python -m vibe_quality_searcharr.cli reset-password
+python -m splintarr.cli reset-password
 ```
 
 This prompts for a username and new password, validates the password against the same strength rules as registration, updates the hash, and unlocks the account if it was locked.
@@ -258,7 +258,7 @@ This prompts for a username and new password, validates the password against the
 Database backups and key management are covered in detail in the [Backup and Restore Guide](../how-to-guides/backup-and-restore.md).
 
 The short version:
-1. Back up `data/vibe-quality-searcharr.db` (the encrypted database file)
+1. Back up `data/splintarr.db` (the encrypted database file)
 2. Back up `secrets/` (the three key files)
 3. The `DATABASE_KEY` must match the key used to encrypt the database -- using the wrong key means permanent data loss
 4. Test your restore procedure at least once

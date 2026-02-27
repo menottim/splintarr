@@ -1,5 +1,5 @@
 # Security Penetration Test Report
-## Vibe-Quality-Searcharr v1.0.0
+## Splintarr v1.0.0
 
 **Report Date:** 2026-02-24
 **Tester Persona:** Senior Application Security Engineer & Penetration Tester
@@ -52,7 +52,7 @@ This penetration test revealed **15 security vulnerabilities** ranging from **CR
 
 ### 🔴 CRITICAL: Weak Fernet Key Derivation (CWE-327)
 
-**File:** `src/vibe_quality_searcharr/core/security.py:156-164`
+**File:** `src/splintarr/core/security.py:156-164`
 
 **Issue:**
 ```python
@@ -116,7 +116,7 @@ def __init__(self) -> None:
 
 ### 🔴 CRITICAL: JWT Algorithm Confusion Attack (CWE-347)
 
-**File:** `src/vibe_quality_searcharr/core/auth.py:86-91, 199-204`
+**File:** `src/splintarr/core/auth.py:86-91, 199-204`
 
 **Issue:**
 ```python
@@ -179,7 +179,7 @@ def verify_access_token(token: str) -> dict[str, Any]:
 
 ### 🔴 CRITICAL: SQL Injection in Database URL Construction (CWE-89)
 
-**File:** `src/vibe_quality_searcharr/config.py:299-318`
+**File:** `src/splintarr/config.py:299-318`
 
 **Issue:**
 ```python
@@ -254,7 +254,7 @@ def get_database_url(self) -> str:
 
 ### 🟠 HIGH: Two-Factor Authentication Non-Functional (CWE-306)
 
-**File:** `src/vibe_quality_searcharr/api/auth.py:352-391, 597-607, 678-693, 777-787`
+**File:** `src/splintarr/api/auth.py:352-391, 597-607, 678-693, 777-787`
 
 **Issue:**
 The entire 2FA implementation consists of TODO comments:
@@ -303,7 +303,7 @@ Either:
 
 ### 🟠 HIGH: SSRF in Sonarr/Radarr Instance URLs (CWE-918)
 
-**File:** `src/vibe_quality_searcharr/services/sonarr.py`, `src/vibe_quality_searcharr/api/instances.py`
+**File:** `src/splintarr/services/sonarr.py`, `src/splintarr/api/instances.py`
 
 **Issue:**
 While there's an `allow_local_instances` setting, URL validation is likely insufficient for SSRF prevention.
@@ -382,7 +382,7 @@ def validate_instance_url(url: str, allow_local: bool = False) -> None:
 
 ### 🟠 HIGH: Timing Attack in Password Pepper Concatenation (CWE-208)
 
-**File:** `src/vibe_quality_searcharr/core/security.py:80, 107`
+**File:** `src/splintarr/core/security.py:80, 107`
 
 **Issue:**
 ```python
@@ -441,7 +441,7 @@ Alternatively, accept the risk as Argon2id's work factor dominates timing.
 
 ### 🟠 HIGH: Rate Limiting Bypass via Distributed Attacks (CWE-770)
 
-**File:** `src/vibe_quality_searcharr/main.py:51-54, 58`
+**File:** `src/splintarr/main.py:51-54, 58`
 
 **Issue:**
 ```python
@@ -506,7 +506,7 @@ limiter = Limiter(
 
 ### 🟡 MEDIUM: Inadequate Password Complexity Requirements (CWE-521)
 
-**File:** `src/vibe_quality_searcharr/schemas/user.py` (validation schemas)
+**File:** `src/splintarr/schemas/user.py` (validation schemas)
 
 **Issue:**
 No password complexity requirements enforced in Pydantic schemas.
@@ -570,7 +570,7 @@ class UserRegister(BaseModel):
 
 ### 🟡 MEDIUM: Session Fixation Vulnerability (CWE-384)
 
-**File:** `src/vibe_quality_searcharr/api/auth.py:355-367`
+**File:** `src/splintarr/api/auth.py:355-367`
 
 **Issue:**
 After successful login, tokens are created but session ID (JTI) is not invalidated on authentication level change.
@@ -599,7 +599,7 @@ After successful login, tokens are created but session ID (JTI) is not invalidat
 
 ### 🟡 MEDIUM: Insecure Direct Object Reference (IDOR) Potential (CWE-639)
 
-**File:** API endpoints throughout `src/vibe_quality_searcharr/api/`
+**File:** API endpoints throughout `src/splintarr/api/`
 
 **Issue:**
 No code evidence of resource ownership validation in API endpoints.
@@ -646,7 +646,7 @@ async def get_instance(
 
 ### 🟡 MEDIUM: Missing CSRF Protection for State-Changing Operations (CWE-352)
 
-**File:** `src/vibe_quality_searcharr/main.py` (no CSRF middleware)
+**File:** `src/splintarr/main.py` (no CSRF middleware)
 
 **Issue:**
 - FastAPI application uses cookies for authentication
@@ -662,10 +662,10 @@ async def get_instance(
 **Attack Scenario:**
 ```html
 <!-- Attacker hosts this on evil.com -->
-<img src="https://vibe-quality-searcharr.local/api/instances/1/delete">
+<img src="https://splintarr.local/api/instances/1/delete">
 
 <!-- Or via subdomain attack if user has account on attacker-controlled.example.com -->
-<form method="POST" action="https://vibe-quality-searcharr.local/api/instances/1/delete">
+<form method="POST" action="https://splintarr.local/api/instances/1/delete">
   <input type="hidden" name="confirm" value="true">
 </form>
 <script>document.forms[0].submit();</script>
@@ -696,7 +696,7 @@ Or use `SameSite=Strict` (breaks some legitimate use cases) and ensure no state-
 
 ### 🔵 LOW: Verbose Error Messages Leak Information (CWE-209)
 
-**File:** Multiple locations throughout `src/vibe_quality_searcharr/`
+**File:** Multiple locations throughout `src/splintarr/`
 
 **Issue:**
 ```python
@@ -732,7 +732,7 @@ except Exception as e:
 
 ### 🔵 LOW: Missing Security Headers for API Documentation (CWE-1021)
 
-**File:** `src/vibe_quality_searcharr/main.py:62-64`
+**File:** `src/splintarr/main.py:62-64`
 
 **Issue:**
 ```python
@@ -766,7 +766,7 @@ dependencies=[Depends(security)] if settings.environment != "production" else []
 
 ### 🔵 LOW: Weak Default Max Failed Login Attempts (CWE-307)
 
-**File:** `src/vibe_quality_searcharr/config.py:188-193`
+**File:** `src/splintarr/config.py:188-193`
 
 **Issue:**
 ```python

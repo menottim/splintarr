@@ -7,7 +7,7 @@ FROM python:3.13-slim-bookworm AS builder
 ARG VERSION=1.0.0
 ARG BUILD_DATE
 ARG VCS_REF
-ARG VCS_URL=https://github.com/menottim/vibe-quality-searcharr
+ARG VCS_URL=https://github.com/menottim/splintarr
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -33,15 +33,15 @@ RUN poetry config virtualenvs.create false && \
 FROM python:3.13-slim-bookworm
 
 # Metadata labels
-LABEL org.opencontainers.image.title="Vibe-Quality-Searcharr" \
+LABEL org.opencontainers.image.title="Splintarr" \
       org.opencontainers.image.description="Intelligent backlog search automation for Sonarr and Radarr" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.source="${VCS_URL}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.licenses="MIT" \
-      org.opencontainers.image.vendor="Vibe-Quality-Searcharr" \
-      maintainer="vibe-quality-searcharr@example.com"
+      org.opencontainers.image.vendor="Splintarr" \
+      maintainer="splintarr@example.com"
 
 # Security: Create non-root user
 RUN groupadd -g 1000 appuser && \
@@ -58,7 +58,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Set Python path so vibe_quality_searcharr module is importable
+# Set Python path so splintarr module is importable
 ENV PYTHONPATH=/app/src
 
 # Copy Python packages from builder
@@ -94,4 +94,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 7337
 
 # Run application
-CMD ["uvicorn", "src.vibe_quality_searcharr.main:app", "--host", "0.0.0.0", "--port", "7337"]
+CMD ["uvicorn", "src.splintarr.main:app", "--host", "0.0.0.0", "--port", "7337"]

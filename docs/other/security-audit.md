@@ -1,5 +1,5 @@
 # Security Audit Report
-## Vibe-Quality-Searcharr
+## Splintarr
 
 **Audit Date:** 2026-02-24
 **Auditor:** Automated Security Analysis + Manual Review
@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-This security audit evaluated Vibe-Quality-Searcharr against industry best practices, OWASP Top 10 vulnerabilities, and secure coding standards. The application demonstrates a strong security posture with comprehensive protective measures implemented throughout.
+This security audit evaluated Splintarr against industry best practices, OWASP Top 10 vulnerabilities, and secure coding standards. The application demonstrates a strong security posture with comprehensive protective measures implemented throughout.
 
 ### Overall Security Rating: **GOOD** ✓
 
@@ -539,7 +539,7 @@ Compliance with NIST CSF 2.0:
 
 ## 14. Conclusion
 
-Vibe-Quality-Searcharr demonstrates a **mature security posture** with comprehensive protections against common vulnerabilities. The application follows industry best practices for authentication, authorization, data protection, and secure coding.
+Splintarr demonstrates a **mature security posture** with comprehensive protections against common vulnerabilities. The application follows industry best practices for authentication, authorization, data protection, and secure coding.
 
 ### Strengths
 

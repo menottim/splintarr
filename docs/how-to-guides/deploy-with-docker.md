@@ -1,6 +1,6 @@
 # Deploy with Docker
 
-Here's how to get Vibe-Quality-Searcharr running in Docker on your homelab.
+Here's how to get Splintarr running in Docker on your homelab.
 
 ---
 
@@ -27,8 +27,8 @@ If you need to install Docker, follow the official guide at
 **1. Clone the repository**
 
 ```bash
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
+git clone https://github.com/menottim/splintarr.git
+cd splintarr
 ```
 
 **2. Generate secrets**
@@ -68,7 +68,7 @@ The `STATUS` column should show `Up ... (healthy)` after about a minute.
 If you prefer to build the image yourself instead of using the Compose build:
 
 ```bash
-docker build -t vibe-quality-searcharr:latest -f docker/Dockerfile .
+docker build -t splintarr:latest -f docker/Dockerfile .
 ```
 
 To tag with a version:
@@ -76,7 +76,7 @@ To tag with a version:
 ```bash
 docker build \
   --build-arg VERSION=$(cat VERSION) \
-  -t vibe-quality-searcharr:$(cat VERSION) \
+  -t splintarr:$(cat VERSION) \
   -f docker/Dockerfile .
 ```
 
@@ -167,7 +167,7 @@ The Compose file includes a built-in health check that pings
 docker compose -f docker/docker-compose.yml ps
 
 # Detailed health info
-docker inspect vibe-quality-searcharr | jq '.[0].State.Health'
+docker inspect splintarr | jq '.[0].State.Health'
 
 # Manual check
 curl -f http://localhost:7337/health
@@ -261,7 +261,7 @@ A few things to check first:
 - **Can't reach Sonarr/Radarr** -- The container binds to localhost by default.
   If your *arr apps are on another machine, make sure the container can reach
   them. Test with
-  `docker exec vibe-quality-searcharr curl -v http://<host>:<port>`.
+  `docker exec splintarr curl -v http://<host>:<port>`.
 
 For a full list of known issues and solutions, see the
 [Troubleshooting Guide](./troubleshoot.md).

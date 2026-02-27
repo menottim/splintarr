@@ -1,6 +1,6 @@
 # Configuration Reference
 
-Complete reference for all configuration options in Vibe-Quality-Searcharr.
+Complete reference for all configuration options in Splintarr.
 
 ## Environment Variables
 
@@ -10,7 +10,7 @@ Configuration is managed through environment variables, either directly or via `
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `APP_NAME` | string | `Vibe-Quality-Searcharr` | Application name displayed in UI and logs |
+| `APP_NAME` | string | `Splintarr` | Application name displayed in UI and logs |
 | `ENVIRONMENT` | enum | `production` | Environment mode: `development`, `staging`, `production` |
 | `DEBUG` | boolean | `false` | Enable debug mode (never use in production) |
 | `LOG_LEVEL` | enum | `INFO` | Logging level: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` (see [Logging Configuration](#logging-configuration) below) |
@@ -45,7 +45,7 @@ Configuration is managed through environment variables, either directly or via `
 
 **Default DATABASE_URL:**
 ```
-sqlite+pysqlcipher:///:memory:@/data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=256000
+sqlite+pysqlcipher:///:memory:@/data/splintarr.db?cipher=aes-256-cfb&kdf_iter=256000
 ```
 
 **Format:**
@@ -124,7 +124,7 @@ default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-
 
 ### Logging Configuration
 
-Vibe-Quality-Searcharr includes a comprehensive logging system with automatic rotation and sensitive data filtering.
+Splintarr includes a comprehensive logging system with automatic rotation and sensitive data filtering.
 
 #### Log Level Configuration
 
@@ -215,9 +215,9 @@ DEBUG - JWT token issued: eyJhbGci...
 docker-compose logs -f
 
 # Application log files
-docker exec vibe-quality-searcharr tail -f /data/logs/all.log
-docker exec vibe-quality-searcharr tail -f /data/logs/error.log
-docker exec vibe-quality-searcharr tail -f /data/logs/debug.log
+docker exec splintarr tail -f /data/logs/all.log
+docker exec splintarr tail -f /data/logs/error.log
+docker exec splintarr tail -f /data/logs/debug.log
 ```
 
 **Host (if volumes mapped):**
@@ -238,7 +238,7 @@ See the [Troubleshooting Guide](../how-to-guides/troubleshoot.md#logging-system)
 | `HTTP_TIMEOUT` | integer | `30` | HTTP request timeout (seconds) |
 | `HTTP_MAX_RETRIES` | integer | `3` | Maximum retries for failed requests |
 | `HTTP_POOL_SIZE` | integer | `10` | Connection pool size |
-| `HTTP_USER_AGENT` | string | `Vibe-Quality-Searcharr/1.0.0` | User agent for outgoing requests |
+| `HTTP_USER_AGENT` | string | `Splintarr/1.0.0` | User agent for outgoing requests |
 
 ### Database Performance
 
@@ -288,7 +288,7 @@ Used by backup scripts:
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `BACKUP_DIR` | path | `/var/backups/vibe-quality-searcharr` | Automatic backup location |
+| `BACKUP_DIR` | path | `/var/backups/splintarr` | Automatic backup location |
 | `BACKUP_RETENTION_DAYS` | integer | `7` | Number of days to keep backups |
 | `BACKUP_COMPRESSION` | integer | `6` | Compression level (1-9) |
 

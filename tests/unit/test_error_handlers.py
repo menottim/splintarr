@@ -58,7 +58,7 @@ class TestHTTPExceptionHandler:
         """5xx HTTP errors are logged at ERROR level."""
         from fastapi import HTTPException, Request
 
-        from vibe_quality_searcharr.main import app
+        from splintarr.main import app
 
         @app.get("/test-5xx")
         async def error_500_endpoint(request: Request):
@@ -81,7 +81,7 @@ class TestUnhandledExceptionHandler:
         """Unhandled exceptions return 500 with generic message."""
         from fastapi import Request
 
-        from vibe_quality_searcharr.main import app
+        from splintarr.main import app
 
         @app.get("/test-crash")
         async def crash_endpoint(request: Request):
@@ -100,7 +100,7 @@ class TestUnhandledExceptionHandler:
         """Unhandled exceptions are logged at ERROR level."""
         from fastapi import Request
 
-        from vibe_quality_searcharr.main import app
+        from splintarr.main import app
 
         @app.get("/test-crash-log")
         async def crash_log_endpoint(request: Request):

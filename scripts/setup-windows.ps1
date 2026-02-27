@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Complete setup script for Vibe-Quality-Searcharr on Windows
+    Complete setup script for Splintarr on Windows
 
 .DESCRIPTION
     This script automates the complete setup process:
@@ -20,7 +20,7 @@
 
 .NOTES
     Version: 1.0.0
-    Author: Vibe-Quality-Searcharr
+    Author: Splintarr
     Requires: PowerShell 5.1+, Docker Desktop
 #>
 
@@ -84,9 +84,9 @@ function Test-DockerRunning {
 
 # Main setup
 try {
-    Write-Header "Vibe-Quality-Searcharr - Windows Setup"
+    Write-Header "Splintarr - Windows Setup"
 
-    Write-InfoMsg "This script will set up Vibe-Quality-Searcharr on your system."
+    Write-InfoMsg "This script will set up Splintarr on your system."
     Write-Host ""
 
     # Check PowerShell version
@@ -222,7 +222,7 @@ try {
             }
 
             # Check if database already exists
-            $dbPath = Join-Path $scriptDir "data\vibe-quality-searcharr.db"
+            $dbPath = Join-Path $scriptDir "data\splintarr.db"
             $dbExists = Test-Path $dbPath
 
             if ($existingSecrets.Count -gt 0) {

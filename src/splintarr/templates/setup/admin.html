@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Create Admin Account - Splintarr{% endblock %}
+
+{% block unauthenticated_content %}
+<div class="setup-wizard-container">
+    <!-- Progress indicator -->
+    <div class="setup-progress">
+        <span class="step completed" data-step="✓">Welcome</span>
+        <span class="step active" data-step="2">Admin Account</span>
+        <span class="step" data-step="3">Instance</span>
+        <span class="step" data-step="4">Complete</span>
+    </div>
+
+    <hgroup>
+        <h1>Create Admin Account</h1>
+        <p>Set up the administrator account for Splintarr</p>
+    </hgroup>
+
+    <div class="setup-content">
+        <article>
+            <form action="/setup/admin" method="post" id="adminForm">
+                <div class="form-group">
+                    <label for="username">
+                        Username
+                        <input
+                            type="text"
+                            id="username"
+                            name="username"
+                            required
+                            minlength="3"
+                            maxlength="32"
+                            pattern="[a-zA-Z][a-zA-Z0-9_]*"
+                            value="{{ username or '' }}"
+                            autocomplete="username"
+                            placeholder="admin">
+                        <small>3-32 characters, start with a letter, alphanumeric and underscore only</small>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">
+                        Password
+                        <input
+                            type="password"
+                            id="password"
+                            name="password"
+                            required
+                            minlength="12"
+                            autocomplete="new-password"
+                            placeholder="Enter a strong password">
+                        <small>Minimum 12 characters, must include uppercase, lowercase, digit, and special character</small>
+                        <div id="passwordStrength" style="margin-top: 0.5rem;"></div>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="confirm_password">
+                        Confirm Password
+                        <input
+                            type="password"
+                            id="confirm_password"
+                            name="confirm_password"
+                            required
+                            minlength="12"
+                            autocomplete="new-password"
+                            placeholder="Re-enter your password">
+                        <div id="passwordMatch" style="margin-top: 0.5rem;"></div>
+                    </label>
+                </div>
+            </form>
+        </article>
+
+        <div class="setup-actions">
+            <a href="/setup" role="button" class="secondary">← Back</a>
+            <button type="submit" form="adminForm" id="submitBtn">Continue →</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_head %}
+<style>
+.strength-weak { color: var(--brand-danger); }
+.strength-fair { color: var(--brand-warning); }
+.strength-good { color: var(--brand-info); }
+.strength-strong { color: var(--brand-success); }
+</style>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.state.csp_nonce }}">
+document.getElementById('password').addEventListener('input', checkPasswordStrength);
+document.getElementById('confirm_password').addEventListener('input', checkPasswordMatch);
+
+function checkPasswordStrength() {
+    const password = document.getElementById('password').value;
+    const strengthDiv = document.getElementById('passwordStrength');
+
+    if (password.length === 0) {
+        strengthDiv.innerHTML = '';
+        return;
+    }
+
+    let strength = 0;
+    let feedback = [];
+
+    if (password.length >= 12) strength++;
+    else feedback.push('At least 12 characters');
+
+    if (/[a-z]/.test(password)) strength++;
+    else feedback.push('Lowercase letter');
+
+    if (/[A-Z]/.test(password)) strength++;
+    else feedback.push('Uppercase letter');
+
+    if (/\d/.test(password)) strength++;
+    else feedback.push('Number');
+
+    if (/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/'`~;]/.test(password)) strength++;
+    else feedback.push('Special character');
+
+    let strengthText = '';
+    let strengthClass = '';
+
+    if (strength < 3) {
+        strengthText = 'Weak';
+        strengthClass = 'strength-weak';
+    } else if (strength < 4) {
+        strengthText = 'Fair';
+        strengthClass = 'strength-fair';
+    } else if (strength < 5) {
+        strengthText = 'Good';
+        strengthClass = 'strength-good';
+    } else {
+        strengthText = 'Strong';
+        strengthClass = 'strength-strong';
+    }
+
+    if (feedback.length > 0) {
+        strengthDiv.innerHTML = `<small class="${strengthClass}">Password strength: ${strengthText} (Missing: ${feedback.join(', ')})</small>`;
+    } else {
+        strengthDiv.innerHTML = `<small class="${strengthClass}">Password strength: ${strengthText}</small>`;
+    }
+}
+
+function checkPasswordMatch() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirm_password').value;
+    const matchDiv = document.getElementById('passwordMatch');
+
+    if (confirmPassword.length === 0) {
+        matchDiv.innerHTML = '';
+        return;
+    }
+
+    if (password === confirmPassword) {
+        matchDiv.innerHTML = '<small style="color: var(--brand-success);">✓ Passwords match</small>';
+    } else {
+        matchDiv.innerHTML = '<small style="color: var(--brand-danger);">✗ Passwords do not match</small>';
+    }
+}
+</script>
+{% endblock %}

@@ -13,17 +13,17 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from vibe_quality_searcharr.core.security import (
+from splintarr.core.security import (
     field_encryption,
     hash_password,
     password_security,
     token_generator,
     verify_password,
 )
-from vibe_quality_searcharr.models.instance import Instance
-from vibe_quality_searcharr.models.search_history import SearchHistory
-from vibe_quality_searcharr.models.search_queue import SearchQueue
-from vibe_quality_searcharr.models.user import RefreshToken, User
+from splintarr.models.instance import Instance
+from splintarr.models.search_history import SearchHistory
+from splintarr.models.search_queue import SearchQueue
+from splintarr.models.user import RefreshToken, User
 
 
 class TestUserAuthenticationWorkflow:

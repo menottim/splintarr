@@ -1,5 +1,5 @@
 [bandit]
-# Bandit configuration for Vibe-Quality-Searcharr
+# Bandit configuration for Splintarr
 
 # Directories to exclude from scanning
 exclude_dirs = [

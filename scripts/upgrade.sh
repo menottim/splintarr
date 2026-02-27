@@ -1,5 +1,5 @@
 #!/bin/bash
-# Upgrade script for Vibe-Quality-Searcharr
+# Upgrade script for Splintarr
 # Usage: ./scripts/upgrade.sh [version]
 
 set -e
@@ -16,13 +16,13 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${PROJECT_DIR}/docker/docker-compose.yml"
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}Vibe-Quality-Searcharr Upgrade${NC}"
+echo -e "${GREEN}Splintarr Upgrade${NC}"
 echo -e "${GREEN}Target Version: ${VERSION}${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
 # Get current version
-CURRENT_VERSION=$(docker inspect vibe-quality-searcharr --format='{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || echo "unknown")
+CURRENT_VERSION=$(docker inspect splintarr --format='{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || echo "unknown")
 echo -e "Current version: ${CURRENT_VERSION}"
 echo -e "Target version: ${VERSION}"
 echo ""
@@ -42,7 +42,7 @@ echo ""
 echo -e "${YELLOW}[1/8] Pre-upgrade checks...${NC}"
 
 # Check if container is running
-if ! docker ps | grep -q vibe-quality-searcharr; then
+if ! docker ps | grep -q splintarr; then
     echo -e "${RED}Error: Container is not running${NC}"
     exit 1
 fi
@@ -109,7 +109,7 @@ echo ""
 echo -e "${YELLOW}[6/8] Running database migrations...${NC}"
 if [ -f "${PROJECT_DIR}/alembic.ini" ]; then
     # Run migrations in temporary container
-    docker-compose -f "${COMPOSE_FILE}" run --rm --entrypoint "alembic upgrade head" vibe-quality-searcharr || {
+    docker-compose -f "${COMPOSE_FILE}" run --rm --entrypoint "alembic upgrade head" splintarr || {
         echo -e "${RED}[ERROR] Migration failed!${NC}"
         echo -e "${YELLOW}Rolling back...${NC}"
         "${PROJECT_DIR}/scripts/restore.sh" "${BACKUP_FILE}"
@@ -168,7 +168,7 @@ else
 fi
 
 # Check database is accessible
-NEW_VERSION=$(docker inspect vibe-quality-searcharr --format='{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || echo "unknown")
+NEW_VERSION=$(docker inspect splintarr --format='{{index .Config.Labels "org.opencontainers.image.version"}}' 2>/dev/null || echo "unknown")
 echo -e "${GREEN}[OK] Upgraded to version ${NEW_VERSION}${NC}"
 echo ""
 

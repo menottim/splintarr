@@ -1,14 +1,14 @@
 # Note: 'version' is obsolete in Docker Compose v2+ and has been removed
 
 services:
-  vibe-quality-searcharr-dev:
+  splintarr-dev:
     build:
       context: ..
       dockerfile: docker/Dockerfile
       args:
         VERSION: dev
-    image: vibe-quality-searcharr:dev
-    container_name: vibe-quality-searcharr-dev
+    image: splintarr:dev
+    container_name: splintarr-dev
 
     # Run as current user for file permissions
     # Note: Disabled for Windows compatibility - non-root user cannot write to
@@ -17,7 +17,7 @@ services:
 
     environment:
       # Application settings
-      - APP_NAME=Vibe-Quality-Searcharr-Dev
+      - APP_NAME=Splintarr-Dev
       - ENVIRONMENT=development
       - DEBUG=true
       - LOG_LEVEL=DEBUG
@@ -34,7 +34,7 @@ services:
       - DATABASE_KEY=dev-only-insecure-db-key-value-00
 
       # Database (in data volume)
-      - DATABASE_URL=sqlite+pysqlcipher:///data/vibe-quality-searcharr-dev.db?cipher=aes-256-cfb&kdf_iter=256000
+      - DATABASE_URL=sqlite+pysqlcipher:///data/splintarr-dev.db?cipher=aes-256-cfb&kdf_iter=256000
 
       # Security settings (relaxed for development)
       - SESSION_EXPIRE_HOURS=24

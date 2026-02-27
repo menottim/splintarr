@@ -13,11 +13,11 @@ from fastapi import status
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from vibe_quality_searcharr.core.security import hash_password
-from vibe_quality_searcharr.models.instance import Instance
-from vibe_quality_searcharr.models.search_history import SearchHistory
-from vibe_quality_searcharr.models.search_queue import SearchQueue
-from vibe_quality_searcharr.models.user import User
+from splintarr.core.security import hash_password
+from splintarr.models.instance import Instance
+from splintarr.models.search_history import SearchHistory
+from splintarr.models.search_queue import SearchQueue
+from splintarr.models.user import User
 
 
 @pytest.fixture
@@ -123,7 +123,7 @@ class TestSetupWizard:
 
         response = client.get("/setup")
         assert response.status_code == status.HTTP_200_OK
-        assert b"Welcome to Vibe-Quality-Searcharr" in response.content
+        assert b"Welcome to Splintarr" in response.content
 
     def test_setup_redirects_when_users_exist(self, client: TestClient, admin_user: User):
         """Setup wizard should redirect to / when users already exist."""

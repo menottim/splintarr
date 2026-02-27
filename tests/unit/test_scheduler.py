@@ -8,8 +8,8 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from vibe_quality_searcharr.models import SearchQueue, Instance
-from vibe_quality_searcharr.services.scheduler import SearchScheduler, SearchSchedulerError
+from splintarr.models import SearchQueue, Instance
+from splintarr.services.scheduler import SearchScheduler, SearchSchedulerError
 
 
 @pytest.fixture

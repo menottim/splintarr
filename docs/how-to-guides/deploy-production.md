@@ -15,7 +15,7 @@ local network, managing database migrations, and a few performance tweaks.
 
 ### Supported Platforms
 
-Vibe-Quality-Searcharr runs well on common homelab hardware:
+Splintarr runs well on common homelab hardware:
 
 - Raspberry Pi 4/5 (arm64) with 2 GB+ RAM
 - Synology, QNAP, or TrueNAS with Docker support
@@ -42,37 +42,37 @@ Docker overhead.
 sudo apt update
 sudo apt install python3.13 python3.13-venv python3-pip sqlcipher libsqlcipher-dev
 curl -sSL https://install.python-poetry.org | python3 -
-git clone https://github.com/menottim/vibe-quality-searcharr.git /opt/vibe-quality-searcharr
-cd /opt/vibe-quality-searcharr
+git clone https://github.com/menottim/splintarr.git /opt/splintarr
+cd /opt/splintarr
 poetry install --no-dev
 ```
 
 **Generate secrets and create a service user:**
 ```bash
-mkdir -p /opt/vibe-quality-searcharr/secrets && chmod 700 /opt/vibe-quality-searcharr/secrets
-python3 -c "import secrets; print(secrets.token_urlsafe(64))" > /opt/vibe-quality-searcharr/secrets/secret_key
-python3 -c "import secrets; print(secrets.token_urlsafe(32))" > /opt/vibe-quality-searcharr/secrets/pepper
-python3 -c "import secrets; print(secrets.token_urlsafe(32))" > /opt/vibe-quality-searcharr/secrets/db_key
-chmod 600 /opt/vibe-quality-searcharr/secrets/*
+mkdir -p /opt/splintarr/secrets && chmod 700 /opt/splintarr/secrets
+python3 -c "import secrets; print(secrets.token_urlsafe(64))" > /opt/splintarr/secrets/secret_key
+python3 -c "import secrets; print(secrets.token_urlsafe(32))" > /opt/splintarr/secrets/pepper
+python3 -c "import secrets; print(secrets.token_urlsafe(32))" > /opt/splintarr/secrets/db_key
+chmod 600 /opt/splintarr/secrets/*
 sudo useradd --system --no-create-home --shell /usr/sbin/nologin appuser
-sudo chown -R appuser:appuser /opt/vibe-quality-searcharr
+sudo chown -R appuser:appuser /opt/splintarr
 ```
 
-**Create the systemd unit** at `/etc/systemd/system/vibe-quality-searcharr.service`:
+**Create the systemd unit** at `/etc/systemd/system/splintarr.service`:
 ```ini
 [Unit]
-Description=Vibe-Quality-Searcharr
+Description=Splintarr
 After=network.target
 
 [Service]
 Type=simple
 User=appuser
-WorkingDirectory=/opt/vibe-quality-searcharr
-Environment="SECRET_KEY_FILE=/opt/vibe-quality-searcharr/secrets/secret_key"
-Environment="PEPPER_FILE=/opt/vibe-quality-searcharr/secrets/pepper"
-Environment="DATABASE_KEY_FILE=/opt/vibe-quality-searcharr/secrets/db_key"
+WorkingDirectory=/opt/splintarr
+Environment="SECRET_KEY_FILE=/opt/splintarr/secrets/secret_key"
+Environment="PEPPER_FILE=/opt/splintarr/secrets/pepper"
+Environment="DATABASE_KEY_FILE=/opt/splintarr/secrets/db_key"
 Environment="ENVIRONMENT=production"
-ExecStart=/opt/vibe-quality-searcharr/.venv/bin/uvicorn vibe_quality_searcharr.main:app --host 0.0.0.0 --port 7337
+ExecStart=/opt/splintarr/.venv/bin/uvicorn splintarr.main:app --host 0.0.0.0 --port 7337
 Restart=on-failure
 RestartSec=5
 
@@ -83,15 +83,15 @@ WantedBy=multi-user.target
 **Enable and start:**
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now vibe-quality-searcharr
-sudo systemctl status vibe-quality-searcharr
+sudo systemctl enable --now splintarr
+sudo systemctl status splintarr
 ```
 
 ---
 
 ## Optional: Reverse Proxy for HTTPS
 
-You do **not** need HTTPS to use Vibe-Quality-Searcharr on your local network.
+You do **not** need HTTPS to use Splintarr on your local network.
 However, if you want encrypted connections (for example, to avoid browser
 warnings or to protect API keys in transit on an untrusted VLAN), a reverse
 proxy is the simplest way to add TLS.
@@ -100,7 +100,7 @@ proxy is the simplest way to add TLS.
 
 Caddy is popular in homelab setups because it handles TLS certificates
 automatically with almost no configuration. If you use a local domain like
-`searcharr.home.lan`, Caddy generates a self-signed certificate automatically.
+`splintarr.home.lan`, Caddy generates a self-signed certificate automatically.
 If you point a real domain at your LAN IP, Caddy obtains a Let's Encrypt
 certificate for you.
 
@@ -108,7 +108,7 @@ Install Caddy following the [official instructions](https://caddyserver.com/docs
 then create `/etc/caddy/Caddyfile`:
 
 ```
-searcharr.home.lan {
+splintarr.home.lan {
     reverse_proxy localhost:7337
 }
 ```
@@ -127,17 +127,17 @@ running `caddy trust` on the Caddy host.
 If you already run nginx on your homelab, add a site configuration:
 
 ```nginx
-# /etc/nginx/sites-available/vibe-quality-searcharr
+# /etc/nginx/sites-available/splintarr
 server {
     listen 80;
-    server_name searcharr.home.lan;
+    server_name splintarr.home.lan;
     return 301 https://$server_name$request_uri;
 }
 server {
     listen 443 ssl http2;
-    server_name searcharr.home.lan;
-    ssl_certificate     /etc/nginx/ssl/searcharr.crt;
-    ssl_certificate_key /etc/nginx/ssl/searcharr.key;
+    server_name splintarr.home.lan;
+    ssl_certificate     /etc/nginx/ssl/splintarr.crt;
+    ssl_certificate_key /etc/nginx/ssl/splintarr.key;
     location / {
         proxy_pass http://127.0.0.1:7337;
         proxy_set_header Host $host;
@@ -150,7 +150,7 @@ server {
 
 Enable and reload:
 ```bash
-sudo ln -s /etc/nginx/sites-available/vibe-quality-searcharr /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/splintarr /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -158,9 +158,9 @@ Generate a self-signed certificate if you do not have a real domain:
 ```bash
 sudo mkdir -p /etc/nginx/ssl
 sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-  -keyout /etc/nginx/ssl/searcharr.key \
-  -out /etc/nginx/ssl/searcharr.crt \
-  -subj "/CN=searcharr.home.lan"
+  -keyout /etc/nginx/ssl/splintarr.key \
+  -out /etc/nginx/ssl/splintarr.crt \
+  -subj "/CN=splintarr.home.lan"
 ```
 
 ### Note on SECURE_COOKIES
@@ -174,7 +174,7 @@ encrypted connections. If you access the app over plain HTTP, leave it as
 
 ## Database Migrations with Alembic
 
-Vibe-Quality-Searcharr uses Alembic for database schema migrations. When
+Splintarr uses Alembic for database schema migrations. When
 running via Docker, migrations are applied automatically on container start. If
 you run directly on the host, or need to manage migrations manually, use the
 commands below.
@@ -189,19 +189,19 @@ poetry run alembic history           # view migration history
 
 **Running migrations inside Docker:**
 ```bash
-docker compose exec vibe-quality-searcharr alembic upgrade head
+docker compose exec splintarr alembic upgrade head
 ```
 
 **Always back up your database before applying migrations:**
 ```bash
-cp data/vibe-quality-searcharr.db "data/backup-$(date +%Y%m%d-%H%M%S).db"
+cp data/splintarr.db "data/backup-$(date +%Y%m%d-%H%M%S).db"
 ```
 
 ---
 
 ## Performance Tuning
 
-Vibe-Quality-Searcharr is a lightweight, single-user (or few-user) application.
+Splintarr is a lightweight, single-user (or few-user) application.
 It runs a single Uvicorn worker by design. There is no need for multi-worker
 deployment. A few small tweaks can help on constrained hardware.
 
@@ -212,7 +212,7 @@ SD cards, network mounts). If your host has both an SD card and an SSD (common
 on Raspberry Pi), mount the data volume on the SSD:
 ```yaml
 volumes:
-  - /mnt/ssd/vibe-quality-searcharr/data:/data
+  - /mnt/ssd/splintarr/data:/data
 ```
 
 ### Docker Resource Limits
@@ -260,12 +260,12 @@ If you run Uptime Kuma, Healthchecks.io, or similar, point an HTTP monitor at
 
 **Docker:**
 ```bash
-docker compose logs -f vibe-quality-searcharr
+docker compose logs -f splintarr
 ```
 
 **systemd:**
 ```bash
-sudo journalctl -u vibe-quality-searcharr -f
+sudo journalctl -u splintarr -f
 ```
 
 **Application log files** (if the logs directory is mapped):
@@ -283,9 +283,9 @@ are common issues specific to advanced deployments.
 
 **Service will not start (systemd):**
 ```bash
-sudo journalctl -u vibe-quality-searcharr -n 50 --no-pager
-ls -la /opt/vibe-quality-searcharr/secrets/
-ls -la /opt/vibe-quality-searcharr/data/
+sudo journalctl -u splintarr -n 50 --no-pager
+ls -la /opt/splintarr/secrets/
+ls -la /opt/splintarr/data/
 ```
 
 **Reverse proxy returns 502 Bad Gateway:**

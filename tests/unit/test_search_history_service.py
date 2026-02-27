@@ -8,8 +8,8 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
-from vibe_quality_searcharr.models import SearchHistory
-from vibe_quality_searcharr.services.search_history import SearchHistoryService, SearchHistoryError
+from splintarr.models import SearchHistory
+from splintarr.services.search_history import SearchHistoryService, SearchHistoryError
 
 
 @pytest.fixture

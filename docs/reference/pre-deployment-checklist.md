@@ -1,6 +1,6 @@
 # Pre-Deployment Checklist
 
-A simple checklist for deploying Vibe-Quality-Searcharr on a homelab.
+A simple checklist for deploying Splintarr on a homelab.
 
 ---
 
@@ -62,7 +62,7 @@ The setup script generated three files in the `secrets/` directory:
 ```bash
 # Run weekly on Sunday at 2 AM
 crontab -e
-0 2 * * 0 /path/to/vibe-quality-searcharr/scripts/backup.sh
+0 2 * * 0 /path/to/splintarr/scripts/backup.sh
 ```
 
 **Windows (Task Scheduler):**
@@ -96,7 +96,7 @@ After completing the steps above, confirm everything is working:
 
 ```bash
 # Container is running
-docker ps | grep vibe-quality-searcharr
+docker ps | grep splintarr
 
 # Application responds
 curl -s -o /dev/null -w "%{http_code}" http://localhost:7337

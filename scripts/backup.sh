@@ -1,5 +1,5 @@
 #!/bin/bash
-# Backup script for Vibe-Quality-Searcharr
+# Backup script for Splintarr
 # Usage: ./scripts/backup.sh [destination]
 
 set -e
@@ -16,10 +16,10 @@ DATA_DIR="${PROJECT_DIR}/data"
 SECRETS_DIR="${PROJECT_DIR}/secrets"
 BACKUP_DEST="${1:-${PROJECT_DIR}/backups}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-BACKUP_NAME="vibe-quality-searcharr-backup-${TIMESTAMP}"
+BACKUP_NAME="splintarr-backup-${TIMESTAMP}"
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}Vibe-Quality-Searcharr Backup${NC}"
+echo -e "${GREEN}Splintarr Backup${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
@@ -86,7 +86,7 @@ fi
 
 # Add metadata
 cat > "${BACKUP_DIR}/BACKUP_INFO.txt" <<EOF
-Vibe-Quality-Searcharr Backup
+Splintarr Backup
 Created: $(date)
 Hostname: $(hostname)
 Version: $(cat ${PROJECT_DIR}/pyproject.toml | grep "^version" | cut -d'"' -f2 || echo "unknown")
@@ -141,7 +141,7 @@ echo ""
 
 # Cleanup old backups (keep last 7 days)
 echo -e "${YELLOW}Cleaning up old backups (keeping last 7 days)...${NC}"
-find "${BACKUP_DEST}" -name "vibe-quality-searcharr-backup-*.tar.gz" -type f -mtime +7 -delete 2>/dev/null || true
-find "${BACKUP_DEST}" -name "vibe-quality-searcharr-backup-*.sha256" -type f -mtime +7 -delete 2>/dev/null || true
+find "${BACKUP_DEST}" -name "splintarr-backup-*.tar.gz" -type f -mtime +7 -delete 2>/dev/null || true
+find "${BACKUP_DEST}" -name "splintarr-backup-*.sha256" -type f -mtime +7 -delete 2>/dev/null || true
 echo -e "${GREEN}[OK] Old backups cleaned${NC}"
 echo ""

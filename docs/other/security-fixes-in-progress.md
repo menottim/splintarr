@@ -8,12 +8,12 @@
 ### 🔴 CRITICAL Issues Fixed (3/3)
 
 #### 1. Weak Fernet Key Derivation - **FIXED**
-**File:** `src/vibe_quality_searcharr/core/security.py`
+**File:** `src/splintarr/core/security.py`
 
 **Changes:**
 - Replaced weak `key_bytes = secret_key.encode()[:32].ljust(32, b"0")` with proper HKDF
 - Now uses `cryptography.hazmat.primitives.kdf.hkdf.HKDF` with SHA256
-- Application-specific salt: `b"vibe-quality-searcharr-fernet-v1"`
+- Application-specific salt: `b"splintarr-fernet-v1"`
 - Context-specific info: `b"api-key-encryption"`
 - Prevents weak keys even when SECRET_KEY is short
 
@@ -22,7 +22,7 @@
 ---
 
 #### 2. JWT Algorithm Confusion - **FIXED**
-**File:** `src/vibe_quality_searcharr/core/auth.py`
+**File:** `src/splintarr/core/auth.py`
 
 **Changes:**
 - Added hardcoded `ALLOWED_JWT_ALGORITHMS = ["HS256"]` constant
@@ -38,7 +38,7 @@
 ---
 
 #### 3. SQL Injection in Database URL - **FIXED**
-**File:** `src/vibe_quality_searcharr/config.py`
+**File:** `src/splintarr/config.py`
 
 **Changes:**
 - Added `@field_validator("database_cipher")` with whitelist:
@@ -58,7 +58,7 @@
 ### 🟠 HIGH Issues Fixed (1/5)
 
 #### 4. Non-Functional 2FA Removed - **FIXED**
-**File:** `src/vibe_quality_searcharr/api/auth.py`
+**File:** `src/splintarr/api/auth.py`
 
 **Changes:**
 - Removed three non-functional endpoints:

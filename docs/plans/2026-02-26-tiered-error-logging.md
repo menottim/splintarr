@@ -141,7 +141,7 @@ class TestUnhandledExceptionHandler:
         """Unhandled exceptions return 500 with generic message."""
         # We'll test this by hitting the health endpoint with a broken DB
         # The catch-all handler should catch anything that slips through
-        with patch("vibe_quality_searcharr.main.database_health_check", side_effect=RuntimeError("boom")):
+        with patch("splintarr.main.database_health_check", side_effect=RuntimeError("boom")):
             response = client.get("/health")
         # Health endpoint has its own try-except, so it returns 503
         # The catch-all is a safety net for truly unhandled exceptions
@@ -165,12 +165,12 @@ git commit -m "test: add tests for catch-all exception handler"
 ### Task 4: Implement all three exception handlers
 
 **Files:**
-- Modify: `src/vibe_quality_searcharr/main.py:15-16` (imports)
-- Modify: `src/vibe_quality_searcharr/main.py:291-308` (replace existing handlers)
+- Modify: `src/splintarr/main.py:15-16` (imports)
+- Modify: `src/splintarr/main.py:291-308` (replace existing handlers)
 
 **Step 1: Add imports**
 
-At `src/vibe_quality_searcharr/main.py:15`, add `HTTPException` to the existing FastAPI import, and add a new import for `RequestValidationError`:
+At `src/splintarr/main.py:15`, add `HTTPException` to the existing FastAPI import, and add a new import for `RequestValidationError`:
 
 Change:
 ```python
@@ -257,7 +257,7 @@ Expected: No new failures (pre-existing failures in non-auth modules are known)
 **Step 5: Commit**
 
 ```bash
-git add src/vibe_quality_searcharr/main.py
+git add src/splintarr/main.py
 git commit -m "feat: add tiered error logging for all HTTP errors"
 ```
 
@@ -285,14 +285,14 @@ Expected: `{"status":"healthy",...}`
 curl -s -X POST http://localhost:7337/api/search-queues -H "Content-Type: application/json" -d '{"bad": "data"}'
 
 # Check all.log for the WARNING
-docker compose exec vibe-quality-searcharr cat /app/logs/all.log | grep -i "client_error\|validation_error" | tail -5
+docker compose exec splintarr cat /app/logs/all.log | grep -i "client_error\|validation_error" | tail -5
 ```
 Expected: At least one WARNING-level log entry with `http_client_error` or `http_validation_error`
 
 **Step 4: Verify error.log only has ERROR-level entries**
 
 ```bash
-docker compose exec vibe-quality-searcharr cat /app/logs/error.log | head -5
+docker compose exec splintarr cat /app/logs/error.log | head -5
 ```
 Expected: Either empty (no 5xx errors have occurred) or only ERROR-level entries
 

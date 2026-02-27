@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from vibe_quality_searcharr.config import Settings
+from splintarr.config import Settings
 
 
 def test_settings_defaults():
@@ -17,7 +17,7 @@ def test_settings_defaults():
         database_key="test_db_key"
     )
 
-    assert settings.app_name == "Vibe-Quality-Searcharr"
+    assert settings.app_name == "Splintarr"
     assert settings.environment == "development"
     assert settings.port == 7337
     assert settings.session_expire_hours == 24

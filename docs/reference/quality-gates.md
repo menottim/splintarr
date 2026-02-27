@@ -1,5 +1,5 @@
 # Quality Gates Verification
-## Vibe-Quality-Searcharr v0.1.0
+## Splintarr v0.1.0
 
 **Verification Date:** 2026-02-24
 **Phase:** 7 - Testing & Security Audit

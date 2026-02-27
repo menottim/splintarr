@@ -1,8 +1,8 @@
 # Backup and Restore Guide
 
-**Vibe-Quality-Searcharr v0.1.0-alpha**
+**Splintarr v0.1.0-alpha**
 
-This guide provides comprehensive procedures for backing up and restoring your Vibe-Quality-Searcharr installation.
+This guide provides comprehensive procedures for backing up and restoring your Splintarr installation.
 
 ---
 
@@ -25,7 +25,7 @@ This guide provides comprehensive procedures for backing up and restoring your V
 
 ### Critical Data (MUST Backup)
 
-1. **Database** - `data/vibe-quality-searcharr.db`
+1. **Database** - `data/splintarr.db`
    - User accounts and passwords
    - Sonarr/Radarr instance configurations
    - Search queues and schedules
@@ -69,15 +69,15 @@ This guide provides comprehensive procedures for backing up and restoring your V
 
 **Output:**
 ```
-backups/vibe-quality-searcharr-backup-20240224-143022.tar.gz
-backups/vibe-quality-searcharr-backup-20240224-143022.tar.gz.sha256
+backups/splintarr-backup-20240224-143022.tar.gz
+backups/splintarr-backup-20240224-143022.tar.gz.sha256
 ```
 
 ### 2. Docker Volume Backup
 
 ```bash
 docker run --rm \
-  -v vibe-quality-searcharr_data:/data:ro \
+  -v splintarr_data:/data:ro \
   -v $(pwd)/backups:/backup \
   alpine tar czf /backup/data-backup-$(date +%Y%m%d).tar.gz -C /data .
 ```
@@ -103,11 +103,11 @@ docker-compose up -d
 
 ```bash
 # SQLite backup (hot backup)
-sqlite3 data/vibe-quality-searcharr.db ".backup data/backup-$(date +%Y%m%d).db"
+sqlite3 data/splintarr.db ".backup data/backup-$(date +%Y%m%d).db"
 
 # Or using Docker
-docker exec vibe-quality-searcharr \
-  sqlite3 /data/vibe-quality-searcharr.db \
+docker exec splintarr \
+  sqlite3 /data/splintarr.db \
   ".backup /data/backup-$(date +%Y%m%d).db"
 ```
 
@@ -124,7 +124,7 @@ Create a cron job for daily backups:
 crontab -e
 
 # Add daily backup at 2 AM
-0 2 * * * /path/to/vibe-quality-searcharr/scripts/backup.sh /var/backups/vibe-quality-searcharr >> /var/log/vqs-backup.log 2>&1
+0 2 * * * /path/to/splintarr/scripts/backup.sh /var/backups/splintarr >> /var/log/vqs-backup.log 2>&1
 ```
 
 ### Systemd Timer (Linux)
@@ -133,7 +133,7 @@ Create `/etc/systemd/system/vqs-backup.timer`:
 
 ```ini
 [Unit]
-Description=Vibe-Quality-Searcharr Daily Backup
+Description=Splintarr Daily Backup
 Requires=vqs-backup.service
 
 [Timer]
@@ -149,12 +149,12 @@ Create `/etc/systemd/system/vqs-backup.service`:
 
 ```ini
 [Unit]
-Description=Vibe-Quality-Searcharr Backup Service
+Description=Splintarr Backup Service
 
 [Service]
 Type=oneshot
 User=root
-ExecStart=/path/to/vibe-quality-searcharr/scripts/backup.sh /var/backups/vibe-quality-searcharr
+ExecStart=/path/to/splintarr/scripts/backup.sh /var/backups/splintarr
 StandardOutput=journal
 StandardError=journal
 ```
@@ -207,7 +207,7 @@ services:
 Create `backup.bat`:
 ```batch
 @echo off
-cd C:\path\to\vibe-quality-searcharr
+cd C:\path\to\splintarr
 docker-compose down
 tar -czf backup-%date:~-4,4%%date:~-10,2%%date:~-7,2%.tar.gz data secrets .env
 docker-compose up -d
@@ -232,7 +232,7 @@ tar -czf backups/${BACKUP_NAME}.tar.gz data/ secrets/ .env
 
 ```bash
 # Quick backup
-cp data/vibe-quality-searcharr.db data/vibe-quality-searcharr.db.backup
+cp data/splintarr.db data/splintarr.db.backup
 cp .env .env.backup
 ```
 
@@ -256,7 +256,7 @@ tar -czf vqs-export-$(date +%Y%m%d).tar.gz \
 ### Automated Restore
 
 ```bash
-./scripts/restore.sh backups/vibe-quality-searcharr-backup-20240224-143022.tar.gz
+./scripts/restore.sh backups/splintarr-backup-20240224-143022.tar.gz
 ```
 
 **Process:**
@@ -281,9 +281,9 @@ mv data data.old
 mv secrets secrets.old
 
 # Extract backup
-tar -xzf backups/vibe-quality-searcharr-backup-20240224-143022.tar.gz
-mv vibe-quality-searcharr-backup-20240224-143022/* .
-rmdir vibe-quality-searcharr-backup-20240224-143022
+tar -xzf backups/splintarr-backup-20240224-143022.tar.gz
+mv splintarr-backup-20240224-143022/* .
+rmdir splintarr-backup-20240224-143022
 
 # Set permissions
 chmod 700 data secrets
@@ -304,11 +304,11 @@ curl http://localhost:7337/health
 docker-compose down
 
 # Backup current database
-mv data/vibe-quality-searcharr.db data/vibe-quality-searcharr.db.old
+mv data/splintarr.db data/splintarr.db.old
 
 # Restore from backup
-cp backups/backup-20240224.db data/vibe-quality-searcharr.db
-chmod 600 data/vibe-quality-searcharr.db
+cp backups/backup-20240224.db data/splintarr.db
+chmod 600 data/splintarr.db
 
 # Start application
 docker-compose up -d
@@ -327,8 +327,8 @@ docker-compose up -d
 **Restore only database:**
 ```bash
 docker-compose down
-tar -xzf backup.tar.gz */data/vibe-quality-searcharr.db --strip-components=2
-chmod 600 data/vibe-quality-searcharr.db
+tar -xzf backup.tar.gz */data/splintarr.db --strip-components=2
+chmod 600 data/splintarr.db
 docker-compose up -d
 ```
 
@@ -353,8 +353,8 @@ sudo sh get-docker.sh
 
 **Get Application Code:**
 ```bash
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
+git clone https://github.com/menottim/splintarr.git
+cd splintarr
 ```
 
 **Restore from Backup:**
@@ -385,13 +385,13 @@ docker-compose down
 **Attempt repair:**
 ```bash
 # Backup corrupted database
-cp data/vibe-quality-searcharr.db data/vibe-quality-searcharr.db.corrupted
+cp data/splintarr.db data/splintarr.db.corrupted
 
 # Attempt recovery
-sqlite3 data/vibe-quality-searcharr.db ".recover" | sqlite3 data/vibe-quality-searcharr.db.recovered
+sqlite3 data/splintarr.db ".recover" | sqlite3 data/splintarr.db.recovered
 
 # If successful, replace
-mv data/vibe-quality-searcharr.db.recovered data/vibe-quality-searcharr.db
+mv data/splintarr.db.recovered data/splintarr.db
 ```
 
 **If repair fails, restore from backup:**
@@ -429,14 +429,14 @@ If secrets are lost and no backup exists:
 
 **Transfer backup to new host:**
 ```bash
-scp backups/vibe-quality-searcharr-backup-*.tar.gz newhost:/tmp/
+scp backups/splintarr-backup-*.tar.gz newhost:/tmp/
 ```
 
 **On new host:**
 ```bash
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
-./scripts/restore.sh /tmp/vibe-quality-searcharr-backup-*.tar.gz
+git clone https://github.com/menottim/splintarr.git
+cd splintarr
+./scripts/restore.sh /tmp/splintarr-backup-*.tar.gz
 ```
 
 ### Different Architecture (e.g., x86 to ARM)
@@ -452,8 +452,8 @@ docker-compose up -d
 
 **Export data from Docker:**
 ```bash
-docker cp vibe-quality-searcharr:/data ./data
-docker cp vibe-quality-searcharr:/app/secrets ./secrets
+docker cp splintarr:/data ./data
+docker cp splintarr:/app/secrets ./secrets
 ```
 
 **On bare metal:**
@@ -463,14 +463,14 @@ cp -r data /path/to/installation/
 cp -r secrets /path/to/installation/
 cp .env /path/to/installation/
 poetry run alembic upgrade head
-poetry run uvicorn src.vibe_quality_searcharr.main:app --host 0.0.0.0 --port 7337
+poetry run uvicorn src.splintarr.main:app --host 0.0.0.0 --port 7337
 ```
 
 ### Bare Metal to Docker
 
 **Stop bare metal service:**
 ```bash
-sudo systemctl stop vibe-quality-searcharr
+sudo systemctl stop splintarr
 ```
 
 **Backup data:**
@@ -480,8 +480,8 @@ tar -czf vqs-data.tar.gz /path/to/data /path/to/secrets /path/to/.env
 
 **Set up Docker:**
 ```bash
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
+git clone https://github.com/menottim/splintarr.git
+cd splintarr
 tar -xzf ../vqs-data.tar.gz
 docker-compose up -d
 ```
@@ -494,14 +494,14 @@ docker-compose up -d
 
 ```bash
 # Verify checksum
-sha256sum -c backups/vibe-quality-searcharr-backup-*.tar.gz.sha256
+sha256sum -c backups/splintarr-backup-*.tar.gz.sha256
 
 # Test extraction
-tar -tzf backups/vibe-quality-searcharr-backup-*.tar.gz | head -20
+tar -tzf backups/splintarr-backup-*.tar.gz | head -20
 
 # Verify database
 docker run --rm -v $(pwd)/backups:/backup alpine sh -c '
-  tar -xzf /backup/vibe-quality-searcharr-backup-*.tar.gz -C /tmp
+  tar -xzf /backup/splintarr-backup-*.tar.gz -C /tmp
   apk add sqlite
   sqlite3 /tmp/*/data/*.db "PRAGMA integrity_check;"
 '
@@ -517,8 +517,8 @@ mkdir -p test-restore
 cd test-restore
 
 # Clone application
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
+git clone https://github.com/menottim/splintarr.git
+cd splintarr
 
 # Restore backup
 ./scripts/restore.sh /path/to/backup.tar.gz
@@ -599,7 +599,7 @@ echo "✓ Backup test passed"
 #!/bin/bash
 # Backup rotation script
 
-BACKUP_DIR="/var/backups/vibe-quality-searcharr"
+BACKUP_DIR="/var/backups/splintarr"
 
 # Remove backups older than 7 days
 find "${BACKUP_DIR}" -name "*.tar.gz" -type f -mtime +7 -delete
@@ -669,7 +669,7 @@ sudo chmod 600 data/*.db
 docker-compose logs
 
 # Verify database
-sqlite3 data/vibe-quality-searcharr.db "PRAGMA integrity_check;"
+sqlite3 data/splintarr.db "PRAGMA integrity_check;"
 
 # Try restoring from older backup
 ```
@@ -711,5 +711,5 @@ sqlite3 data/vibe-quality-searcharr.db "PRAGMA integrity_check;"
 
 **Need Help?**
 
-- GitHub Issues: https://github.com/menottim/vibe-quality-searcharr/issues
-- Documentation: https://github.com/menottim/vibe-quality-searcharr/docs/
+- GitHub Issues: https://github.com/menottim/splintarr/issues
+- Documentation: https://github.com/menottim/splintarr/docs/

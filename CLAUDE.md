@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Vibe-Quality-Searcharr is a homelab application that automates intelligent backlog searching for Sonarr and Radarr media management instances. It's a Docker-first, single-container Python app with an encrypted SQLCipher database, JWT authentication, and a FastAPI REST API with Jinja2 server-rendered UI.
+Splintarr is a homelab application that automates intelligent backlog searching for Sonarr and Radarr media management instances. It's a Docker-first, single-container Python app with an encrypted SQLCipher database, JWT authentication, and a FastAPI REST API with Jinja2 server-rendered UI.
 
 ## Common Commands
 
@@ -44,7 +44,7 @@ bash scripts/generate-secrets.sh
 docker-compose up
 
 # Or directly (requires env vars from .env.example)
-poetry run uvicorn vibe_quality_searcharr.main:app --reload --port 7337
+poetry run uvicorn splintarr.main:app --reload --port 7337
 ```
 
 ## Architecture
@@ -66,15 +66,15 @@ core/       → Cross-cutting: auth (JWT/TOTP), security (Argon2id/Fernet), SSRF
 - **Auth flow**: JWT access tokens (short-lived, 15min) + refresh tokens (long-lived, 30 days) stored in httpOnly cookies. Token rotation on refresh.
 - **Rate limiting**: In-memory via slowapi — does NOT share state across workers. Single-worker only.
 - **SSRF protection**: `core/ssrf_protection.py` blocks private IP ranges on instance URLs. Bypassed by `ALLOW_LOCAL_INSTANCES=true` (intended for homelab use).
-- **Static files**: Mounted at `/static` from `src/vibe_quality_searcharr/static/`. UI uses Pico CSS with Jinja2 templates and CSP nonce-based inline scripts.
+- **Static files**: Mounted at `/static` from `src/splintarr/static/`. UI uses Pico CSS with Jinja2 templates and CSP nonce-based inline scripts.
 
 ### Configuration
 
 Pydantic Settings in `config.py`. Secrets can come from environment variables or Docker secret files (`/run/secrets/*`). Key settings: `SECRET_KEY`, `PEPPER`, `DATABASE_KEY` (all require 32+ byte minimum). See `.env.example` for all options.
 
 ### Entry Points
-- **Web**: `src/vibe_quality_searcharr/main.py` → FastAPI app with startup/shutdown lifecycle
-- **CLI**: `src/vibe_quality_searcharr/cli.py` → Admin commands (password reset, account unlock)
+- **Web**: `src/splintarr/main.py` → FastAPI app with startup/shutdown lifecycle
+- **CLI**: `src/splintarr/cli.py` → Admin commands (password reset, account unlock)
 - **Health**: `GET /health` (unauthenticated, used by Docker healthcheck)
 - **API docs**: `GET /api/docs` (Swagger, disabled in production)
 

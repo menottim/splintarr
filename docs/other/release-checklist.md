@@ -192,7 +192,7 @@
 
 **Command Tested:**
 ```bash
-docker build -t vibe-quality-searcharr:1.0.0 -f docker/Dockerfile .
+docker build -t splintarr:1.0.0 -f docker/Dockerfile .
 ```
 
 ### Docker Run
@@ -464,16 +464,16 @@ If critical issues are discovered post-release:
 
 ```bash
 # Build
-docker build -t vibe-quality-searcharr:1.0.0 -f docker/Dockerfile .
+docker build -t splintarr:1.0.0 -f docker/Dockerfile .
 
 # Check image size
-docker images vibe-quality-searcharr:1.0.0
+docker images splintarr:1.0.0
 
 # Test run
 docker run -d --name vqs-test -p 7337:7337 \
   -v $(pwd)/data:/data \
   -v $(pwd)/secrets:/run/secrets \
-  vibe-quality-searcharr:1.0.0
+  splintarr:1.0.0
 
 # Check health
 sleep 40
@@ -499,7 +499,7 @@ docker-compose down
 
 ## Release Declaration
 
-**I hereby declare that Vibe-Quality-Searcharr v1.0.0 is:**
+**I hereby declare that Splintarr v1.0.0 is:**
 
 ✅ **Functionally Complete** - All MVP features implemented
 ✅ **Adequately Tested** - 587 tests, 85% passing, core modules 90-100% coverage

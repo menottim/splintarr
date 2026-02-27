@@ -11,9 +11,9 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from vibe_quality_searcharr.config import settings
-from vibe_quality_searcharr.core.security import hash_password
-from vibe_quality_searcharr.models.user import User
+from splintarr.config import settings
+from splintarr.core.security import hash_password
+from splintarr.models.user import User
 
 
 class TestSecurityHeaders:
@@ -291,7 +291,7 @@ class TestHealthCheck:
     def test_health_unhealthy_database(self, client: TestClient):
         """Test health check when database is unhealthy."""
         # Mock database_health_check to return unhealthy
-        with patch("vibe_quality_searcharr.main.database_health_check") as mock_health:
+        with patch("splintarr.main.database_health_check") as mock_health:
             mock_health.return_value = {"status": "unhealthy", "error": "Connection failed"}
 
             response = client.get("/health")
@@ -308,7 +308,7 @@ class TestStartupShutdown:
     def test_startup_initializes_database(self, db_session):
         """Test startup event initializes database tables."""
         # Database should already be initialized by fixtures
-        from vibe_quality_searcharr.models.user import User
+        from splintarr.models.user import User
 
         # Should be able to query without errors
         users = db_session.query(User).all()

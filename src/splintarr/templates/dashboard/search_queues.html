@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+
+{% block title %}Search Queues - Splintarr{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Search Queue Management</h1>
+    <p>Create and manage automated search queues</p>
+</hgroup>
+
+<div style="text-align: right; margin-bottom: 1rem;">
+    <a href="#create-queue" role="button">+ Create Queue</a>
+</div>
+
+<!-- Queues List -->
+{% if queues %}
+<div class="grid">
+    {% for queue in queues %}
+    <article>
+        <header>
+            <h3>
+                {{ queue.name }}
+                {% if not queue.is_active %}
+                <small style="color: var(--muted-color);">⏸ Paused</small>
+                {% elif queue.status == 'failed' %}
+                <small style="color: var(--del-color);">✗ Failed</small>
+                {% elif queue.status == 'completed' %}
+                <small style="color: var(--primary);">✓ Completed</small>
+                {% elif queue.status in ['pending', 'in_progress'] %}
+                <small style="color: var(--ins-color);">● Active</small>
+                {% else %}
+                <small style="color: var(--muted-color);">● {{ queue.status }}</small>
+                {% endif %}
+            </h3>
+        </header>
+
+        <dl>
+            <dt>Instance</dt>
+            <dd>{{ queue.instance.name }}</dd>
+
+            <dt>Strategy</dt>
+            <dd><code>{{ queue.strategy }}</code></dd>
+
+            <dt>Type</dt>
+            <dd>
+                {% if queue.is_recurring %}
+                🔄 Recurring (every {{ queue.interval_hours }}h)
+                {% else %}
+                One-time
+                {% endif %}
+            </dd>
+
+            <dt>Next Run</dt>
+            <dd>
+                {% if queue.next_run %}
+                {{ queue.next_run|timeago }}
+                {% else %}
+                Not scheduled
+                {% endif %}
+            </dd>
+
+            <dt>Last Result</dt>
+            <dd>
+                {% if queue.items_searched %}
+                {{ queue.items_searched }} searched, {{ queue.items_found or 0 }} found
+                {% else %}
+                Not started
+                {% endif %}
+            </dd>
+        </dl>
+
+        <footer>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                {% if not queue.is_active %}
+                <button data-action="resume-queue" data-id="{{ queue.id }}">Resume</button>
+                {% elif queue.status in ['pending', 'completed'] %}
+                <button class="secondary" data-action="pause-queue" data-id="{{ queue.id }}">Pause</button>
+                {% endif %}
+                <button class="secondary" data-action="view-queue" data-id="{{ queue.id }}">View</button>
+                <button class="secondary" style="color: var(--del-color);" data-action="delete-queue" data-id="{{ queue.id }}" data-name="{{ queue.name }}">Delete</button>
+            </div>
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<article>
+    <p style="text-align: center; color: var(--muted-color); padding: 2rem;">
+        No search queues yet. Create your first queue to automate searches!
+    </p>
+</article>
+{% endif %}
+
+<!-- Create Queue Modal -->
+<dialog id="create-queue">
+    <article style="max-width: 600px;">
+        <header>
+            <a href="#close" aria-label="Close" class="close" data-action="close-create-modal"></a>
+            <h3>Create Search Queue</h3>
+        </header>
+
+        <form id="createQueueForm">
+            <label for="instance_id">
+                Instance
+                <select id="instance_id" name="instance_id" required>
+                    <option value="">Select instance...</option>
+                    {% for instance in instances %}
+                    <option value="{{ instance.id }}">{{ instance.name }}</option>
+                    {% endfor %}
+                </select>
+                <small>Which Sonarr or Radarr instance to search against</small>
+            </label>
+
+            <label for="strategy">
+                Search Strategy
+                <select id="strategy" name="strategy" required>
+                    <option value="">Select strategy...</option>
+                    <option value="missing">Missing - Find missing items</option>
+                    <option value="cutoff_unmet">Quality Upgrade - Below quality cutoff</option>
+                    <option value="recent">Recent - Newest items first</option>
+                </select>
+                <small>
+                    <strong>Missing</strong> — Searches for items not yet downloaded, prioritizing gaps in your library<br>
+                    <strong>Quality Upgrade</strong> — Searches for items below your quality cutoff, finding better versions<br>
+                    <strong>Recent</strong> — Searches newest additions first, prioritizing recently added items
+                </small>
+            </label>
+
+            <label for="recurring">
+                <input type="checkbox" id="recurring" name="recurring">
+                Recurring search
+                <small>When enabled, this queue will re-run automatically on a schedule. One-time queues run once and stop.</small>
+            </label>
+
+            <label for="interval_hours" id="intervalLabel" style="display: none;">
+                Interval (hours)
+                <input type="number" id="interval_hours" name="interval_hours" min="1" max="168" placeholder="24">
+                <small>How often to run this search (1-168 hours)</small>
+            </label>
+
+            <label for="name">
+                Queue Name
+                <input type="text" id="name" name="name" required placeholder="Auto-generated from selections above">
+                <small>Auto-suggested based on your selections. You can override it.</small>
+            </label>
+
+            <footer>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="secondary" data-action="close-create-modal">Cancel</button>
+                    <button type="button" id="createAndSearchBtn" class="secondary">Create &amp; Search Now</button>
+                    <button type="submit">Create Queue</button>
+                </div>
+            </footer>
+        </form>
+    </article>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.state.csp_nonce }}">
+document.getElementById('recurring').addEventListener('change', toggleRecurring);
+document.addEventListener('click', function(e) {
+    var target = e.target.closest('[data-action]');
+    if (!target) return;
+    var action = target.dataset.action;
+    if (action === 'resume-queue') resumeQueue(parseInt(target.dataset.id));
+    else if (action === 'pause-queue') pauseQueue(parseInt(target.dataset.id));
+    else if (action === 'view-queue') viewQueue(parseInt(target.dataset.id));
+    else if (action === 'delete-queue') deleteQueue(parseInt(target.dataset.id), target.dataset.name);
+    else if (action === 'close-create-modal') closeCreateModal();
+});
+
+function toggleRecurring() {
+    const recurring = document.getElementById('recurring').checked;
+    const intervalLabel = document.getElementById('intervalLabel');
+    const intervalInput = document.getElementById('interval_hours');
+
+    if (recurring) {
+        intervalLabel.style.display = 'block';
+        intervalInput.required = true;
+    } else {
+        intervalLabel.style.display = 'none';
+        intervalInput.required = false;
+    }
+    updateSuggestedName();
+}
+
+// Auto-suggest queue name based on selections
+var nameManuallyEdited = false;
+document.getElementById('name').addEventListener('input', function() {
+    nameManuallyEdited = true;
+});
+
+function updateSuggestedName() {
+    if (nameManuallyEdited) return;
+    var instanceSelect = document.getElementById('instance_id');
+    var strategySelect = document.getElementById('strategy');
+    var recurring = document.getElementById('recurring').checked;
+
+    var parts = [];
+    if (instanceSelect.selectedIndex > 0) {
+        parts.push(instanceSelect.options[instanceSelect.selectedIndex].text);
+    }
+    if (strategySelect.value) {
+        parts.push(strategySelect.value);
+    }
+    if (recurring) {
+        parts.push('recurring');
+    }
+
+    document.getElementById('name').value = parts.length ? parts.join(' ') : '';
+}
+
+document.getElementById('instance_id').addEventListener('change', updateSuggestedName);
+document.getElementById('strategy').addEventListener('change', updateSuggestedName);
+
+function getFormData() {
+    return {
+        instance_id: parseInt(document.getElementById('instance_id').value),
+        name: document.getElementById('name').value,
+        strategy: document.getElementById('strategy').value,
+        recurring: document.getElementById('recurring').checked,
+        interval_hours: document.getElementById('recurring').checked
+            ? parseInt(document.getElementById('interval_hours').value)
+            : null,
+    };
+}
+
+async function createQueue() {
+    try {
+        const response = await fetch('/api/search-queues', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(getFormData())
+        });
+
+        if (response.ok) {
+            return await response.json();
+        } else {
+            const data = await response.json();
+            showNotification('Failed to create queue: ' + (data.detail || 'Unknown error'));
+            return null;
+        }
+    } catch (error) {
+        showNotification('Failed to create queue: ' + error.message);
+        return null;
+    }
+}
+
+document.getElementById('createQueueForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    var result = await createQueue();
+    if (result) location.reload();
+});
+
+document.getElementById('createAndSearchBtn').addEventListener('click', async () => {
+    var btn = document.getElementById('createAndSearchBtn');
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    var result = await createQueue();
+    if (!result) {
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
+        return;
+    }
+
+    try {
+        var startResponse = await fetch('/api/search-queues/' + result.id + '/start', {
+            method: 'POST'
+        });
+        if (startResponse.ok) {
+            showNotification('Queue created and search started!', 'success');
+        } else {
+            showNotification('Queue created but search failed to start', 'info');
+        }
+    } catch (error) {
+        showNotification('Queue created but search failed: ' + error.message, 'info');
+    }
+
+    setTimeout(function() { location.reload(); }, 1500);
+});
+
+async function pauseQueue(queueId) {
+    try {
+        const response = await fetch(`/api/search-queues/${queueId}/pause`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            showNotification('Failed to pause queue: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        showNotification('Failed to pause queue: ' + error.message);
+    }
+}
+
+async function resumeQueue(queueId) {
+    try {
+        const response = await fetch(`/api/search-queues/${queueId}/resume`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            showNotification('Failed to resume queue: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        showNotification('Failed to resume queue: ' + error.message);
+    }
+}
+
+function viewQueue(queueId) {
+    window.location.href = `/dashboard/search-queues/${queueId}`;
+}
+
+async function deleteQueue(queueId, name) {
+    if (!confirm(`Are you sure you want to delete queue "${name}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/search-queues/${queueId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            showNotification('Delete failed: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        showNotification('Delete failed: ' + error.message);
+    }
+}
+
+function closeCreateModal() {
+    document.getElementById('create-queue').close();
+}
+
+// Open modal from the Create Queue link
+document.querySelector('a[href="#create-queue"]').addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('create-queue').showModal();
+});
+</script>
+{% endblock %}

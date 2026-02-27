@@ -12,8 +12,8 @@ import pyotp
 from freezegun import freeze_time
 import jwt
 
-from vibe_quality_searcharr.config import settings
-from vibe_quality_searcharr.core.auth import (
+from splintarr.config import settings
+from splintarr.core.auth import (
     AuthenticationError,
     TokenError,
     authenticate_user,
@@ -33,8 +33,8 @@ from vibe_quality_searcharr.core.auth import (
     verify_refresh_token,
     verify_totp_code,
 )
-from vibe_quality_searcharr.core.security import hash_password
-from vibe_quality_searcharr.models.user import RefreshToken, User
+from splintarr.core.security import hash_password
+from splintarr.models.user import RefreshToken, User
 
 
 class TestAccessToken:

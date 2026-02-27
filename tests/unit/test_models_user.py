@@ -10,7 +10,7 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from vibe_quality_searcharr.models.user import RefreshToken, User
+from splintarr.models.user import RefreshToken, User
 
 
 class TestUserModel:
@@ -350,7 +350,7 @@ class TestUserRelationships:
 
     def test_user_instances_relationship(self, db_session):
         """Test relationship between User and Instance."""
-        from vibe_quality_searcharr.models.instance import Instance
+        from splintarr.models.instance import Instance
 
         user = User(username="testuser", password_hash="hash")
         db_session.add(user)

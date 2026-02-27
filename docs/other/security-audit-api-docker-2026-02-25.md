@@ -1,5 +1,5 @@
 # Comprehensive Security Audit: API & Docker Best Practices
-## Vibe-Quality-Searcharr
+## Splintarr
 
 **Audit Date:** February 25, 2026
 **Methodology:** OWASP API Security Top 10 (2023), Docker Security Best Practices, API Key Transmission Standards
@@ -70,7 +70,7 @@ Key principles applied during the audit:
 |---|---|
 | **OWASP** | API2:2023 -- Broken Authentication |
 | **CWE** | CWE-916 (Use of Password Hash With Insufficient Computational Effort) |
-| **File** | `src/vibe_quality_searcharr/schemas/user.py:136` |
+| **File** | `src/splintarr/schemas/user.py:136` |
 | **Severity** | CRITICAL |
 | **Status** | FIXED |
 
@@ -94,7 +94,7 @@ Additionally, there were two `@field_validator("password")` decorators on the sa
 |---|---|
 | **OWASP** | API8:2023 -- Security Misconfiguration |
 | **CWE** | CWE-209 (Generation of Error Message Containing Sensitive Information) |
-| **File** | `src/vibe_quality_searcharr/main.py:239` |
+| **File** | `src/splintarr/main.py:239` |
 | **Severity** | CRITICAL |
 | **Status** | FIXED |
 
@@ -116,7 +116,7 @@ This could expose database driver names, file paths, encryption status, connecti
 |---|---|
 | **OWASP** | API8:2023 -- Security Misconfiguration |
 | **CWE** | CWE-79 (Improper Neutralization of Input During Web Page Generation) |
-| **File** | `src/vibe_quality_searcharr/main.py:121` |
+| **File** | `src/splintarr/main.py:121` |
 | **Severity** | CRITICAL |
 | **Status** | FIXED |
 
@@ -158,7 +158,7 @@ Note: `style-src 'unsafe-inline'` is retained because Pico CSS framework require
 |---|---|
 | **OWASP** | API4:2023 -- Unrestricted Resource Consumption |
 | **CWE** | CWE-307 (Improper Restriction of Excessive Authentication Attempts) |
-| **File** | `src/vibe_quality_searcharr/api/auth.py` |
+| **File** | `src/splintarr/api/auth.py` |
 | **Severity** | HIGH |
 | **Status** | FIXED |
 
@@ -195,7 +195,7 @@ Note: `style-src 'unsafe-inline'` is retained because Pico CSS framework require
 |---|---|
 | **OWASP** | API4:2023 -- Unrestricted Resource Consumption |
 | **CWE** | CWE-770 (Allocation of Resources Without Limits) |
-| **File** | `src/vibe_quality_searcharr/main.py:37` |
+| **File** | `src/splintarr/main.py:37` |
 | **Severity** | HIGH |
 | **Status** | DOCUMENTED (requires infrastructure change) |
 
@@ -213,7 +213,7 @@ Note: `style-src 'unsafe-inline'` is retained because Pico CSS framework require
 |---|---|
 | **OWASP** | API7:2023 -- Server-Side Request Forgery |
 | **CWE** | CWE-918 (Server-Side Request Forgery) |
-| **File** | `src/vibe_quality_searcharr/api/instances.py:555-610` |
+| **File** | `src/splintarr/api/instances.py:555-610` |
 | **Severity** | HIGH |
 | **Status** | FIXED |
 
@@ -233,7 +233,7 @@ The hand-written validator could be bypassed via DNS rebinding: an attacker regi
 |---|---|
 | **OWASP** | API2:2023 -- Broken Authentication |
 | **CWE** | CWE-287 (Improper Authentication) |
-| **File** | `src/vibe_quality_searcharr/core/auth.py:88` |
+| **File** | `src/splintarr/core/auth.py:88` |
 | **Status** | FIXED |
 
 **Issue:** `create_access_token()` accepted an `additional_claims` dict and called `claims.update(additional_claims)` without checking for reserved names like `sub`, `exp`, `iat`, `jti`, or `type`. An internal code path that passed attacker-influenced data could override security-critical claims.
@@ -248,7 +248,7 @@ The hand-written validator could be bypassed via DNS rebinding: an attacker regi
 |---|---|
 | **OWASP** | API2:2023 -- Broken Authentication |
 | **CWE** | CWE-521 (Weak Password Requirements) |
-| **File** | `src/vibe_quality_searcharr/schemas/user.py:103-129` |
+| **File** | `src/splintarr/schemas/user.py:103-129` |
 | **Status** | FIXED |
 
 **Issue:** NIST SP 800-63B recommends checking passwords against known breached/common password lists. The implementation checked only 25 passwords.
@@ -263,7 +263,7 @@ The hand-written validator could be bypassed via DNS rebinding: an attacker regi
 |---|---|
 | **OWASP** | API4:2023 -- Unrestricted Resource Consumption |
 | **CWE** | CWE-770 (Allocation of Resources Without Limits) |
-| **File** | `src/vibe_quality_searcharr/schemas/user.py` |
+| **File** | `src/splintarr/schemas/user.py` |
 | **Status** | FIXED |
 
 **Issue:** Argon2id is intentionally slow and memory-intensive. Submitting an extremely long password (e.g., 1 MB) would cause excessive CPU and memory consumption during hashing.
@@ -278,7 +278,7 @@ The hand-written validator could be bypassed via DNS rebinding: an attacker regi
 |---|---|
 | **OWASP** | API8:2023 -- Security Misconfiguration |
 | **CWE** | CWE-345 (Insufficient Verification of Data Authenticity) |
-| **File** | `src/vibe_quality_searcharr/api/auth.py:61-77` |
+| **File** | `src/splintarr/api/auth.py:61-77` |
 | **Status** | FIXED |
 
 **Issue:** The `get_client_ip()` function unconditionally trusted the `X-Forwarded-For` header. Without a reverse proxy in front, an attacker can spoof their IP to bypass rate limiting and account lockout.
@@ -338,7 +338,7 @@ The hand-written validator could be bypassed via DNS rebinding: an attacker regi
 
 | | |
 |---|---|
-| **File** | `src/vibe_quality_searcharr/static/js/app.js` |
+| **File** | `src/splintarr/static/js/app.js` |
 | **Status** | FIXED |
 
 **Issue:** Five `console.log` statements exposed auto-refresh intervals, API response data, and initialization messages in the browser console.
@@ -351,7 +351,7 @@ The hand-written validator could be bypassed via DNS rebinding: an attacker regi
 
 | | |
 |---|---|
-| **File** | `src/vibe_quality_searcharr/config.py:152` |
+| **File** | `src/splintarr/config.py:152` |
 | **Status** | FIXED |
 
 **Issue:** Default CORS origin was `http://localhost:8000` but the application listens on port `7337`.
@@ -364,7 +364,7 @@ The hand-written validator could be bypassed via DNS rebinding: an attacker regi
 
 | | |
 |---|---|
-| **File** | `src/vibe_quality_searcharr/schemas/user.py` (TwoFactorSetup) |
+| **File** | `src/splintarr/schemas/user.py` (TwoFactorSetup) |
 | **Status** | ACCEPTED RISK |
 
 **Issue:** The TOTP secret is returned in the API response during 2FA setup. If the response is logged by middleware or a proxy, the secret is compromised.
@@ -390,7 +390,7 @@ The hand-written validator could be bypassed via DNS rebinding: an attacker regi
 
 | | |
 |---|---|
-| **File** | `src/vibe_quality_searcharr/schemas/instance.py` |
+| **File** | `src/splintarr/schemas/instance.py` |
 | **Status** | FIXED |
 
 **Issue:** Sonarr and Radarr generate 32-character hex API keys. The minimum validation was 20 characters, which would accept truncated or invalid keys.

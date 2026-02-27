@@ -10,11 +10,11 @@
 
 ## Overview
 
-This is the **initial alpha release** of **Vibe-Quality-Searcharr**. This release includes all core features and comprehensive security fixes, but **has not been hand-verified for deployment**.
+This is the **initial alpha release** of **Splintarr**. This release includes all core features and comprehensive security fixes, but **has not been hand-verified for deployment**.
 
 **Use with caution:** This is intended for homelab enthusiasts and early testers only. Full production deployment testing and verification will come in a future stable release (v1.0.0).
 
-Vibe-Quality-Searcharr automates backlog searching for Sonarr and Radarr, intelligently scheduling searches while respecting API rate limits. This alpha release has undergone comprehensive security review and fixes, but real-world deployment scenarios have not been manually tested.
+Splintarr automates backlog searching for Sonarr and Radarr, intelligently scheduling searches while respecting API rate limits. This alpha release has undergone comprehensive security review and fixes, but real-world deployment scenarios have not been manually tested.
 
 ---
 
@@ -556,8 +556,8 @@ Your findings help improve the codebase and demonstrate where AI code generation
 ### Resources
 
 - **Documentation:** `/docs` directory
-- **GitHub Issues:** https://github.com/menottim/vibe-quality-searcharr/issues
-- **Discussions:** https://github.com/menottim/vibe-quality-searcharr/discussions
+- **GitHub Issues:** https://github.com/menottim/splintarr/issues
+- **Discussions:** https://github.com/menottim/splintarr/discussions
 - **Quick Start:** [GETTING_STARTED.md](docs/GETTING_STARTED.md)
 - **Troubleshooting:** [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
 
@@ -595,7 +595,7 @@ Use at your own risk. See [LICENSE](LICENSE) for details.
 
 ## Thank You!
 
-Thank you for trying Vibe-Quality-Searcharr v1.0.0!
+Thank you for trying Splintarr v1.0.0!
 
 This release represents months of AI-assisted development, focusing on security, reliability, and user experience. While it requires professional review before production use, it demonstrates what's possible with modern AI-assisted development.
 

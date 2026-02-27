@@ -11,9 +11,9 @@ from unittest.mock import AsyncMock, patch
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from vibe_quality_searcharr.main import app
-from vibe_quality_searcharr.models import Instance, SearchQueue, User
-from vibe_quality_searcharr.core.auth import create_access_token
+from splintarr.main import app
+from splintarr.models import Instance, SearchQueue, User
+from splintarr.core.auth import create_access_token
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def client():
 @pytest.fixture
 def test_user(db_session):
     """Create test user."""
-    from vibe_quality_searcharr.core.security import hash_password
+    from splintarr.core.security import hash_password
 
     user = User(
         username="testuser",
@@ -43,7 +43,7 @@ def test_user(db_session):
 @pytest.fixture
 def test_instance(db_session, test_user):
     """Create test instance."""
-    from vibe_quality_searcharr.core.security import encrypt_field
+    from splintarr.core.security import encrypt_field
 
     instance = Instance(
         user_id=test_user.id,
@@ -359,7 +359,7 @@ class TestDeleteSearchQueue:
 class TestQueueControl:
     """Test queue control operations (start, pause, resume)."""
 
-    @patch("vibe_quality_searcharr.api.search_queue.SearchQueueManager")
+    @patch("splintarr.api.search_queue.SearchQueueManager")
     def test_start_search_queue(
         self, mock_manager, client, db_session, test_instance, auth_headers
     ):
@@ -458,7 +458,7 @@ class TestQueueControl:
 class TestQueueStatus:
     """Test queue status endpoint."""
 
-    @patch("vibe_quality_searcharr.api.search_queue.get_history_service")
+    @patch("splintarr.api.search_queue.get_history_service")
     def test_get_queue_status(
         self, mock_service, client, db_session, test_instance, auth_headers
     ):

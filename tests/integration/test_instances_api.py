@@ -18,15 +18,15 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi import status
 
-from vibe_quality_searcharr.core.security import decrypt_field, encrypt_field
-from vibe_quality_searcharr.models.instance import Instance
-from vibe_quality_searcharr.models.user import User
+from splintarr.core.security import decrypt_field, encrypt_field
+from splintarr.models.instance import Instance
+from splintarr.models.user import User
 
 
 @pytest.fixture
 def test_user(db_session):
     """Create a test user for authentication."""
-    from vibe_quality_searcharr.core.security import hash_password
+    from splintarr.core.security import hash_password
 
     user = User(
         username="testuser",
@@ -43,7 +43,7 @@ def test_user(db_session):
 @pytest.fixture
 def auth_headers(test_user):
     """Create authentication headers with JWT token."""
-    from vibe_quality_searcharr.core.auth import create_access_token
+    from splintarr.core.auth import create_access_token
 
     token = create_access_token(test_user.id, test_user.username)
     return {"Authorization": f"Bearer {token}"}
@@ -66,7 +66,7 @@ class TestCreateInstance:
 
         # Mock the connection test to avoid actual API calls
         with patch(
-            "vibe_quality_searcharr.api.instances.test_instance_connection"
+            "splintarr.api.instances.test_instance_connection"
         ) as mock_test:
             mock_test.return_value = AsyncMock(
                 success=True,
@@ -119,7 +119,7 @@ class TestCreateInstance:
         }
 
         with patch(
-            "vibe_quality_searcharr.api.instances.test_instance_connection"
+            "splintarr.api.instances.test_instance_connection"
         ) as mock_test:
             mock_test.return_value = AsyncMock(
                 success=True,
@@ -443,7 +443,7 @@ class TestInstanceConnectionTest:
         db_session.commit()
 
         # Mock the Sonarr client
-        with patch("vibe_quality_searcharr.api.instances.SonarrClient") as mock_client:
+        with patch("splintarr.api.instances.SonarrClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.test_connection.return_value = {
                 "success": True,
@@ -484,7 +484,7 @@ class TestInstanceConnectionTest:
         db_session.commit()
 
         # Mock the Radarr client
-        with patch("vibe_quality_searcharr.api.instances.RadarrClient") as mock_client:
+        with patch("splintarr.api.instances.RadarrClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.test_connection.return_value = {
                 "success": True,
@@ -517,7 +517,7 @@ class TestInstanceConnectionTest:
         db_session.commit()
 
         # Mock failed connection
-        with patch("vibe_quality_searcharr.api.instances.SonarrClient") as mock_client:
+        with patch("splintarr.api.instances.SonarrClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.test_connection.return_value = {
                 "success": False,
@@ -559,7 +559,7 @@ class TestConfigurationDrift:
         db_session.commit()
 
         # Mock the Sonarr client
-        with patch("vibe_quality_searcharr.api.instances.SonarrClient") as mock_client:
+        with patch("splintarr.api.instances.SonarrClient") as mock_client:
             mock_instance = AsyncMock()
             mock_instance.get_system_status.return_value = {
                 "version": "3.0.10.1567",
@@ -591,7 +591,7 @@ class TestRateLimiting:
         """Test that rate limiting is enforced on endpoints."""
         # This test would require actual rate limiting configuration
         # For now, we verify the limiter decorator is present
-        from vibe_quality_searcharr.api.instances import router
+        from splintarr.api.instances import router
 
         # Check that endpoints have limiter decorators
         for route in router.routes:

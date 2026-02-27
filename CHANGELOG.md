@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Vibe-Quality-Searcharr will be documented in this file.
+All notable changes to Splintarr will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -352,10 +352,10 @@ This entire project was created using AI assistance (Claude Code). While it impl
 
 ## Links
 
-- **Repository:** https://github.com/menottim/vibe-quality-searcharr
-- **Documentation:** https://github.com/menottim/vibe-quality-searcharr/docs
-- **Issues:** https://github.com/menottim/vibe-quality-searcharr/issues
-- **Releases:** https://github.com/menottim/vibe-quality-searcharr/releases
+- **Repository:** https://github.com/menottim/splintarr
+- **Documentation:** https://github.com/menottim/splintarr/docs
+- **Issues:** https://github.com/menottim/splintarr/issues
+- **Releases:** https://github.com/menottim/splintarr/releases
 
 ---
 

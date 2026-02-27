@@ -1,10 +1,10 @@
 # Architecture
 
-Understanding the architectural decisions and design philosophy behind Vibe-Quality-Searcharr.
+Understanding the architectural decisions and design philosophy behind Splintarr.
 
 ## Design Philosophy
 
-Vibe-Quality-Searcharr is built on three core principles:
+Splintarr is built on three core principles:
 
 1. **Security First** - Defense-in-depth security approach with encryption at rest, secure password storage, and comprehensive input validation
 2. **Simplicity Over Complexity** - Pragmatic choices favoring maintainability and clarity over premature optimization
@@ -427,7 +427,7 @@ These decisions prioritize shipping a secure, maintainable product over speculat
 
 ## Conclusion
 
-Vibe-Quality-Searcharr's architecture prioritizes:
+Splintarr's architecture prioritizes:
 
 1. **Security** through defense-in-depth and encryption
 2. **Simplicity** through proven technologies and minimal dependencies

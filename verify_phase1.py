@@ -16,7 +16,7 @@ print("=" * 70)
 # Test 1: Configuration
 print("\n[OK] Testing Configuration Management...")
 try:
-    from vibe_quality_searcharr.config import settings
+    from splintarr.config import settings
     print(f"  - App Name: {settings.app_name}")
     print(f"  - Environment: {settings.environment}")
     print(f"  - Argon2 Memory: {settings.argon2_memory_cost} KiB")
@@ -32,7 +32,7 @@ except Exception as e:
 # Test 2: Password Hashing
 print("\n[OK] Testing Password Security...")
 try:
-    from vibe_quality_searcharr.core.security import hash_password, verify_password
+    from splintarr.core.security import hash_password, verify_password
 
     password = "test_password_12345"
     hashed = hash_password(password)
@@ -55,7 +55,7 @@ except Exception as e:
 # Test 3: Field Encryption
 print("\n[OK] Testing Field Encryption...")
 try:
-    from vibe_quality_searcharr.core.security import encrypt_field, decrypt_field
+    from splintarr.core.security import encrypt_field, decrypt_field
 
     api_key = "sonarr_api_key_abc123def456"
     encrypted = encrypt_field(api_key)
@@ -77,7 +77,7 @@ except Exception as e:
 # Test 4: Token Generation
 print("\n[OK] Testing Token Generation...")
 try:
-    from vibe_quality_searcharr.core.security import generate_token
+    from splintarr.core.security import generate_token
 
     token1 = generate_token(32)
     token2 = generate_token(32)
@@ -98,7 +98,7 @@ except Exception as e:
 # Test 5: Database Models
 print("\n[OK] Testing Database Models...")
 try:
-    from vibe_quality_searcharr.models import User, RefreshToken, Instance, SearchQueue, SearchHistory
+    from splintarr.models import User, RefreshToken, Instance, SearchQueue, SearchHistory
 
     print(f"  - User Model: [OK]")
     print(f"  - RefreshToken Model: [OK]")
@@ -115,7 +115,7 @@ except Exception as e:
 print("\n[OK] Testing Database Connection...")
 try:
     from sqlalchemy import create_engine
-    from vibe_quality_searcharr.database import Base
+    from splintarr.database import Base
 
     # Create in-memory SQLite database for testing
     engine = create_engine("sqlite:///:memory:")

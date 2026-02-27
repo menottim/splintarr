@@ -1,5 +1,5 @@
 # Test Execution Report
-## Vibe-Quality-Searcharr v0.1.0
+## Splintarr v0.1.0
 
 **Test Date:** 2026-02-24
 **Environment:** Python 3.14.2

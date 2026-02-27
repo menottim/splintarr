@@ -22,8 +22,8 @@ os.environ["DATABASE_URL"] = "sqlite+pysqlcipher:///:memory:@/:memory:?cipher=ae
 os.environ["ALLOW_LOCAL_INSTANCES"] = "true"
 os.environ["SECURE_COOKIES"] = "false"
 
-from vibe_quality_searcharr.config import Settings, settings
-from vibe_quality_searcharr.database import Base
+from splintarr.config import Settings, settings
+from splintarr.database import Base
 
 
 @pytest.fixture(scope="session")
@@ -88,7 +88,7 @@ def temp_secrets_dir():
 @pytest.fixture(scope="function")
 def client(db_session, test_settings) -> Generator[TestClient, None, None]:
     """Create a FastAPI test client with test database."""
-    from vibe_quality_searcharr.database import get_db
+    from splintarr.database import get_db
 
     # Override get_db dependency to use test database session
     def override_get_db():
@@ -103,12 +103,12 @@ def client(db_session, test_settings) -> Generator[TestClient, None, None]:
         pass
 
     # Patch both settings and init_db BEFORE importing app
-    with patch("vibe_quality_searcharr.config.settings", test_settings), \
-         patch("vibe_quality_searcharr.database.init_db", mock_init_db), \
-         patch("vibe_quality_searcharr.database.test_database_connection", lambda: True):
+    with patch("splintarr.config.settings", test_settings), \
+         patch("splintarr.database.init_db", mock_init_db), \
+         patch("splintarr.database.test_database_connection", lambda: True):
 
         # Import app AFTER patching
-        from vibe_quality_searcharr.main import app
+        from splintarr.main import app
 
         app.dependency_overrides[get_db] = override_get_db
 

@@ -13,7 +13,7 @@ import pytest
 from argon2.exceptions import InvalidHashError, VerifyMismatchError
 from cryptography.fernet import InvalidToken
 
-from vibe_quality_searcharr.core.security import (
+from splintarr.core.security import (
     EncryptionError,
     FieldEncryption,
     PasswordHashingError,

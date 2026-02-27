@@ -29,17 +29,17 @@ git commit -m "docs: add dark sidebar UI design and implementation plan"
 ### Task 2: Rewrite sonarr-theme.css to Dark-First
 
 **Files:**
-- Modify: `src/vibe_quality_searcharr/static/css/sonarr-theme.css`
+- Modify: `src/splintarr/static/css/sonarr-theme.css`
 
 This is the biggest single change. We're replacing the light-default color scheme with dark-first and adding sidebar layout CSS.
 
 **Step 1: Replace sonarr-theme.css with dark-first theme**
 
-Replace the entire content of `src/vibe_quality_searcharr/static/css/sonarr-theme.css` with:
+Replace the entire content of `src/splintarr/static/css/sonarr-theme.css` with:
 
 ```css
 /**
- * Sonarr-inspired dark theme for Vibe-Quality-Searcharr
+ * Sonarr-inspired dark theme for Splintarr
  *
  * Dark-first design with left sidebar navigation.
  * Built on top of Pico CSS with variable overrides.
@@ -681,13 +681,13 @@ html { scroll-behavior: smooth; }
 
 **Step 2: Verify file saved correctly**
 
-Run: `wc -l src/vibe_quality_searcharr/static/css/sonarr-theme.css`
+Run: `wc -l src/splintarr/static/css/sonarr-theme.css`
 Expected: ~430 lines
 
 **Step 3: Commit**
 
 ```bash
-git add src/vibe_quality_searcharr/static/css/sonarr-theme.css
+git add src/splintarr/static/css/sonarr-theme.css
 git commit -m "style: rewrite sonarr-theme.css to dark-first with sidebar layout"
 ```
 
@@ -696,15 +696,15 @@ git commit -m "style: rewrite sonarr-theme.css to dark-first with sidebar layout
 ### Task 3: Update custom.css for Dark Theme
 
 **Files:**
-- Modify: `src/vibe_quality_searcharr/static/css/custom.css`
+- Modify: `src/splintarr/static/css/custom.css`
 
 **Step 1: Replace custom.css with dark-compatible styles**
 
-Replace the entire content of `src/vibe_quality_searcharr/static/css/custom.css` with:
+Replace the entire content of `src/splintarr/static/css/custom.css` with:
 
 ```css
 /**
- * Custom styles for Vibe-Quality-Searcharr Dashboard
+ * Custom styles for Splintarr Dashboard
  * Dark theme compatible — extends sonarr-theme.css
  */
 
@@ -849,7 +849,7 @@ nav[aria-label="Pagination"] a[role="button"] {
 **Step 2: Commit**
 
 ```bash
-git add src/vibe_quality_searcharr/static/css/custom.css
+git add src/splintarr/static/css/custom.css
 git commit -m "style: update custom.css for dark theme compatibility"
 ```
 
@@ -858,13 +858,13 @@ git commit -m "style: update custom.css for dark theme compatibility"
 ### Task 4: Restructure base.html with Sidebar Layout
 
 **Files:**
-- Modify: `src/vibe_quality_searcharr/templates/base.html`
+- Modify: `src/splintarr/templates/base.html`
 
 This is the structural change — replacing the horizontal nav with a sidebar layout.
 
 **Step 1: Replace base.html**
 
-Replace the entire content of `src/vibe_quality_searcharr/templates/base.html` with:
+Replace the entire content of `src/splintarr/templates/base.html` with:
 
 ```html
 <!DOCTYPE html>
@@ -872,7 +872,7 @@ Replace the entire content of `src/vibe_quality_searcharr/templates/base.html` w
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Vibe-Quality-Searcharr{% endblock %}</title>
+    <title>{% block title %}Splintarr{% endblock %}</title>
 
     <!-- Pico CSS -->
     <link rel="stylesheet" href="/static/css/pico.min.css">
@@ -888,7 +888,7 @@ Replace the entire content of `src/vibe_quality_searcharr/templates/base.html` w
         <aside class="sidebar">
             <div class="sidebar-brand">
                 <div class="sidebar-brand-icon">S</div>
-                <span class="sidebar-brand-text">Searcharr</span>
+                <span class="sidebar-brand-text">Splintarr</span>
             </div>
             <nav class="sidebar-nav">
                 <ul>
@@ -946,8 +946,8 @@ Replace the entire content of `src/vibe_quality_searcharr/templates/base.html` w
             <!-- Footer -->
             <footer>
                 <small>
-                    Vibe-Quality-Searcharr v0.1.0 &middot;
-                    <a href="https://github.com/menottim/vibe-quality-searcharr" target="_blank">GitHub</a>
+                    Splintarr v0.1.0 &middot;
+                    <a href="https://github.com/menottim/splintarr" target="_blank">GitHub</a>
                 </small>
             </footer>
         </div>
@@ -987,7 +987,7 @@ Replace the entire content of `src/vibe_quality_searcharr/templates/base.html` w
 **Step 2: Commit**
 
 ```bash
-git add src/vibe_quality_searcharr/templates/base.html
+git add src/splintarr/templates/base.html
 git commit -m "feat: restructure base.html with sidebar navigation layout"
 ```
 
@@ -996,23 +996,23 @@ git commit -m "feat: restructure base.html with sidebar navigation layout"
 ### Task 5: Update Login Template for Dark Centered Layout
 
 **Files:**
-- Modify: `src/vibe_quality_searcharr/templates/auth/login.html`
+- Modify: `src/splintarr/templates/auth/login.html`
 
 The login page needs to use the `unauthenticated_content` block instead of `content`.
 
 **Step 1: Update login.html**
 
-Replace the entire content of `src/vibe_quality_searcharr/templates/auth/login.html` with:
+Replace the entire content of `src/splintarr/templates/auth/login.html` with:
 
 ```html
 {% extends "base.html" %}
 
-{% block title %}Login - Vibe-Quality-Searcharr{% endblock %}
+{% block title %}Login - Splintarr{% endblock %}
 
 {% block unauthenticated_content %}
 <div class="login-container">
     <article>
-        <h1>Searcharr</h1>
+        <h1>Splintarr</h1>
         <p>Sign in to your account</p>
 
         <form id="loginForm">
@@ -1066,7 +1066,7 @@ Replace the entire content of `src/vibe_quality_searcharr/templates/auth/login.h
 **Step 2: Commit**
 
 ```bash
-git add src/vibe_quality_searcharr/templates/auth/login.html
+git add src/splintarr/templates/auth/login.html
 git commit -m "style: update login page for dark centered layout"
 ```
 
@@ -1075,38 +1075,38 @@ git commit -m "style: update login page for dark centered layout"
 ### Task 6: Update Setup Templates for Dark Theme
 
 **Files:**
-- Modify: `src/vibe_quality_searcharr/templates/setup/welcome.html`
-- Modify: `src/vibe_quality_searcharr/templates/setup/admin.html`
-- Modify: `src/vibe_quality_searcharr/templates/setup/instance.html`
-- Modify: `src/vibe_quality_searcharr/templates/setup/complete.html`
+- Modify: `src/splintarr/templates/setup/welcome.html`
+- Modify: `src/splintarr/templates/setup/admin.html`
+- Modify: `src/splintarr/templates/setup/instance.html`
+- Modify: `src/splintarr/templates/setup/complete.html`
 
 Setup templates need to use `unauthenticated_content` block instead of `content`, since the user isn't logged in during setup and there's no sidebar.
 
 **Step 1: Update welcome.html — change block name**
 
-In `src/vibe_quality_searcharr/templates/setup/welcome.html`, change:
+In `src/splintarr/templates/setup/welcome.html`, change:
 - `{% block content %}` to `{% block unauthenticated_content %}`
 - `{% endblock %}` (the matching one) stays as is
 
 **Step 2: Update admin.html — change block name**
 
-In `src/vibe_quality_searcharr/templates/setup/admin.html`, change:
+In `src/splintarr/templates/setup/admin.html`, change:
 - `{% block content %}` to `{% block unauthenticated_content %}`
 
 **Step 3: Update instance.html — change block name**
 
-In `src/vibe_quality_searcharr/templates/setup/instance.html`, change:
+In `src/splintarr/templates/setup/instance.html`, change:
 - `{% block content %}` to `{% block unauthenticated_content %}`
 
 **Step 4: Update complete.html — change block name**
 
-In `src/vibe_quality_searcharr/templates/setup/complete.html`, change:
+In `src/splintarr/templates/setup/complete.html`, change:
 - `{% block content %}` to `{% block unauthenticated_content %}`
 
 **Step 5: Commit**
 
 ```bash
-git add src/vibe_quality_searcharr/templates/setup/
+git add src/splintarr/templates/setup/
 git commit -m "style: update setup wizard templates for unauthenticated dark layout"
 ```
 
@@ -1115,13 +1115,13 @@ git commit -m "style: update setup wizard templates for unauthenticated dark lay
 ### Task 7: Add active_page to Dashboard Route Handlers
 
 **Files:**
-- Modify: `src/vibe_quality_searcharr/api/dashboard.py`
+- Modify: `src/splintarr/api/dashboard.py`
 
 The sidebar needs an `active_page` template variable to highlight the current page. Each route handler's `TemplateResponse` context needs this added.
 
 **Step 1: Read the current dashboard.py to find all TemplateResponse calls**
 
-Read `src/vibe_quality_searcharr/api/dashboard.py` and find every `templates.TemplateResponse(...)` call.
+Read `src/splintarr/api/dashboard.py` and find every `templates.TemplateResponse(...)` call.
 
 **Step 2: Add active_page to each route's context**
 
@@ -1140,7 +1140,7 @@ Each `TemplateResponse` context dict should have `"active_page": "..."` added.
 **Step 3: Commit**
 
 ```bash
-git add src/vibe_quality_searcharr/api/dashboard.py
+git add src/splintarr/api/dashboard.py
 git commit -m "feat: add active_page to template context for sidebar highlighting"
 ```
 
@@ -1186,7 +1186,7 @@ Expected: Dark background, centered wizard, no sidebar, progress steps visible.
 **Step 1: Run ruff on any modified Python files**
 
 ```bash
-/Users/mminutillo/Library/Python/3.14/bin/poetry run ruff check src/vibe_quality_searcharr/api/dashboard.py
+/Users/mminutillo/Library/Python/3.14/bin/poetry run ruff check src/splintarr/api/dashboard.py
 ```
 
 Expected: No new errors.

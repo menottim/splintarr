@@ -1,5 +1,5 @@
 # Troubleshooting Guide
-## Vibe-Quality-Searcharr
+## Splintarr
 
 ## Common Issues and Solutions
 
@@ -45,8 +45,8 @@ sqlalchemy.exc.OperationalError: unable to open database file
 
 Check database file permissions:
 ```bash
-ls -l data/vibe-quality-searcharr.db
-chmod 600 data/vibe-quality-searcharr.db
+ls -l data/splintarr.db
+chmod 600 data/splintarr.db
 ```
 
 Ensure data directory exists:
@@ -87,14 +87,14 @@ The database file exists but was encrypted with **different encryption keys** th
 ```powershell
 # Windows
 docker-compose down
-Remove-Item -Force .\data\vibe-quality-searcharr.db*
+Remove-Item -Force .\data\splintarr.db*
 docker-compose up -d
 ```
 
 ```bash
 # Linux/macOS
 docker-compose down
-rm -f ./data/vibe-quality-searcharr.db*
+rm -f ./data/splintarr.db*
 docker-compose up -d
 ```
 
@@ -156,7 +156,7 @@ docker stop $(docker ps -q -f "publish=7337")
 Verify user exists:
 ```bash
 # Check database (requires DB tool)
-sqlite3 data/vibe-quality-searcharr.db "SELECT username, is_active FROM users;"
+sqlite3 data/splintarr.db "SELECT username, is_active FROM users;"
 ```
 
 Check SECRET_KEY hasn't changed:
@@ -173,7 +173,7 @@ document.cookie.split(";").forEach(c => document.cookie = c.replace(/^ +/, "").r
 
 Reset password (requires DB access):
 ```python
-from vibe_quality_searcharr.core.security import hash_password
+from splintarr.core.security import hash_password
 # Generate new hash
 new_hash = hash_password("new-password")
 # Update in database
@@ -261,7 +261,7 @@ Check API key:
 Verify network access:
 ```bash
 # If in Docker, ensure network connectivity
-docker-compose exec vibe-quality-searcharr ping sonarr
+docker-compose exec splintarr ping sonarr
 ```
 
 Check ALLOW_LOCAL_INSTANCES:
@@ -446,14 +446,14 @@ API_RATE_LIMIT=200/minute  # Increase if too low
 **Solutions:**
 1. Check database size:
 ```bash
-du -h data/vibe-quality-searcharr.db
+du -h data/splintarr.db
 # If >100MB, consider cleanup
 ```
 
 2. Monitor resources:
 ```bash
 # Docker
-docker stats vibe-quality-searcharr
+docker stats splintarr
 
 # System
 top -p $(pgrep -f uvicorn)
@@ -476,8 +476,8 @@ deploy:
 
 5. Enable database optimization:
 ```bash
-sqlite3 data/vibe-quality-searcharr.db "VACUUM;"
-sqlite3 data/vibe-quality-searcharr.db "ANALYZE;"
+sqlite3 data/splintarr.db "VACUUM;"
+sqlite3 data/splintarr.db "ANALYZE;"
 ```
 
 6. Check network latency:
@@ -538,7 +538,7 @@ deploy:
 docker-compose down
 
 # Restore backup
-cp backups/backup-20260224.db data/vibe-quality-searcharr.db
+cp backups/backup-20260224.db data/splintarr.db
 
 # Ensure correct DATABASE_KEY
 export DATABASE_KEY="original-key"
@@ -549,19 +549,19 @@ docker-compose up -d
 
 2. Check database integrity:
 ```bash
-sqlite3 data/vibe-quality-searcharr.db "PRAGMA integrity_check;"
+sqlite3 data/splintarr.db "PRAGMA integrity_check;"
 ```
 
 3. If no backup, try recovery:
 ```bash
 # Dump readable data
-sqlite3 data/vibe-quality-searcharr.db ".dump" > dump.sql
+sqlite3 data/splintarr.db ".dump" > dump.sql
 
 # Create new database
-mv data/vibe-quality-searcharr.db data/vibe-quality-searcharr.db.old
+mv data/splintarr.db data/splintarr.db.old
 
 # Import dump (may partially work)
-sqlite3 data/vibe-quality-searcharr.db < dump.sql
+sqlite3 data/splintarr.db < dump.sql
 ```
 
 #### Issue: Database Locked
@@ -574,7 +574,7 @@ sqlite3.OperationalError: database is locked
 **Solutions:**
 1. Check for multiple processes:
 ```bash
-ps aux | grep vibe-quality-searcharr
+ps aux | grep splintarr
 ```
 
 2. Close connections:
@@ -586,8 +586,8 @@ docker-compose restart
 3. Check for stale locks:
 ```bash
 # Remove -wal and -shm files if safe
-rm data/vibe-quality-searcharr.db-wal
-rm data/vibe-quality-searcharr.db-shm
+rm data/splintarr.db-wal
+rm data/splintarr.db-shm
 ```
 
 ---
@@ -603,7 +603,7 @@ rm data/vibe-quality-searcharr.db-shm
 **Solutions:**
 1. Check logs:
 ```bash
-docker-compose logs vibe-quality-searcharr
+docker-compose logs splintarr
 ```
 
 2. Check configuration:
@@ -670,7 +670,7 @@ Then re-run the build or setup script.
 **Solutions:**
 1. Check volume mounts:
 ```bash
-docker inspect vibe-quality-searcharr | jq '.[].Mounts'
+docker inspect splintarr | jq '.[].Mounts'
 ```
 
 2. Fix permissions:
@@ -687,7 +687,7 @@ sudo chmod -R 755 data/
 volumes:
   vibe-data:
 services:
-  vibe-quality-searcharr:
+  splintarr:
     volumes:
       - vibe-data:/data
 ```
@@ -698,7 +698,7 @@ services:
 
 ### Understanding the Logging System
 
-Vibe-Quality-Searcharr includes a comprehensive logging system with multiple log files and automatic rotation:
+Splintarr includes a comprehensive logging system with multiple log files and automatic rotation:
 
 **Log Files:**
 - `logs/all.log` - All log messages (INFO level and above)
@@ -751,9 +751,9 @@ docker-compose logs -f
 docker-compose logs --tail=100
 
 # Specific log file
-docker exec vibe-quality-searcharr cat /data/logs/all.log
-docker exec vibe-quality-searcharr cat /data/logs/error.log
-docker exec vibe-quality-searcharr tail -f /data/logs/debug.log
+docker exec splintarr cat /data/logs/all.log
+docker exec splintarr cat /data/logs/error.log
+docker exec splintarr tail -f /data/logs/debug.log
 ```
 
 **Direct file access:**
@@ -771,7 +771,7 @@ tail -f ./logs/all.log | grep ERROR
 
 **Systemd:**
 ```bash
-sudo journalctl -u vibe-quality-searcharr -f -n 100
+sudo journalctl -u splintarr -f -n 100
 ```
 
 ### Debug Mode
@@ -924,14 +924,14 @@ poetry shell
 python
 
 # Import and test
-from vibe_quality_searcharr.core.security import hash_password
+from splintarr.core.security import hash_password
 print(hash_password("test"))
 ```
 
 **Database Access:**
 ```bash
 # SQLCipher
-sqlcipher data/vibe-quality-searcharr.db
+sqlcipher data/splintarr.db
 # Enter key when prompted
 PRAGMA key = 'your-database-key';
 
@@ -955,10 +955,10 @@ SELECT * FROM search_queues;
 docker-compose logs | grep ERROR
 
 # Journalctl
-sudo journalctl -u vibe-quality-searcharr | grep ERROR
+sudo journalctl -u splintarr | grep ERROR
 
 # File
-grep ERROR /var/log/vibe-quality-searcharr/app.log
+grep ERROR /var/log/splintarr/app.log
 ```
 
 ### Find Failed Authentications
@@ -1015,8 +1015,8 @@ docker-compose logs --tail=100
 
 ### Support Channels
 
-- **GitHub Issues:** https://github.com/menottim/vibe-quality-searcharr/issues
-- **Discussions:** https://github.com/menottim/vibe-quality-searcharr/discussions
+- **GitHub Issues:** https://github.com/menottim/splintarr/issues
+- **Discussions:** https://github.com/menottim/splintarr/discussions
 - **Documentation:** /docs/
 
 ---

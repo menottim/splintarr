@@ -1,5 +1,5 @@
 #!/bin/bash
-# Production deployment script for Vibe-Quality-Searcharr
+# Production deployment script for Splintarr
 # Usage: ./scripts/deploy.sh [version]
 
 set -e
@@ -14,11 +14,11 @@ NC='\033[0m' # No Color
 VERSION="${1:-latest}"
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 COMPOSE_FILE="${PROJECT_DIR}/docker/docker-compose.production.yml"
-DATA_DIR="/var/lib/vibe-quality-searcharr/data"
-BACKUP_DIR="/var/backups/vibe-quality-searcharr"
+DATA_DIR="/var/lib/splintarr/data"
+BACKUP_DIR="/var/backups/splintarr"
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}Vibe-Quality-Searcharr Deployment${NC}"
+echo -e "${GREEN}Splintarr Deployment${NC}"
 echo -e "${GREEN}Version: ${VERSION}${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""

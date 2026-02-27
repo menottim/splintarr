@@ -17,7 +17,7 @@ CSS-only retheme. Keep Pico CSS as the foundation, override to dark-first defaul
 Desktop (>768px):                       Mobile (<=768px):
 ┌──────────┬─────────────────────┐     ┌────┬──────────────────────┐
 │ [icon]   │ (content)           │     │ ◉  │ (content)            │
-│ Searcharr│                     │     │ ◎  │                      │
+│ Splintarr│                     │     │ ◎  │                      │
 │──────────│                     │     │ ☰  │                      │
 │▶Dashboard│                     │     │ ◷  │                      │
 │ Instances│                     │     │    │                      │

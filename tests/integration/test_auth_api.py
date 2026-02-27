@@ -11,15 +11,15 @@ import pyotp
 import pytest
 from fastapi.testclient import TestClient
 
-from vibe_quality_searcharr.config import settings
-from vibe_quality_searcharr.core.auth import (
+from splintarr.config import settings
+from splintarr.core.auth import (
     create_2fa_pending_token,
     create_access_token,
     create_refresh_token,
     generate_totp_secret,
 )
-from vibe_quality_searcharr.core.security import hash_password
-from vibe_quality_searcharr.models.user import RefreshToken, User
+from splintarr.core.security import hash_password
+from splintarr.models.user import RefreshToken, User
 
 
 class TestRegisterEndpoint:
@@ -879,7 +879,7 @@ class TestPasswordChangeEndpoint:
         assert "changed" in data["message"].lower()
 
         # Verify password was changed
-        from vibe_quality_searcharr.core.security import verify_password
+        from splintarr.core.security import verify_password
         db_session.refresh(user)
         assert verify_password("NewSecureP@ssw0rd456!", user.password_hash)
         assert not verify_password(old_password, user.password_hash)

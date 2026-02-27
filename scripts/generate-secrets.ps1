@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Generate secure secrets for Vibe-Quality-Searcharr
+    Generate secure secrets for Splintarr
 
 .DESCRIPTION
     This script generates cryptographically secure random secrets for:
@@ -15,7 +15,7 @@
 
 .NOTES
     Version: 0.1.0-alpha
-    Author: Vibe-Quality-Searcharr
+    Author: Splintarr
     Requires: PowerShell 5.1+ and .NET Framework 4.5+
 #>
 
@@ -126,7 +126,7 @@ function Test-SecretFile {
 
 # Main script execution
 try {
-    Write-Header "Vibe-Quality-Searcharr Secret Generation"
+    Write-Header "Splintarr Secret Generation"
 
     # Check PowerShell version
     $psVersion = $PSVersionTable.PSVersion
@@ -180,7 +180,7 @@ try {
         $regeneratingSecrets = $true
 
         # Check if database exists
-        $dbPath = Join-Path $PSScriptRoot "..\data\vibe-quality-searcharr.db"
+        $dbPath = Join-Path $PSScriptRoot "..\data\splintarr.db"
         $dbExists = Test-Path $dbPath
 
         Write-Host ""

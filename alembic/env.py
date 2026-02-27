@@ -7,9 +7,9 @@ from sqlalchemy import engine_from_config, pool
 from alembic import context
 
 # Import models and database configuration
-from vibe_quality_searcharr.config import settings
-from vibe_quality_searcharr.database import Base
-from vibe_quality_searcharr.models import *  # noqa: F401, F403
+from splintarr.config import settings
+from splintarr.database import Base
+from splintarr.models import *  # noqa: F401, F403
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

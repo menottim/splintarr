@@ -1,5 +1,5 @@
 """
-OWASP Top 10 Security Tests for Vibe-Quality-Searcharr.
+OWASP Top 10 Security Tests for Splintarr.
 
 Tests application against OWASP Top 10 2021 vulnerabilities:
 1. Broken Access Control
@@ -73,8 +73,8 @@ class TestBrokenAccessControl:
         client.post("/api/auth/logout", headers=user1_headers)
 
         # Manually create second user (setup endpoint only works once)
-        from vibe_quality_searcharr.models.user import User
-        from vibe_quality_searcharr.core.security import hash_password
+        from splintarr.models.user import User
+        from splintarr.core.security import hash_password
 
         user2 = User(
             username="user2",
@@ -133,8 +133,8 @@ class TestBrokenAccessControl:
         instance_id = instance_response.json()["id"]
 
         # Create user2
-        from vibe_quality_searcharr.models.user import User
-        from vibe_quality_searcharr.core.security import hash_password
+        from splintarr.models.user import User
+        from splintarr.core.security import hash_password
 
         user2 = User(
             username="user2_mod",
@@ -174,7 +174,7 @@ class TestCryptographicFailures:
 
     def test_passwords_are_hashed(self, client: TestClient, db_session):
         """Verify passwords are stored hashed, not in plaintext."""
-        from vibe_quality_searcharr.models.user import User
+        from splintarr.models.user import User
 
         # Create user
         user_data = {
@@ -198,7 +198,7 @@ class TestCryptographicFailures:
 
     def test_api_keys_are_encrypted(self, client: TestClient, db_session):
         """Verify API keys are stored encrypted in the database."""
-        from vibe_quality_searcharr.models.instance import Instance
+        from splintarr.models.instance import Instance
 
         # Setup user
         user_data = {

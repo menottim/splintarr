@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Splintarr{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Settings</h1>
+    <p>Manage your account and preferences</p>
+</hgroup>
+
+<!-- Account Information -->
+<article>
+    <header>
+        <h3>Account Information</h3>
+    </header>
+
+    <dl>
+        <dt>Username</dt>
+        <dd>{{ user.username }}</dd>
+
+        <dt>Role</dt>
+        <dd>
+            {% if user.is_superuser %}
+            <span style="color: var(--primary);">Administrator</span>
+            {% else %}
+            User
+            {% endif %}
+        </dd>
+
+        <dt>Account Created</dt>
+        <dd>{{ user.created_at|datetime }}</dd>
+
+        <dt>Last Login</dt>
+        <dd>
+            {% if user.last_login %}
+            {{ user.last_login|datetime }}
+            {% if user.last_login_ip %}
+            from {{ user.last_login_ip }}
+            {% endif %}
+            {% else %}
+            Never
+            {% endif %}
+        </dd>
+    </dl>
+</article>
+
+<!-- Change Password -->
+<article>
+    <header>
+        <h3>Change Password</h3>
+    </header>
+
+    <form id="changePasswordForm">
+        <label for="current_password">
+            Current Password
+            <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+        </label>
+
+        <label for="new_password">
+            New Password
+            <input type="password" id="new_password" name="new_password" required minlength="12" autocomplete="new-password">
+            <small>Minimum 12 characters, must include uppercase, lowercase, digit, and special character</small>
+        </label>
+
+        <label for="confirm_new_password">
+            Confirm New Password
+            <input type="password" id="confirm_new_password" name="confirm_new_password" required minlength="12" autocomplete="new-password">
+        </label>
+
+        <button type="submit" id="changePasswordBtn">Change Password</button>
+    </form>
+</article>
+
+<!-- Two-Factor Authentication -->
+<article>
+    <header>
+        <h3>Two-Factor Authentication</h3>
+    </header>
+
+    <p>
+        <small>Add an extra layer of security to your account by requiring a code from your authenticator app during login.</small>
+    </p>
+    <p>
+        <small style="color: var(--muted-color);">
+            <strong>Note:</strong> This 2FA implementation is AI-generated and has not been independently verified by security experts.
+            See the <a href="https://github.com/menottim/splintarr#ai-generated-code-warning" target="_blank" rel="noopener">project README</a> for details.
+        </small>
+    </p>
+
+    {% if user.totp_enabled %}
+    <p><mark>Enabled</mark></p>
+    <details>
+        <summary role="button" class="secondary outline" style="color: var(--del-color);">Disable 2FA</summary>
+        <form id="disable2faForm" style="margin-top: 1rem;">
+            <label for="disable_2fa_password">
+                Password
+                <input type="password" id="disable_2fa_password" required autocomplete="current-password">
+            </label>
+            <label for="disable_2fa_code">
+                Authenticator Code
+                <input type="text" id="disable_2fa_code" required inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="Enter 6-digit code" autocomplete="one-time-code">
+            </label>
+            <button type="submit" id="disable2faBtn" style="color: var(--del-color);">Disable 2FA</button>
+        </form>
+    </details>
+    {% else %}
+    <div id="setup2faSection">
+        <button id="enable2faBtn" class="secondary">Enable 2FA</button>
+    </div>
+    <div id="setup2faQR" style="display: none;">
+        <p><strong>Scan this QR code with your authenticator app:</strong></p>
+        <img id="qrCodeImg" alt="TOTP QR Code" style="max-width: 256px; margin: 1rem 0;">
+        <details>
+            <summary>Manual entry key</summary>
+            <code id="manualSecret" style="word-break: break-all;"></code>
+        </details>
+        <form id="verify2faForm" style="margin-top: 1rem;">
+            <label for="verify_2fa_code">
+                Enter the code from your authenticator app to verify:
+                <input type="text" id="verify_2fa_code" required inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="Enter 6-digit code" autocomplete="one-time-code">
+            </label>
+            <button type="submit" id="verify2faBtn">Verify and Enable</button>
+        </form>
+    </div>
+    {% endif %}
+</article>
+
+<!-- Danger Zone -->
+<article style="border-color: var(--del-color);">
+    <header>
+        <h3 style="color: var(--del-color);">Danger Zone</h3>
+    </header>
+
+    <p>
+        <strong>Logout All Sessions</strong><br>
+        <small>Revoke all active sessions and refresh tokens. You'll need to log in again on all devices.</small>
+    </p>
+    <button class="secondary" style="color: var(--del-color);" data-action="logout-all">Logout All Sessions</button>
+</article>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.state.csp_nonce }}">
+document.addEventListener('click', function(e) {
+    var target = e.target.closest('[data-action]');
+    if (!target) return;
+    var action = target.dataset.action;
+    if (action === 'logout-all') logoutAllSessions();
+});
+
+document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const currentPassword = document.getElementById('current_password').value;
+    const newPassword = document.getElementById('new_password').value;
+    const confirmPassword = document.getElementById('confirm_new_password').value;
+
+    if (newPassword !== confirmPassword) {
+        alert('New passwords do not match');
+        return;
+    }
+
+    const submitBtn = document.getElementById('changePasswordBtn');
+    submitBtn.disabled = true;
+    submitBtn.setAttribute('aria-busy', 'true');
+
+    try {
+        const response = await fetch('/api/auth/password/change', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        });
+
+        if (response.ok) {
+            alert('Password changed successfully! You will be logged out.');
+            window.location.href = '/login';
+        } else {
+            const data = await response.json();
+            alert('Failed to change password: ' + (data.detail || 'Unknown error'));
+            submitBtn.disabled = false;
+            submitBtn.setAttribute('aria-busy', 'false');
+        }
+    } catch (error) {
+        alert('Failed to change password: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.setAttribute('aria-busy', 'false');
+    }
+});
+
+// 2FA setup
+var enable2faBtn = document.getElementById('enable2faBtn');
+if (enable2faBtn) {
+    enable2faBtn.addEventListener('click', async function() {
+        enable2faBtn.disabled = true;
+        enable2faBtn.setAttribute('aria-busy', 'true');
+
+        try {
+            var response = await fetch('/api/auth/2fa/setup', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                var data = await response.json();
+                document.getElementById('qrCodeImg').src = data.qr_code_data_uri;
+                document.getElementById('manualSecret').textContent = data.secret;
+                document.getElementById('setup2faSection').style.display = 'none';
+                document.getElementById('setup2faQR').style.display = 'block';
+                document.getElementById('verify_2fa_code').focus();
+            } else {
+                var data = await response.json();
+                alert('Failed to setup 2FA: ' + (data.detail || 'Unknown error'));
+                enable2faBtn.disabled = false;
+                enable2faBtn.setAttribute('aria-busy', 'false');
+            }
+        } catch (error) {
+            alert('Failed to setup 2FA: ' + error.message);
+            enable2faBtn.disabled = false;
+            enable2faBtn.setAttribute('aria-busy', 'false');
+        }
+    });
+}
+
+// 2FA verify (complete setup)
+var verify2faForm = document.getElementById('verify2faForm');
+if (verify2faForm) {
+    verify2faForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        var submitBtn = document.getElementById('verify2faBtn');
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+
+        var code = document.getElementById('verify_2fa_code').value;
+
+        try {
+            var response = await fetch('/api/auth/2fa/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code })
+            });
+
+            if (response.ok) {
+                alert('Two-factor authentication enabled successfully!');
+                window.location.reload();
+            } else {
+                var data = await response.json();
+                alert('Verification failed: ' + (data.detail || 'Invalid code'));
+                submitBtn.disabled = false;
+                submitBtn.setAttribute('aria-busy', 'false');
+                document.getElementById('verify_2fa_code').value = '';
+                document.getElementById('verify_2fa_code').focus();
+            }
+        } catch (error) {
+            alert('Verification failed: ' + error.message);
+            submitBtn.disabled = false;
+            submitBtn.setAttribute('aria-busy', 'false');
+        }
+    });
+}
+
+// 2FA disable
+var disable2faForm = document.getElementById('disable2faForm');
+if (disable2faForm) {
+    disable2faForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (!confirm('Are you sure you want to disable two-factor authentication?')) {
+            return;
+        }
+
+        var submitBtn = document.getElementById('disable2faBtn');
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+
+        var password = document.getElementById('disable_2fa_password').value;
+        var code = document.getElementById('disable_2fa_code').value;
+
+        try {
+            var response = await fetch('/api/auth/2fa/disable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password, code: code })
+            });
+
+            if (response.ok) {
+                alert('Two-factor authentication disabled.');
+                window.location.reload();
+            } else {
+                var data = await response.json();
+                alert('Failed to disable 2FA: ' + (data.detail || 'Unknown error'));
+                submitBtn.disabled = false;
+                submitBtn.setAttribute('aria-busy', 'false');
+            }
+        } catch (error) {
+            alert('Failed to disable 2FA: ' + error.message);
+            submitBtn.disabled = false;
+            submitBtn.setAttribute('aria-busy', 'false');
+        }
+    });
+}
+
+async function logoutAllSessions() {
+    if (!confirm('Are you sure you want to logout all sessions?\n\nYou will need to log in again on all devices.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/auth/logout', {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            window.location.href = '/login';
+        } else {
+            alert('Failed to logout all sessions');
+        }
+    } catch (error) {
+        alert('Failed to logout: ' + error.message);
+    }
+}
+</script>
+{% endblock %}

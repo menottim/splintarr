@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from vibe_quality_searcharr.services.sonarr import (
+from splintarr.services.sonarr import (
     SonarrAPIError,
     SonarrAuthenticationError,
     SonarrClient,

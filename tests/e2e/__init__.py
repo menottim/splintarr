@@ -1,1 +1,1 @@
-"""End-to-end tests for Vibe-Quality-Searcharr."""
+"""End-to-end tests for Splintarr."""

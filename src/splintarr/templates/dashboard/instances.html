@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}Instances - Splintarr{% endblock %}
+
+{% block content %}
+<hgroup>
+    <h1>Instance Management</h1>
+    <p>Manage your Sonarr and Radarr instances</p>
+</hgroup>
+
+<div style="text-align: right; margin-bottom: 1rem;">
+    <a href="#add-instance" role="button">+ Add Instance</a>
+</div>
+
+<!-- Instances List -->
+{% if instances %}
+<div class="grid">
+    {% for instance in instances %}
+    <article>
+        <header>
+            <h3>
+                {{ instance.name }}
+                {% if instance.is_active %}
+                <small style="color: var(--ins-color);">● Active</small>
+                {% else %}
+                <small style="color: var(--del-color);">● Inactive</small>
+                {% endif %}
+            </h3>
+        </header>
+
+        <dl>
+            <dt>Type</dt>
+            <dd><code>{{ instance.instance_type }}</code></dd>
+
+            <dt>URL</dt>
+            <dd><small>{{ instance.url }}</small></dd>
+
+            <dt>Last Checked</dt>
+            <dd>
+                {% if instance.last_connection_test %}
+                {{ instance.last_connection_test|timeago }}
+                {% else %}
+                Never
+                {% endif %}
+            </dd>
+
+            <dt>Status</dt>
+            <dd>
+                {% if instance.connection_status == 'healthy' %}
+                <span style="color: var(--ins-color);">✓ Healthy</span>
+                {% elif instance.connection_status == 'unhealthy' %}
+                <span style="color: var(--del-color);">✗ Unhealthy</span>
+                {% else %}
+                <span style="color: var(--muted-color);">? Unknown</span>
+                {% endif %}
+            </dd>
+        </dl>
+
+        <footer>
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button class="secondary" data-action="test-instance" data-id="{{ instance.id }}">Test</button>
+                <button class="secondary" data-action="edit-instance" data-id="{{ instance.id }}" data-name="{{ instance.name }}" data-type="{{ instance.instance_type }}" data-url="{{ instance.url }}">Edit</button>
+                <button class="secondary" style="color: var(--del-color);" data-action="delete-instance" data-id="{{ instance.id }}" data-name="{{ instance.name }}">Delete</button>
+            </div>
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<article>
+    <p style="text-align: center; color: var(--muted-color); padding: 2rem;">
+        No instances configured yet. Add your first instance to get started!
+    </p>
+</article>
+{% endif %}
+
+<!-- Add Instance Modal -->
+<dialog id="add-instance">
+    <article>
+        <header>
+            <button aria-label="Close" class="close" data-action="close-modal"></button>
+            <h3>Add Instance</h3>
+        </header>
+
+        <form id="addInstanceForm">
+            <label for="add_instance_type">
+                Instance Type
+                <select id="add_instance_type" name="instance_type" required>
+                    <option value="">Select type...</option>
+                    <option value="sonarr">Sonarr (TV Shows)</option>
+                    <option value="radarr">Radarr (Movies)</option>
+                </select>
+            </label>
+
+            <label for="add_name">
+                Instance Name
+                <input type="text" id="add_name" name="name" required placeholder="e.g., Main Sonarr, 4K Radarr">
+                <small>Friendly name to identify this instance</small>
+            </label>
+
+            <label for="add_url">
+                URL
+                <input type="url" id="add_url" name="url" required placeholder="http://host.docker.internal:8989">
+                <small>Full URL including port</small>
+            </label>
+
+            <label for="add_api_key">
+                API Key
+                <input type="text" id="add_api_key" name="api_key" required placeholder="Enter your API key" autocomplete="off">
+                <small>Found in Settings > General > Security in Sonarr/Radarr</small>
+            </label>
+
+            <div id="addTestResult"></div>
+
+            <footer>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="secondary" id="addTestBtn">Test Connection</button>
+                    <button type="button" class="secondary" data-action="close-modal">Cancel</button>
+                    <button type="submit" id="addSubmitBtn">Add Instance</button>
+                </div>
+            </footer>
+        </form>
+    </article>
+</dialog>
+<!-- Edit Instance Modal -->
+<dialog id="edit-instance">
+    <article>
+        <header>
+            <button aria-label="Close" class="close" data-action="close-modal"></button>
+            <h3>Edit Instance</h3>
+        </header>
+
+        <form id="editInstanceForm">
+            <input type="hidden" id="edit_id" name="id">
+
+            <label for="edit_instance_type">
+                Instance Type
+                <input type="text" id="edit_instance_type" disabled>
+                <small>Type cannot be changed after creation</small>
+            </label>
+
+            <label for="edit_name">
+                Instance Name
+                <input type="text" id="edit_name" name="name" required placeholder="e.g., Main Sonarr, 4K Radarr">
+            </label>
+
+            <label for="edit_url">
+                URL
+                <input type="url" id="edit_url" name="url" required placeholder="http://host.docker.internal:8989">
+            </label>
+
+            <label for="edit_api_key">
+                API Key
+                <input type="text" id="edit_api_key" name="api_key" placeholder="Leave blank to keep current" autocomplete="off">
+                <small>Only fill in if you want to change the API key</small>
+            </label>
+
+            <div id="editResult"></div>
+
+            <footer>
+                <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button type="button" class="secondary" data-action="close-modal">Cancel</button>
+                    <button type="submit" id="editSubmitBtn">Save Changes</button>
+                </div>
+            </footer>
+        </form>
+    </article>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.state.csp_nonce }}">
+async function testInstance(instanceId) {
+    try {
+        const response = await fetch(`/api/instances/${instanceId}/test`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            showNotification('Connection successful! Version: ' + (data.version || 'Unknown'), 'success');
+        } else {
+            let errorMsg = data.message || '';
+            if (!errorMsg && data.detail) {
+                errorMsg = Array.isArray(data.detail) ? data.detail.map(e => e.msg || e).join('; ') : data.detail;
+            }
+            showNotification('Connection failed: ' + (errorMsg || 'Unknown error'));
+        }
+    } catch (error) {
+        showNotification('Connection failed: ' + error.message);
+    }
+}
+
+function editInstance(btn) {
+    document.getElementById('edit_id').value = btn.dataset.id;
+    document.getElementById('edit_instance_type').value = btn.dataset.type;
+    document.getElementById('edit_name').value = btn.dataset.name;
+    document.getElementById('edit_url').value = btn.dataset.url;
+    document.getElementById('edit_api_key').value = '';
+    document.getElementById('editResult').textContent = '';
+    document.getElementById('edit-instance').showModal();
+}
+
+async function deleteInstance(instanceId, name) {
+    if (!confirm(`Are you sure you want to delete instance "${name}"?\n\nThis will also delete all associated search queues and history.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/instances/${instanceId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const data = await response.json();
+            showNotification('Delete failed: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        showNotification('Delete failed: ' + error.message);
+    }
+}
+
+// Modal management
+const addDialog = document.getElementById('add-instance');
+
+function openAddModal() {
+    document.getElementById('addInstanceForm').reset();
+    document.getElementById('addTestResult').innerHTML = '';
+    addDialog.showModal();
+}
+
+function closeModal() {
+    addDialog.close();
+    document.getElementById('edit-instance').close();
+}
+
+// Test connection from the add modal
+document.getElementById('addTestBtn').addEventListener('click', async function() {
+    const resultDiv = document.getElementById('addTestResult');
+    const instanceType = document.getElementById('add_instance_type').value;
+    const url = document.getElementById('add_url').value;
+    const apiKey = document.getElementById('add_api_key').value;
+
+    if (!instanceType || !url || !apiKey) {
+        resultDiv.innerHTML = '<div class="alert alert-danger">Please fill in all fields</div>';
+        return;
+    }
+
+    resultDiv.innerHTML = '<div class="alert alert-info"><progress></progress> Testing connection...</div>';
+
+    try {
+        const response = await fetch('/api/instances/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instance_type: instanceType, url: url, api_key: apiKey })
+        });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            const itemLabel = instanceType === 'sonarr' ? 'Series' : 'Movies';
+            const countText = data.items_count != null ? data.items_count : 'N/A';
+            const infoLine = data.instance_info ? `<br>Instance: ${escapeHtml(data.instance_info)}` : '';
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <strong>Connection successful!</strong><br>
+                    Version: ${escapeHtml(data.version || 'Unknown')}${infoLine}<br>
+                    ${escapeHtml(itemLabel)}: ${escapeHtml(countText)}
+                </div>`;
+        } else {
+            let errorMsg = data.message || '';
+            if (!errorMsg && data.detail) {
+                errorMsg = Array.isArray(data.detail) ? data.detail.map(e => e.msg || e).join('; ') : data.detail;
+            }
+            resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${escapeHtml(errorMsg || 'Unknown error')}</div>`;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${escapeHtml(error.message)}</div>`;
+    }
+});
+
+// Add instance form submission
+document.getElementById('addInstanceForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = document.getElementById('addSubmitBtn');
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    const formData = new FormData(this);
+
+    try {
+        const response = await fetch('/dashboard/instances/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams(formData).toString()
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            const text = await response.text();
+            let errorMsg = 'Failed to add instance';
+            try {
+                const data = JSON.parse(text);
+                errorMsg = data.detail || data.error || errorMsg;
+            } catch { errorMsg = text || errorMsg; }
+            document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${escapeHtml(errorMsg)}</div>`;
+            btn.disabled = false;
+            btn.setAttribute('aria-busy', 'false');
+        }
+    } catch (error) {
+        document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${escapeHtml(error.message)}</div>`;
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
+    }
+});
+
+// Event delegation
+document.addEventListener('click', function(e) {
+    var target = e.target.closest('[data-action]');
+    if (!target) return;
+    var action = target.dataset.action;
+    if (action === 'test-instance') testInstance(parseInt(target.dataset.id));
+    else if (action === 'edit-instance') editInstance(target);
+    else if (action === 'delete-instance') deleteInstance(parseInt(target.dataset.id), target.dataset.name);
+    else if (action === 'close-modal') closeModal();
+});
+
+// Open modal from the Add Instance link
+document.querySelector('a[href="#add-instance"]').addEventListener('click', function(e) {
+    e.preventDefault();
+    openAddModal();
+});
+
+// Auto-fill instance name when type changes in Add modal
+document.getElementById('add_instance_type').addEventListener('change', function() {
+    var nameInput = document.getElementById('add_name');
+    if (nameInput.value && !nameInput.value.match(/^(sonarr|radarr)-\d+$/)) return;
+
+    var type = this.value;
+    if (!type) { nameInput.value = ''; return; }
+
+    // Count existing instances of this type to determine next number
+    var existing = document.querySelectorAll('[data-action="edit-instance"][data-type="' + type + '"]');
+    nameInput.value = type + '-' + (existing.length + 1);
+});
+
+// Edit instance form submission
+document.getElementById('editInstanceForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var btn = document.getElementById('editSubmitBtn');
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    var instanceId = document.getElementById('edit_id').value;
+    var body = {
+        name: document.getElementById('edit_name').value,
+        url: document.getElementById('edit_url').value,
+    };
+
+    var apiKey = document.getElementById('edit_api_key').value;
+    if (apiKey) body.api_key = apiKey;
+
+    try {
+        var response = await fetch('/api/instances/' + instanceId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            var data = await response.json();
+            document.getElementById('editResult').textContent = 'Update failed: ' + (data.detail || 'Unknown error');
+            btn.disabled = false;
+            btn.setAttribute('aria-busy', 'false');
+        }
+    } catch (error) {
+        document.getElementById('editResult').textContent = 'Update failed: ' + error.message;
+        btn.disabled = false;
+        btn.setAttribute('aria-busy', 'false');
+    }
+});
+</script>
+{% endblock %}

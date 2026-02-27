@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 from cryptography.fernet import Fernet, InvalidToken
 
-from vibe_quality_searcharr.core.security import EncryptionError, FieldEncryption, field_encryption
+from splintarr.core.security import EncryptionError, FieldEncryption, field_encryption
 
 
 class TestEncryptionCompliance:

@@ -15,10 +15,10 @@ Tests the complete dashboard user interface flow including:
 import pytest
 from fastapi.testclient import TestClient
 
-from vibe_quality_searcharr.main import app
-from vibe_quality_searcharr.models.instance import Instance
-from vibe_quality_searcharr.models.search_queue import SearchQueue
-from vibe_quality_searcharr.models.user import User
+from splintarr.main import app
+from splintarr.models.instance import Instance
+from splintarr.models.search_queue import SearchQueue
+from splintarr.models.user import User
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def client():
 def authenticated_client(client, test_db):
     """Create authenticated test client with session cookies."""
     # Create test user
-    from vibe_quality_searcharr.core.security import hash_password
+    from splintarr.core.security import hash_password
 
     user = User(
         username="testuser",
@@ -68,7 +68,7 @@ class TestRootAndRedirects:
     def test_root_redirects_to_login_when_not_authenticated(self, client, test_db):
         """Root should redirect to /login when not authenticated."""
         # Create a user
-        from vibe_quality_searcharr.core.security import hash_password
+        from splintarr.core.security import hash_password
 
         user = User(
             username="testuser",
@@ -97,7 +97,7 @@ class TestLoginPage:
     def test_login_page_renders(self, client, test_db):
         """Login page should render successfully."""
         # Create a user so we don't redirect to setup
-        from vibe_quality_searcharr.core.security import hash_password
+        from splintarr.core.security import hash_password
 
         user = User(
             username="testuser",
@@ -141,12 +141,12 @@ class TestSetupWizard:
 
         response = client.get("/setup")
         assert response.status_code == 200
-        assert b"Welcome to Vibe-Quality-Searcharr" in response.content
+        assert b"Welcome to Splintarr" in response.content
         assert b"Get Started" in response.content
 
     def test_setup_redirects_when_users_exist(self, client, test_db):
         """Setup should redirect to root when users already exist."""
-        from vibe_quality_searcharr.core.security import hash_password
+        from splintarr.core.security import hash_password
 
         user = User(
             username="existinguser",
@@ -232,7 +232,7 @@ class TestSetupWizard:
     def test_setup_instance_page_renders(self, client, test_db):
         """Instance configuration page should render for authenticated user."""
         # Create and authenticate user
-        from vibe_quality_searcharr.core.security import hash_password
+        from splintarr.core.security import hash_password
 
         user = User(
             username="testuser",
@@ -296,7 +296,7 @@ class TestDashboardPages:
         self, authenticated_client, test_db
     ):
         """Instances page should display user's instances."""
-        from vibe_quality_searcharr.core.security import encrypt_field
+        from splintarr.core.security import encrypt_field
 
         # Get the authenticated user
         test_user = test_db.query(User).filter(User.username == "testuser").first()
@@ -393,7 +393,7 @@ class TestSecurityFeatures:
 
     def test_templates_escape_user_input(self, authenticated_client, test_db):
         """Templates should escape HTML in user input to prevent XSS."""
-        from vibe_quality_searcharr.core.security import encrypt_field
+        from splintarr.core.security import encrypt_field
 
         # Get the authenticated user
         test_user = test_db.query(User).filter(User.username == "testuser").first()

@@ -15,7 +15,7 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 
-from vibe_quality_searcharr.database import (
+from splintarr.database import (
     Base,
     SessionLocal,
     close_db,
@@ -150,7 +150,7 @@ class TestSetSQLitePragma:
 
     def test_foreign_keys_enforced(self, db_session):
         """Test that foreign key constraints are actually enforced."""
-        from vibe_quality_searcharr.models.user import RefreshToken, User
+        from splintarr.models.user import RefreshToken, User
 
         # Try to create a refresh token with non-existent user_id
         from datetime import datetime, timedelta
@@ -232,7 +232,7 @@ class TestCreateDatabaseEngine:
 
     def test_create_engine_error_handling(self):
         """Test that engine creation errors are handled properly."""
-        with patch("vibe_quality_searcharr.database.create_engine", side_effect=Exception("DB Error")):
+        with patch("splintarr.database.create_engine", side_effect=Exception("DB Error")):
             with pytest.raises(RuntimeError, match="Failed to create database engine"):
                 create_database_engine()
 
@@ -361,7 +361,7 @@ class TestInitDb:
         for table in expected_tables:
             assert table in table_names
 
-    @patch("vibe_quality_searcharr.database.Base.metadata.create_all")
+    @patch("splintarr.database.Base.metadata.create_all")
     def test_init_db_error_handling(self, mock_create_all):
         """Test that init_db handles errors properly."""
         mock_create_all.side_effect = Exception("Table creation failed")
@@ -411,7 +411,7 @@ class TestCloseDb:
         test_engine = create_database_engine()
 
         # Patch the global engine
-        with patch("vibe_quality_searcharr.database.engine", test_engine):
+        with patch("splintarr.database.engine", test_engine):
             close_db()
 
             # Engine should be disposed
@@ -536,7 +536,7 @@ class TestDatabaseIntegrity:
 
     def test_cascade_delete_user_deletes_tokens(self, db_session):
         """Test that deleting user cascades to refresh tokens."""
-        from vibe_quality_searcharr.models.user import RefreshToken, User
+        from splintarr.models.user import RefreshToken, User
 
         # Create user with token
         from datetime import datetime, timedelta
@@ -565,8 +565,8 @@ class TestDatabaseIntegrity:
 
     def test_cascade_delete_user_deletes_instances(self, db_session):
         """Test that deleting user cascades to instances."""
-        from vibe_quality_searcharr.models.instance import Instance
-        from vibe_quality_searcharr.models.user import User
+        from splintarr.models.instance import Instance
+        from splintarr.models.user import User
 
         # Create user with instance
         user = User(username="testuser", password_hash="hash")

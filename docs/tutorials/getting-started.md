@@ -1,6 +1,6 @@
 # Getting Started
 
-**Vibe-Quality-Searcharr v0.1.0-alpha**
+**Splintarr v0.1.0-alpha**
 
 This tutorial walks you through the post-install experience: completing the setup wizard, understanding the dashboard, creating your first search queue, and checking search history.
 
@@ -68,7 +68,7 @@ The navigation bar gives you access to:
 
 ## Step 3: Create Your First Search Queue
 
-A search queue tells Vibe-Quality-Searcharr what to search for and when.
+A search queue tells Splintarr what to search for and when.
 
 Go to **Search Queues** and click **Add Queue**. Fill in the following:
 
@@ -111,7 +111,7 @@ Batch Size: 30
 
 ## Step 4: Check Search History
 
-Go to **Search History** to see what Vibe-Quality-Searcharr has done. Each entry shows:
+Go to **Search History** to see what Splintarr has done. Each entry shows:
 
 - Date and time of the search
 - Which instance was searched

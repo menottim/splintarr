@@ -4,7 +4,7 @@ Understanding how different search strategies work and when to use each one.
 
 ## Overview
 
-Vibe-Quality-Searcharr provides multiple search strategies to address different use cases in media library management. Each strategy operates on different assumptions about what content needs attention and when.
+Splintarr provides multiple search strategies to address different use cases in media library management. Each strategy operates on different assumptions about what content needs attention and when.
 
 ## Strategy Types
 

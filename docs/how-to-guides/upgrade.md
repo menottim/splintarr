@@ -1,8 +1,8 @@
 # Upgrade Guide
 
-**Vibe-Quality-Searcharr**
+**Splintarr**
 
-This guide provides instructions for upgrading Vibe-Quality-Searcharr to newer versions.
+This guide provides instructions for upgrading Splintarr to newer versions.
 
 ---
 
@@ -94,21 +94,21 @@ curl http://localhost:7337/health
 
 ```bash
 # Pull new image
-docker pull vibe-quality-searcharr:1.0.0
+docker pull splintarr:1.0.0
 
 # Stop and remove old container
-docker stop vibe-quality-searcharr
-docker rm vibe-quality-searcharr
+docker stop splintarr
+docker rm splintarr
 
 # Start new container
 docker run -d \
-  --name vibe-quality-searcharr \
+  --name splintarr \
   -p 127.0.0.1:7337:7337 \
   -v $(pwd)/data:/data \
   --secret db_key \
   --secret secret_key \
   --secret pepper \
-  vibe-quality-searcharr:1.0.0
+  splintarr:1.0.0
 ```
 
 ---
@@ -159,12 +159,12 @@ Database migrations run automatically when the container starts.
 
 **Check migration status:**
 ```bash
-docker-compose exec vibe-quality-searcharr alembic current
+docker-compose exec splintarr alembic current
 ```
 
 **View migration history:**
 ```bash
-docker-compose exec vibe-quality-searcharr alembic history
+docker-compose exec splintarr alembic history
 ```
 
 ### Manual Migrations
@@ -173,13 +173,13 @@ If automatic migration fails, run manually:
 
 ```bash
 # Check current version
-docker-compose exec vibe-quality-searcharr alembic current
+docker-compose exec splintarr alembic current
 
 # Upgrade to latest
-docker-compose exec vibe-quality-searcharr alembic upgrade head
+docker-compose exec splintarr alembic upgrade head
 
 # Or specific version
-docker-compose exec vibe-quality-searcharr alembic upgrade <revision>
+docker-compose exec splintarr alembic upgrade <revision>
 ```
 
 ### Migration Failures
@@ -225,7 +225,7 @@ ENABLE_DRIFT_DETECTION=true
 ENABLE_METRICS=false
 
 # Backup configuration
-BACKUP_DIR=/var/backups/vibe-quality-searcharr
+BACKUP_DIR=/var/backups/splintarr
 BACKUP_RETENTION_DAYS=7
 ```
 
@@ -263,11 +263,11 @@ If upgrade completed but you need to rollback:
 docker-compose down
 
 # Pull old version
-docker pull vibe-quality-searcharr:0.9.0
+docker pull splintarr:0.9.0
 
 # Update docker-compose.yml
-# Change image: vibe-quality-searcharr:1.0.0
-# To:     image: vibe-quality-searcharr:0.9.0
+# Change image: splintarr:1.0.0
+# To:     image: splintarr:0.9.0
 
 # Start old version
 docker-compose up -d
@@ -279,10 +279,10 @@ docker-compose up -d
 
 ```bash
 # Downgrade database to specific revision
-docker-compose exec vibe-quality-searcharr alembic downgrade <revision>
+docker-compose exec splintarr alembic downgrade <revision>
 
 # Or downgrade one step
-docker-compose exec vibe-quality-searcharr alembic downgrade -1
+docker-compose exec splintarr alembic downgrade -1
 ```
 
 ---
@@ -322,7 +322,7 @@ docker-compose logs
 curl http://localhost:7337/health
 
 # Check from inside container
-docker exec vibe-quality-searcharr curl http://localhost:7337/health
+docker exec splintarr curl http://localhost:7337/health
 
 # View detailed logs
 docker-compose logs -f | grep -i error
@@ -336,7 +336,7 @@ If data appears lost:
 
 1. **Check container is using correct volume:**
    ```bash
-   docker inspect vibe-quality-searcharr | grep -A 10 Mounts
+   docker inspect splintarr | grep -A 10 Mounts
    ```
 
 2. **Check database file exists:**
@@ -353,11 +353,11 @@ If data appears lost:
 
 1. **Test connection to Sonarr/Radarr:**
    ```bash
-   docker exec vibe-quality-searcharr curl -v http://your-sonarr:8989/api/v3/system/status
+   docker exec splintarr curl -v http://your-sonarr:8989/api/v3/system/status
    ```
 
 2. **Check API keys still valid:**
-   - Log into Vibe-Quality-Searcharr
+   - Log into Splintarr
    - Go to Instances
    - Test each instance
 
@@ -453,7 +453,7 @@ For high-availability deployments (future versions):
 - Updated monthly
 
 ```bash
-docker pull vibe-quality-searcharr:1.0.0
+docker pull splintarr:1.0.0
 ```
 
 ### Latest
@@ -463,7 +463,7 @@ docker pull vibe-quality-searcharr:1.0.0
 - Good for auto-updates
 
 ```bash
-docker pull vibe-quality-searcharr:latest
+docker pull splintarr:latest
 ```
 
 ### Development (Not Recommended for Production)
@@ -473,7 +473,7 @@ docker pull vibe-quality-searcharr:latest
 - For testing only
 
 ```bash
-docker pull vibe-quality-searcharr:dev
+docker pull splintarr:dev
 ```
 
 ---
@@ -484,10 +484,10 @@ docker pull vibe-quality-searcharr:dev
 
 ```bash
 # Check current version
-docker inspect vibe-quality-searcharr | jq '.[0].Config.Labels."org.opencontainers.image.version"'
+docker inspect splintarr | jq '.[0].Config.Labels."org.opencontainers.image.version"'
 
 # Check latest available
-curl -s https://api.github.com/repos/yourusername/vibe-quality-searcharr/releases/latest | jq -r .tag_name
+curl -s https://api.github.com/repos/yourusername/splintarr/releases/latest | jq -r .tag_name
 ```
 
 ### Subscribe to Updates
@@ -532,7 +532,7 @@ If a critical security vulnerability is announced:
 
 ## Additional Resources
 
-- [Release Notes](https://github.com/menottim/vibe-quality-searcharr/releases)
+- [Release Notes](https://github.com/menottim/splintarr/releases)
 - [Changelog](../CHANGELOG.md)
 - [Backup Guide](BACKUP_RESTORE.md)
 - [Troubleshooting](TROUBLESHOOTING.md)
@@ -542,6 +542,6 @@ If a critical security vulnerability is announced:
 
 **Need Help?**
 
-- GitHub Issues: https://github.com/menottim/vibe-quality-searcharr/issues
-- Documentation: https://github.com/menottim/vibe-quality-searcharr/docs/
+- GitHub Issues: https://github.com/menottim/splintarr/issues
+- Documentation: https://github.com/menottim/splintarr/docs/
 - Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)

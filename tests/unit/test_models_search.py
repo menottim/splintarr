@@ -10,10 +10,10 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from vibe_quality_searcharr.models.instance import Instance
-from vibe_quality_searcharr.models.search_history import SearchHistory
-from vibe_quality_searcharr.models.search_queue import SearchQueue
-from vibe_quality_searcharr.models.user import User
+from splintarr.models.instance import Instance
+from splintarr.models.search_history import SearchHistory
+from splintarr.models.search_queue import SearchQueue
+from splintarr.models.user import User
 
 
 class TestSearchQueueModel:

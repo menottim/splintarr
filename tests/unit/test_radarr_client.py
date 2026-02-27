@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from vibe_quality_searcharr.services.radarr import (
+from splintarr.services.radarr import (
     RadarrAPIError,
     RadarrAuthenticationError,
     RadarrClient,

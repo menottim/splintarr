@@ -1,5 +1,5 @@
 # Red Team Adversarial Security Assessment
-## Vibe-Quality-Searcharr
+## Splintarr
 
 **Assessment Date:** February 25, 2026
 **Assessor Persona:** Senior Red Team Operator / Adversarial Simulation (APT)
@@ -38,7 +38,7 @@ This assessment adopts an advanced threat actor mindset to identify exploitation
 **CVSS 3.1:** 7.5 (High) -- `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N`
 **CWE:** CWE-208 (Observable Timing Discrepancy)
 **OWASP:** API2:2023 -- Broken Authentication
-**Location:** `src/vibe_quality_searcharr/core/auth.py:467-504`
+**Location:** `src/splintarr/core/auth.py:467-504`
 
 **The Vulnerability:**
 
@@ -87,7 +87,7 @@ Store a pre-computed Argon2 hash at module load time and verify against it on th
 **CVSS 3.1:** 9.8 (Critical) -- `AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H`
 **CWE:** CWE-367 (Time-of-Check Time-of-Use)
 **OWASP:** API1:2023 -- Broken Object Level Authorization
-**Location:** `src/vibe_quality_searcharr/api/dashboard.py:275-320`
+**Location:** `src/splintarr/api/dashboard.py:275-320`
 
 **The Vulnerability:**
 
@@ -207,7 +207,7 @@ This moves the user data into `data-*` attributes (HTML-escaped by Jinja2, safe 
 ### HIGH-01: Setup Wizard Bypasses Password Complexity Policy
 
 **CWE:** CWE-521 (Weak Password Requirements)
-**Location:** `src/vibe_quality_searcharr/api/dashboard.py:294`
+**Location:** `src/splintarr/api/dashboard.py:294`
 
 **The Vulnerability:**
 
@@ -224,7 +224,7 @@ The setup wizard accepts `aaaaaaaaaaaa` (12 lowercase a's) as the admin password
 ### HIGH-02: Access Tokens Are Non-Revocable for 15 Minutes
 
 **CWE:** CWE-613 (Insufficient Session Expiration)
-**Location:** `src/vibe_quality_searcharr/core/auth.py:192-236`
+**Location:** `src/splintarr/core/auth.py:192-236`
 
 **The Vulnerability:**
 
@@ -247,7 +247,7 @@ This means:
 ### HIGH-03: TOCTOU in SSRF Protection (DNS Rebinding)
 
 **CWE:** CWE-367 (Time-of-Check Time-of-Use)
-**Location:** `src/vibe_quality_searcharr/core/ssrf_protection.py:101-148`
+**Location:** `src/splintarr/core/ssrf_protection.py:101-148`
 
 **The Vulnerability:**
 
@@ -306,7 +306,7 @@ The application deployed nonce-based CSP (`script-src 'self' 'nonce-xxx'`) but h
 ### MED-01: SQLCipher PRAGMA Key via String Interpolation
 
 **CWE:** CWE-89 (SQL Injection)
-**Location:** `src/vibe_quality_searcharr/database.py:165`
+**Location:** `src/splintarr/database.py:165`
 
 ```python
 cursor.execute(f"PRAGMA key = '{db_key}'")
@@ -321,7 +321,7 @@ The database key is inserted via f-string into a SQL statement. If the key conta
 ### MED-02: Account Lockout as Denial-of-Service Vector
 
 **CWE:** CWE-645 (Overly Restrictive Account Lockout Mechanism)
-**Location:** `src/vibe_quality_searcharr/core/auth.py:476-496`
+**Location:** `src/splintarr/core/auth.py:476-496`
 
 An unauthenticated attacker can lock any known account by sending 5 failed login attempts (default `max_failed_login_attempts=5`). The lockout lasts 30 minutes. The rate limit is 5 requests/minute per IP, but the lockout threshold is also 5 -- meaning a single burst of 5 requests from one IP locks the account.
 
@@ -337,7 +337,7 @@ Combined with CRIT-01 (username enumeration), an attacker can:
 ### MED-03: Setup Wizard Doesn't Apply SSRF Protection to Instance URL
 
 **CWE:** CWE-918 (Server-Side Request Forgery)
-**Location:** `src/vibe_quality_searcharr/api/dashboard.py:402-407`
+**Location:** `src/splintarr/api/dashboard.py:402-407`
 
 The setup wizard creates Sonarr/Radarr clients directly from the user-provided URL without calling `validate_instance_url()`:
 
@@ -355,7 +355,7 @@ The `url` comes directly from `Form(...)` with no SSRF validation. This is only 
 ### MED-04: TokenError Details Leaked to Client
 
 **CWE:** CWE-209 (Information Exposure Through Error Message)
-**Location:** `src/vibe_quality_searcharr/api/dashboard.py:130`, `src/vibe_quality_searcharr/api/auth.py:184,510`
+**Location:** `src/splintarr/api/dashboard.py:130`, `src/splintarr/api/auth.py:184,510`
 
 ```python
 except TokenError as e:
@@ -371,7 +371,7 @@ TokenError messages include specific failure reasons ("Invalid JWT algorithm: no
 ### MED-05: Refresh Token Cookie Sent on All Auth Paths
 
 **CWE:** CWE-614 (Sensitive Cookie in HTTPS Session Without 'Secure' Attribute)
-**Location:** `src/vibe_quality_searcharr/api/auth.py:112-120`
+**Location:** `src/splintarr/api/auth.py:112-120`
 
 The refresh token cookie has `path="/api/auth"`, meaning it's sent on every request to `/api/auth/*` -- including the register, login, and refresh endpoints. This is correct by design, but the access token cookie has `path="/"`, meaning it's sent on **every request** including static file requests.
 
@@ -385,7 +385,7 @@ Every request to `/static/css/pico.min.css` or `/static/js/app.js` includes the 
 
 ### LOW-01: `last_login_ip` Exposed in Login Response
 
-**Location:** `src/vibe_quality_searcharr/api/auth.py:381`
+**Location:** `src/splintarr/api/auth.py:381`
 
 The `LoginSuccess` response includes the user's previous login IP address. This reveals the user's network location to anyone who compromises the account.
 
@@ -401,7 +401,7 @@ There is no password reset flow. If a user forgets their password, the only reco
 
 ### LOW-03: Health Check Reveals Database Encryption Status
 
-**Location:** `src/vibe_quality_searcharr/database.py:386-434`
+**Location:** `src/splintarr/database.py:386-434`
 
 The health check queries `PRAGMA cipher_version`. If this information reaches the `/health` endpoint, it reveals whether the database is encrypted and which SQLCipher version is in use.
 

@@ -9,7 +9,7 @@ log() {
     echo "[entrypoint] $1"
 }
 
-log "Starting Vibe-Quality-Searcharr entrypoint..."
+log "Starting Splintarr entrypoint..."
 
 # Verify secrets are accessible
 if [ -d "/run/secrets" ]; then
@@ -43,7 +43,7 @@ fi
 
 # Log configuration for debugging
 log "Configuration:"
-log "  Database path: /data/vibe-quality-searcharr.db"
+log "  Database path: /data/splintarr.db"
 log "  DATABASE_KEY_FILE: ${DATABASE_KEY_FILE:-not set}"
 log "  SECRET_KEY_FILE: ${SECRET_KEY_FILE:-not set}"
 log "  PEPPER_FILE: ${PEPPER_FILE:-not set}"

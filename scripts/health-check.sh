@@ -1,5 +1,5 @@
 #!/bin/bash
-# Health check script for Vibe-Quality-Searcharr
+# Health check script for Splintarr
 # Usage: ./scripts/health-check.sh [url]
 
 set -e
@@ -16,7 +16,7 @@ HEALTH_ENDPOINT="${URL}/health"
 TIMEOUT=5
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}Vibe-Quality-Searcharr Health Check${NC}"
+echo -e "${GREEN}Splintarr Health Check${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 
@@ -96,22 +96,22 @@ else
 
     # Check Docker container status
     if command -v docker &> /dev/null; then
-        if docker ps | grep -q vibe-quality-searcharr; then
+        if docker ps | grep -q splintarr; then
             echo -e "${GREEN}[OK] Docker container is running${NC}"
 
             # Show recent logs
             echo ""
             echo -e "${YELLOW}Recent logs:${NC}"
-            docker logs --tail 20 vibe-quality-searcharr 2>&1
+            docker logs --tail 20 splintarr 2>&1
         else
             echo -e "${RED}[ERROR] Docker container is not running${NC}"
 
             # Check if container exists but stopped
-            if docker ps -a | grep -q vibe-quality-searcharr; then
+            if docker ps -a | grep -q splintarr; then
                 echo -e "${RED}Container exists but is stopped${NC}"
                 echo ""
                 echo -e "${YELLOW}Recent logs:${NC}"
-                docker logs --tail 20 vibe-quality-searcharr 2>&1
+                docker logs --tail 20 splintarr 2>&1
             fi
         fi
     fi

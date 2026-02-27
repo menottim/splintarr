@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 from argon2 import PasswordHasher
 
-from vibe_quality_searcharr.core.security import PasswordSecurity, password_security
+from splintarr.core.security import PasswordSecurity, password_security
 
 
 class TestPasswordHashingCompliance:

@@ -1,4 +1,4 @@
-# Vibe-Quality-Searcharr
+# Splintarr
 
 **Version 0.1.0-alpha** | Automated backlog search for Sonarr and Radarr, designed for homelab use.
 
@@ -36,7 +36,7 @@ During this vibe-coding exercise, I made every effort to implement security best
 
 ## Overview
 
-Vibe-Quality-Searcharr automates systematic backlog searching for missing and upgradeable media in your Sonarr and Radarr instances. It runs as a Docker container on your home network and intelligently schedules searches over time, respecting API rate limits while maximizing coverage.
+Splintarr automates systematic backlog searching for missing and upgradeable media in your Sonarr and Radarr instances. It runs as a Docker container on your home network and intelligently schedules searches over time, respecting API rate limits while maximizing coverage.
 
 ### Who This Is For
 
@@ -67,8 +67,8 @@ See the **[Docker Deployment Guide](docs/how-to-guides/deploy-with-docker.md)** 
 **Short version:**
 
 ```bash
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
+git clone https://github.com/menottim/splintarr.git
+cd splintarr
 ./scripts/generate-secrets.sh
 docker-compose up -d
 ```
@@ -116,7 +116,7 @@ Documentation is organized following the [Diataxis](https://diataxis.fr/) framew
 
 ## Architecture Overview
 
-Vibe-Quality-Searcharr is built with:
+Splintarr is built with:
 
 - **FastAPI** -- Async web framework serving the UI and REST API
 - **SQLAlchemy + SQLCipher** -- ORM with encrypted database storage

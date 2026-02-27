@@ -1,5 +1,5 @@
 # COMPREHENSIVE SECURITY ASSESSMENT REPORT
-## Vibe-Quality-Searcharr Application
+## Splintarr Application
 
 **Assessment Date:** February 24, 2026
 **Codebase Version:** 0.1.0-alpha
@@ -10,7 +10,7 @@
 
 ## EXECUTIVE SUMMARY
 
-The vibe-quality-searcharr application has undergone a **significant security remediation** cycle that successfully addressed **15 identified vulnerabilities** from its penetration test. The security posture has improved **dramatically from HIGH RISK to MEDIUM-LOW RISK** for homelab deployments.
+The splintarr application has undergone a **significant security remediation** cycle that successfully addressed **15 identified vulnerabilities** from its penetration test. The security posture has improved **dramatically from HIGH RISK to MEDIUM-LOW RISK** for homelab deployments.
 
 ### Overall Security Rating: **STRONG** ✓
 
@@ -39,12 +39,12 @@ The vibe-quality-searcharr application has undergone a **significant security re
 - **Risk:** 50% known plaintext in short keys (< 32 chars)
 - **CVSS Before:** 9.1
 
-**Fix Implementation:** `src/vibe_quality_searcharr/core/security.py:171-203`
+**Fix Implementation:** `src/splintarr/core/security.py:171-203`
 ```python
 kdf = HKDF(
     algorithm=hashes.SHA256(),
     length=32,  # 256 bits for Fernet
-    salt=b"vibe-quality-searcharr-fernet-v1",
+    salt=b"splintarr-fernet-v1",
     info=b"api-key-encryption",
 )
 key_bytes = kdf.derive(secret_key.encode())
@@ -69,7 +69,7 @@ key_bytes = kdf.derive(secret_key.encode())
 - **Attack:** Attacker creates token with `alg: "none"`
 - **CVSS Before:** 9.8
 
-**Fix Implementation:** `src/vibe_quality_searcharr/core/auth.py:26-28, 204-218, 252-265`
+**Fix Implementation:** `src/splintarr/core/auth.py:26-28, 204-218, 252-265`
 
 ```python
 ALLOWED_JWT_ALGORITHMS = ["HS256"]  # Hardcoded, never configurable
@@ -107,7 +107,7 @@ if token_algorithm not in ALLOWED_JWT_ALGORITHMS:
 - **Attack:** Could disable encryption or modify PRAGMA settings
 - **CVSS Before:** 8.1
 
-**Fix Implementation:** `src/vibe_quality_searcharr/config.py:382-408, 300-328`
+**Fix Implementation:** `src/splintarr/config.py:382-408, 300-328`
 
 ```python
 @field_validator("database_cipher")
@@ -161,7 +161,7 @@ def get_database_url(self) -> str:
 - **Risk:** False sense of security for users
 - **CVSS Before:** 7.5
 
-**Fix Implementation:** `src/vibe_quality_searcharr/api/auth.py` (removed 3 endpoints)
+**Fix Implementation:** `src/splintarr/api/auth.py` (removed 3 endpoints)
 - Removed `/api/auth/2fa/setup` endpoint (lines 536-617 removed)
 - Removed `/api/auth/2fa/verify` endpoint (lines 619-710 removed)
 - Removed `/api/auth/2fa/disable` endpoint (lines 712-803 removed)
@@ -185,7 +185,7 @@ def get_database_url(self) -> str:
 - **Attack:** Could access cloud metadata (AWS, GCP, Azure)
 - **CVSS Before:** 8.2
 
-**Fix Implementation:** New module `src/vibe_quality_searcharr/core/ssrf_protection.py`
+**Fix Implementation:** New module `src/splintarr/core/ssrf_protection.py`
 
 **Blocked Networks:**
 ```python
@@ -221,7 +221,7 @@ BLOCKED_NETWORKS = [
 - **Attack:** Timing analysis could leak password length
 - **CVSS Before:** 6.5
 
-**Fix Implementation:** `src/vibe_quality_searcharr/core/security.py:60-137`
+**Fix Implementation:** `src/splintarr/core/security.py:60-137`
 
 ```python
 def hash_password(self, password: str) -> str:
@@ -279,7 +279,7 @@ def hash_password(self, password: str) -> str:
 - **Issue:** No password strength validation
 - **Risk:** Weak passwords allow brute force attacks
 
-**Fix Implementation:** `src/vibe_quality_searcharr/schemas/user.py:63-136`
+**Fix Implementation:** `src/splintarr/schemas/user.py:63-136`
 
 **Password Requirements:**
 - ✅ Minimum 12 characters
@@ -457,7 +457,7 @@ def hash_password(self, password: str) -> str:
 
 ## IX. CONCLUSION
 
-The vibe-quality-searcharr application has undergone **comprehensive security remediation** with **all 15 identified vulnerabilities successfully addressed**. The security posture has improved from **HIGH RISK (40% OWASP, F grade)** to **MEDIUM-LOW RISK (85% OWASP, B grade)**.
+The splintarr application has undergone **comprehensive security remediation** with **all 15 identified vulnerabilities successfully addressed**. The security posture has improved from **HIGH RISK (40% OWASP, F grade)** to **MEDIUM-LOW RISK (85% OWASP, B grade)**.
 
 ### Security Posture: **STRONG** ✅
 

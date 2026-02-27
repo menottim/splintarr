@@ -1,5 +1,5 @@
 #!/bin/bash
-# Restore script for Vibe-Quality-Searcharr
+# Restore script for Splintarr
 # Usage: ./scripts/restore.sh <backup_file>
 
 set -e
@@ -15,7 +15,7 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKUP_FILE="${1}"
 
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}Vibe-Quality-Searcharr Restore${NC}"
+echo -e "${GREEN}Splintarr Restore${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 

@@ -11,8 +11,8 @@ from unittest.mock import Mock, patch
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from vibe_quality_searcharr.models.instance import Instance
-from vibe_quality_searcharr.models.user import User
+from splintarr.models.instance import Instance
+from splintarr.models.user import User
 
 
 class TestInstanceModel:
@@ -546,7 +546,7 @@ class TestInstanceRelationships:
 
     def test_instance_search_queues_relationship(self, db_session):
         """Test relationship between Instance and SearchQueue."""
-        from vibe_quality_searcharr.models.search_queue import SearchQueue
+        from splintarr.models.search_queue import SearchQueue
 
         user = User(username="testuser", password_hash="hash")
         db_session.add(user)
@@ -574,7 +574,7 @@ class TestInstanceRelationships:
 
     def test_instance_search_history_relationship(self, db_session):
         """Test relationship between Instance and SearchHistory."""
-        from vibe_quality_searcharr.models.search_history import SearchHistory
+        from splintarr.models.search_history import SearchHistory
 
         user = User(username="testuser", password_hash="hash")
         db_session.add(user)
@@ -620,7 +620,7 @@ class TestInstanceRelationships:
 
     def test_instance_cascade_delete(self, db_session):
         """Test that deleting instance cascades to related records."""
-        from vibe_quality_searcharr.models.search_queue import SearchQueue
+        from splintarr.models.search_queue import SearchQueue
 
         user = User(username="testuser", password_hash="hash")
         db_session.add(user)

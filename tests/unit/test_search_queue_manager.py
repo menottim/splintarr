@@ -8,8 +8,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from vibe_quality_searcharr.models import SearchQueue, SearchHistory, Instance
-from vibe_quality_searcharr.services.search_queue import SearchQueueManager, SearchQueueError
+from splintarr.models import SearchQueue, SearchHistory, Instance
+from splintarr.services.search_queue import SearchQueueManager, SearchQueueError
 
 
 @pytest.fixture
@@ -73,8 +73,8 @@ class TestQueueExecution:
     """Test queue execution."""
 
     @pytest.mark.asyncio
-    @patch("vibe_quality_searcharr.services.search_queue.decrypt_api_key")
-    @patch("vibe_quality_searcharr.services.search_queue.SonarrClient")
+    @patch("splintarr.services.search_queue.decrypt_api_key")
+    @patch("splintarr.services.search_queue.SonarrClient")
     async def test_execute_missing_strategy_success(
         self,
         mock_sonarr_client,
@@ -152,8 +152,8 @@ class TestQueueExecution:
             await queue_manager.execute_queue(1)
 
     @pytest.mark.asyncio
-    @patch("vibe_quality_searcharr.services.search_queue.decrypt_api_key")
-    @patch("vibe_quality_searcharr.services.search_queue.RadarrClient")
+    @patch("splintarr.services.search_queue.decrypt_api_key")
+    @patch("splintarr.services.search_queue.RadarrClient")
     async def test_execute_radarr_missing_strategy(
         self,
         mock_radarr_client,
@@ -199,8 +199,8 @@ class TestSearchStrategies:
     """Test different search strategies."""
 
     @pytest.mark.asyncio
-    @patch("vibe_quality_searcharr.services.search_queue.decrypt_api_key")
-    @patch("vibe_quality_searcharr.services.search_queue.SonarrClient")
+    @patch("splintarr.services.search_queue.decrypt_api_key")
+    @patch("splintarr.services.search_queue.SonarrClient")
     async def test_cutoff_strategy(
         self,
         mock_sonarr_client,
@@ -239,8 +239,8 @@ class TestSearchStrategies:
         assert result["status"] in ["success", "partial_success"]
 
     @pytest.mark.asyncio
-    @patch("vibe_quality_searcharr.services.search_queue.decrypt_api_key")
-    @patch("vibe_quality_searcharr.services.search_queue.SonarrClient")
+    @patch("splintarr.services.search_queue.decrypt_api_key")
+    @patch("splintarr.services.search_queue.SonarrClient")
     async def test_recent_strategy(
         self,
         mock_sonarr_client,
@@ -279,8 +279,8 @@ class TestSearchStrategies:
         assert result["status"] in ["success", "partial_success"]
 
     @pytest.mark.asyncio
-    @patch("vibe_quality_searcharr.services.search_queue.decrypt_api_key")
-    @patch("vibe_quality_searcharr.services.search_queue.SonarrClient")
+    @patch("splintarr.services.search_queue.decrypt_api_key")
+    @patch("splintarr.services.search_queue.SonarrClient")
     async def test_custom_strategy(
         self,
         mock_sonarr_client,
@@ -380,7 +380,7 @@ class TestErrorHandling:
     """Test error handling in queue execution."""
 
     @pytest.mark.asyncio
-    @patch("vibe_quality_searcharr.services.search_queue.decrypt_api_key")
+    @patch("splintarr.services.search_queue.decrypt_api_key")
     async def test_execute_with_decryption_error(
         self,
         mock_decrypt,

@@ -8,8 +8,8 @@ For experienced users who already have Docker Desktop installed and running:
 
 ```powershell
 # 1. Clone or download the repository
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
+git clone https://github.com/menottim/splintarr.git
+cd splintarr
 
 # 2. Allow PowerShell scripts (one-time)
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
@@ -24,7 +24,7 @@ The setup script generates encryption keys, builds the Docker image, and starts 
 
 **Password reset (if locked out):**
 ```powershell
-docker-compose exec vibe-quality-searcharr python -m vibe_quality_searcharr.cli reset-password
+docker-compose exec splintarr python -m splintarr.cli reset-password
 ```
 
 ---
@@ -81,16 +81,16 @@ You should see output like `Docker version 24.0.x, build xxxxxxx`. If you see an
 
 **Option A: Download ZIP (easiest)**
 
-1. Go to https://github.com/menottim/vibe-quality-searcharr
+1. Go to https://github.com/menottim/splintarr
 2. Click the green "Code" button, then "Download ZIP"
-3. Right-click the ZIP, select "Extract All...", choose a location (e.g., `C:\Users\YourName\vibe-quality-searcharr`)
+3. Right-click the ZIP, select "Extract All...", choose a location (e.g., `C:\Users\YourName\splintarr`)
 
 **Option B: Use Git**
 
 ```powershell
 cd C:\Users\YourName
-git clone https://github.com/menottim/vibe-quality-searcharr.git
-cd vibe-quality-searcharr
+git clone https://github.com/menottim/splintarr.git
+cd splintarr
 ```
 
 ### Run the Setup Script
@@ -100,7 +100,7 @@ cd vibe-quality-searcharr
 Navigate to where you extracted/cloned the project, right-click in the folder, and select "Open in Terminal" or "Open PowerShell window here." Alternatively:
 
 ```powershell
-cd "C:\Users\YourName\vibe-quality-searcharr"
+cd "C:\Users\YourName\splintarr"
 ```
 
 **2. Allow PowerShell scripts (one-time)**
@@ -184,7 +184,7 @@ Then access the application at `http://localhost:8080`.
 Make sure you're in the correct directory. Run `pwd` to check, then navigate to the project folder:
 
 ```powershell
-cd "C:\Users\YourName\vibe-quality-searcharr"
+cd "C:\Users\YourName\splintarr"
 ```
 
 The directory must contain `docker-compose.yml`.
@@ -304,7 +304,7 @@ Set up weekly backups using Windows Task Scheduler:
 4. Trigger: Weekly (e.g., Sunday at 2 AM)
 5. Action: Start a Program
 6. Program: `powershell.exe`
-7. Arguments: `-File "C:\Users\YourName\vibe-quality-searcharr\backup.ps1"`
+7. Arguments: `-File "C:\Users\YourName\splintarr\backup.ps1"`
 
 ---
 
@@ -325,7 +325,7 @@ For a homelab deployment, this is an acceptable trade-off. If you want to elimin
 ## Getting Help
 
 1. Check the [full Troubleshooting Guide](./troubleshoot.md) for more solutions
-2. Search [GitHub Issues](https://github.com/menottim/vibe-quality-searcharr/issues)
+2. Search [GitHub Issues](https://github.com/menottim/splintarr/issues)
 3. Create a new issue with your Windows version, Docker Desktop version, full error message, and steps tried
 
 Include logs but **never share your secret keys:**

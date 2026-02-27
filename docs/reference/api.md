@@ -1,5 +1,5 @@
 # API Documentation
-## Vibe-Quality-Searcharr REST API
+## Splintarr REST API
 
 **Base URL:** `http://localhost:7337/api`
 **Version:** 0.1.0

@@ -1,7 +1,7 @@
 # Note: 'version' is obsolete in Docker Compose v2+ and has been removed
 
 services:
-  vibe-quality-searcharr:
+  splintarr:
     build:
       context: ..
       dockerfile: docker/Dockerfile
@@ -9,8 +9,8 @@ services:
         VERSION: 1.0.0
         BUILD_DATE: ${BUILD_DATE:-}
         VCS_REF: ${VCS_REF:-}
-    image: vibe-quality-searcharr:1.0.0
-    container_name: vibe-quality-searcharr-prod
+    image: splintarr:1.0.0
+    container_name: splintarr-prod
 
     # Security: Run as non-root (required for production)
     # If deploying on Windows with volume mount issues, use docker-compose.development.yml
@@ -35,7 +35,7 @@ services:
       - PEPPER_FILE=/run/secrets/pepper
 
       # Application settings
-      - APP_NAME=Vibe-Quality-Searcharr
+      - APP_NAME=Splintarr
       - ENVIRONMENT=production
       - DEBUG=false
       - LOG_LEVEL=INFO
@@ -46,7 +46,7 @@ services:
       - RELOAD=false
 
       # Database
-      - DATABASE_URL=sqlite+pysqlcipher:///data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=256000
+      - DATABASE_URL=sqlite+pysqlcipher:///data/splintarr.db?cipher=aes-256-cfb&kdf_iter=256000
 
       # Security settings
       - SESSION_EXPIRE_HOURS=24
@@ -125,7 +125,7 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: /var/lib/vibe-quality-searcharr/data
+      device: /var/lib/splintarr/data
 
 networks:
   vqs-network:

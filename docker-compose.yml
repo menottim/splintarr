@@ -3,7 +3,7 @@
 # Note: 'version' is obsolete in Docker Compose v2+ and has been removed
 
 services:
-  vibe-quality-searcharr:
+  splintarr:
     build:
       context: .
       dockerfile: docker/Dockerfile
@@ -11,8 +11,8 @@ services:
         VERSION: ${VERSION:-latest}
         BUILD_DATE: ${BUILD_DATE:-}
         VCS_REF: ${VCS_REF:-}
-    image: vibe-quality-searcharr:${VERSION:-latest}
-    container_name: vibe-quality-searcharr
+    image: splintarr:${VERSION:-latest}
+    container_name: splintarr
 
     # Security: Run as non-root
     # Note: Container starts as root, but entrypoint.sh drops to appuser after
@@ -45,7 +45,7 @@ services:
       - PEPPER_FILE=/run/secrets/pepper
 
       # Application
-      - APP_NAME=Vibe-Quality-Searcharr
+      - APP_NAME=Splintarr
       - ENVIRONMENT=${ENVIRONMENT:-production}
       - DEBUG=false
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -56,7 +56,7 @@ services:
       - RELOAD=false
 
       # Database
-      - DATABASE_URL=sqlite+pysqlcipher:///data/vibe-quality-searcharr.db?cipher=aes-256-cfb&kdf_iter=256000
+      - DATABASE_URL=sqlite+pysqlcipher:///data/splintarr.db?cipher=aes-256-cfb&kdf_iter=256000
 
       # Security
       - SESSION_EXPIRE_HOURS=24

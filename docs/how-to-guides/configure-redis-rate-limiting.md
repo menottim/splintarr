@@ -4,7 +4,7 @@
 
 Rate limiting currently uses in-memory storage which is vulnerable to bypass with multiple workers.
 
-**File:** `src/vibe_quality_searcharr/main.py:54`
+**File:** `src/splintarr/main.py:54`
 ```python
 storage_uri="memory://",  # In-memory storage (use Redis in production for multiple workers)
 ```

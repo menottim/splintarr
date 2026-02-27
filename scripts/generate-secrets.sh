@@ -1,5 +1,5 @@
 #!/bin/bash
-# Generate secure secrets for Vibe-Quality-Searcharr
+# Generate secure secrets for Splintarr
 # This script generates cryptographically secure random secrets for:
 # - Database encryption (DATABASE_KEY)
 # - JWT token signing (SECRET_KEY)
@@ -68,7 +68,7 @@ validate_secret() {
 
 echo ""
 echo "================================================================"
-echo "  Vibe-Quality-Searcharr Secret Generation"
+echo "  Splintarr Secret Generation"
 echo "================================================================"
 echo ""
 
