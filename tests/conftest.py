@@ -1,5 +1,14 @@
 """Pytest configuration and fixtures."""
 
+import sys
+from pathlib import Path as _Path
+
+# Ensure the worktree's src directory is on sys.path so we test
+# the local code rather than any editable-installed copy.
+_worktree_src = str(_Path(__file__).resolve().parent.parent / "src")
+if _worktree_src not in sys.path:
+    sys.path.insert(0, _worktree_src)
+
 import os
 import secrets
 import tempfile

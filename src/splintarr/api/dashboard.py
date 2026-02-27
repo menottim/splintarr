@@ -594,6 +594,12 @@ async def dashboard_add_instance(
     api_key: str = Form(...),
 ) -> Response:
     """Add a new instance from the dashboard."""
+    if instance_type not in ("sonarr", "radarr"):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "Invalid instance type. Must be 'sonarr' or 'radarr'."},
+        )
+
     try:
         validate_instance_url(url, allow_local=settings.allow_local_instances)
     except (SSRFError, ValueError) as e:
@@ -725,8 +731,8 @@ async def dashboard_search_queue_detail(
 @router.get("/dashboard/search-history", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_search_history(
     request: Request,
-    page: int = 1,
-    per_page: int = 20,
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=20, ge=1, le=100),
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
 ) -> Response:
@@ -818,7 +824,7 @@ async def get_dashboard_stats(db: Session, user: User) -> dict[str, Any]:
         .filter(
             Instance.user_id == user.id,
             SearchQueue.is_active == True,  # noqa: E712
-            SearchQueue.status.in_(["pending", "running"]),
+            SearchQueue.status.in_(["pending", "in_progress"]),
         )
         .count()
     )
@@ -847,7 +853,7 @@ async def get_dashboard_stats(db: Session, user: User) -> dict[str, Any]:
         .join(Instance)
         .filter(
             Instance.user_id == user.id,
-            SearchHistory.status == "completed",
+            SearchHistory.status.in_(["success", "partial_success"]),
             SearchHistory.started_at >= week_ago,
         )
         .count()

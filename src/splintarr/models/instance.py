@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Literal
 from urllib.parse import urlparse, urlunparse
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -108,8 +108,8 @@ class Instance(Base):
 
     # Rate limiting (per-instance)
     rate_limit_per_second = Column(
-        Integer,
-        default=5,
+        Float,
+        default=5.0,
         nullable=False,
         comment="Maximum requests per second to this instance",
     )

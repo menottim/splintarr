@@ -215,7 +215,7 @@ class SearchQueueManager:
         Returns:
             dict: Execution results
         """
-        logger.info("executing_missing_strategy", instance_type=instance.type)
+        logger.info("executing_missing_strategy", instance_type=instance.instance_type)
 
         items_searched = 0
         items_found = 0
@@ -224,14 +224,14 @@ class SearchQueueManager:
 
         try:
             # Decrypt API key
-            api_key = decrypt_api_key(instance.encrypted_api_key)
+            api_key = decrypt_api_key(instance.api_key)
 
-            if instance.type == "sonarr":
+            if instance.instance_type == "sonarr":
                 async with SonarrClient(
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get all missing episodes
                     page = 1
@@ -273,10 +273,6 @@ class SearchQueueManager:
                                     "episode_search_failed", episode_id=episode_id, error=str(e)
                                 )
 
-                        # Check if there are more pages
-                        if page >= result.get("totalRecords", 0) / 50:
-                            break
-
                         page += 1
 
             else:  # radarr
@@ -284,7 +280,7 @@ class SearchQueueManager:
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get all missing movies
                     page = 1
@@ -323,10 +319,6 @@ class SearchQueueManager:
                             except Exception as e:
                                 errors.append(f"Movie {movie_id}: {str(e)}")
                                 logger.error("movie_search_failed", movie_id=movie_id, error=str(e))
-
-                        # Check if there are more pages
-                        if page >= result.get("totalRecords", 0) / 50:
-                            break
 
                         page += 1
 
@@ -367,7 +359,7 @@ class SearchQueueManager:
         Returns:
             dict: Execution results
         """
-        logger.info("executing_cutoff_strategy", instance_type=instance.type)
+        logger.info("executing_cutoff_strategy", instance_type=instance.instance_type)
 
         items_searched = 0
         items_found = 0
@@ -376,14 +368,14 @@ class SearchQueueManager:
 
         try:
             # Decrypt API key
-            api_key = decrypt_api_key(instance.encrypted_api_key)
+            api_key = decrypt_api_key(instance.api_key)
 
-            if instance.type == "sonarr":
+            if instance.instance_type == "sonarr":
                 async with SonarrClient(
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get all cutoff unmet episodes
                     page = 1
@@ -419,9 +411,6 @@ class SearchQueueManager:
                             except Exception as e:
                                 errors.append(f"Episode {episode_id}: {str(e)}")
 
-                        if page >= result.get("totalRecords", 0) / 50:
-                            break
-
                         page += 1
 
             else:  # radarr
@@ -429,7 +418,7 @@ class SearchQueueManager:
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get all cutoff unmet movies
                     page = 1
@@ -464,9 +453,6 @@ class SearchQueueManager:
 
                             except Exception as e:
                                 errors.append(f"Movie {movie_id}: {str(e)}")
-
-                        if page >= result.get("totalRecords", 0) / 50:
-                            break
 
                         page += 1
 
@@ -507,7 +493,7 @@ class SearchQueueManager:
         Returns:
             dict: Execution results
         """
-        logger.info("executing_recent_strategy", instance_type=instance.type)
+        logger.info("executing_recent_strategy", instance_type=instance.instance_type)
 
         # Recent strategy prioritizes newest missing items
         # Similar to missing strategy but with different sorting
@@ -518,14 +504,14 @@ class SearchQueueManager:
 
         try:
             # Decrypt API key
-            api_key = decrypt_api_key(instance.encrypted_api_key)
+            api_key = decrypt_api_key(instance.api_key)
 
-            if instance.type == "sonarr":
+            if instance.instance_type == "sonarr":
                 async with SonarrClient(
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get recent missing episodes (sorted by air date descending)
                     result = await client.get_wanted_missing(
@@ -566,14 +552,14 @@ class SearchQueueManager:
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
-                    # Get recent missing movies
+                    # Get recent missing movies (sorted by added date descending)
                     result = await client.get_wanted_missing(
                         page=1,
                         page_size=50,
-                        sort_key="title",
-                        sort_dir="ascending",
+                        sort_key="added",
+                        sort_dir="descending",
                     )
                     records = result.get("records", [])
 
@@ -637,7 +623,7 @@ class SearchQueueManager:
         Returns:
             dict: Execution results
         """
-        logger.info("executing_custom_strategy", instance_type=instance.type)
+        logger.info("executing_custom_strategy", instance_type=instance.instance_type)
 
         # Parse custom filters
         filters = {}
@@ -669,8 +655,13 @@ class SearchQueueManager:
 
         last_search = self._search_cooldowns[item_key]
         cooldown_end = last_search + timedelta(hours=cooldown_hours)
+        now = datetime.utcnow()
 
-        return datetime.utcnow() < cooldown_end
+        if now >= cooldown_end:
+            del self._search_cooldowns[item_key]
+            return False
+
+        return True
 
     def _set_cooldown(self, item_key: str) -> None:
         """
