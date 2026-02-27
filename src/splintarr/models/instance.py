@@ -143,6 +143,12 @@ class Instance(Base):
         cascade="all, delete-orphan",
         lazy="dynamic",
     )
+    library_items = relationship(
+        "LibraryItem",
+        back_populates="instance",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
 
     def __repr__(self) -> str:
         """String representation of Instance."""

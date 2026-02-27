@@ -227,6 +227,14 @@ class Settings(BaseSettings):
         le=20,
     )
 
+    # Library Sync Settings
+    library_sync_interval_hours: int = Field(
+        default=6,
+        description="Hours between automatic library syncs from Sonarr/Radarr",
+        ge=1,
+        le=168,
+    )
+
     def get_secret_key(self) -> str:
         """
         Retrieve secret key from file or environment variable.

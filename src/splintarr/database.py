@@ -308,6 +308,8 @@ def init_db() -> None:
         # Import all models to ensure they're registered with Base
         from splintarr.models import (  # noqa: F401
             Instance,
+            LibraryEpisode,
+            LibraryItem,
             RefreshToken,
             SearchHistory,
             SearchQueue,

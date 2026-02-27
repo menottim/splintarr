@@ -6,6 +6,7 @@ All models use the Base declarative base from database.py.
 """
 
 from splintarr.models.instance import Instance
+from splintarr.models.library import LibraryEpisode, LibraryItem
 from splintarr.models.search_history import SearchHistory
 from splintarr.models.search_queue import SearchQueue
 from splintarr.models.user import RefreshToken, User
@@ -17,4 +18,6 @@ __all__ = [
     "Instance",
     "SearchQueue",
     "SearchHistory",
+    "LibraryItem",
+    "LibraryEpisode",
 ]
