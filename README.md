@@ -29,7 +29,6 @@ During this vibe-coding exercise, I made every effort to implement security best
 ## Table of Contents
 
 - [Overview](#overview)
-- [Screenshots](#screenshots)
 - [Quick Start](#quick-start)
 - [Documentation](#documentation)
 - [Architecture Overview](#architecture-overview)
@@ -56,30 +55,6 @@ This tool is designed for **homelab enthusiasts** running personal Sonarr and Ra
 - **Local Authentication** -- Secure password storage with Argon2id hashing
 - **Configuration Drift Detection** -- Alerts when Sonarr or Radarr configuration changes
 - **Encrypted Database** -- AES-256 encryption via SQLCipher
-
----
-
-## Screenshots
-
-### Dashboard
-
-![Dashboard — overview of search queues, recent activity, and system status](docs/images/dashboard.png)
-
-### Instance Management
-
-![Add Instance — connect Sonarr or Radarr with URL and API key](docs/images/instances.png)
-
-### Search Queue Creation
-
-![Create Search Queue — choose instance, strategy, and schedule](docs/images/search-queues.png)
-
-### Settings
-
-![Settings — account info, password management, 2FA, and session control](docs/images/settings.png)
-
-### Login
-
-![Login — secure authentication with optional two-factor support](docs/images/login.png)
 
 ---
 
@@ -140,6 +115,14 @@ Documentation is organized following the [Diataxis](https://diataxis.fr/) framew
 
 - **[Release Notes v0.1.0-alpha](RELEASE_NOTES.md)** -- What is in this alpha release
 - **[Changelog](CHANGELOG.md)** -- Complete version history
+
+### Screenshots
+
+| Dashboard | Instance Management |
+|:-:|:-:|
+| ![Dashboard](docs/images/dashboard.png) | ![Instances](docs/images/instances.png) |
+| **Search Queues** | **Settings** |
+| ![Search Queues](docs/images/search-queues.png) | ![Settings](docs/images/settings.png) |
 
 ---
 
