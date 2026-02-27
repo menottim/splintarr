@@ -89,7 +89,9 @@
       "Bash(sleep 5 && docker-compose logs 2>&1)",
       "Bash(docker-compose logs:*)",
       "Bash(tail:*)",
-      "Bash(docker-compose down:*)"
+      "Bash(docker-compose down:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(git:*)"
     ]
   }
 }
