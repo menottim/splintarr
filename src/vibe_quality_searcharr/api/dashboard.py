@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from typing import Annotated, Any
 
 import structlog
-from fastapi import APIRouter, Cookie, Depends, Form, Request, Response, status
+from fastapi import APIRouter, Cookie, Depends, Form, Query, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
@@ -890,7 +890,7 @@ async def api_dashboard_stats(
 
 @router.get("/api/dashboard/activity", include_in_schema=False)
 async def api_dashboard_activity(
-    limit: int = 10,
+    limit: int = Query(10, ge=1, le=100),
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
 ) -> JSONResponse:

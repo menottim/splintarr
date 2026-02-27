@@ -349,6 +349,14 @@ class Settings(BaseSettings):
         # Fall back to environment variable
         return env_value
 
+    @field_validator("algorithm")
+    @classmethod
+    def validate_algorithm(cls, v: str) -> str:
+        """Constrain JWT algorithm to HS256 to prevent algorithm confusion attacks."""
+        if v != "HS256":
+            raise ValueError(f"Invalid JWT algorithm: {v}. Only 'HS256' is allowed.")
+        return v
+
     @field_validator("environment")
     @classmethod
     def validate_environment(cls, v: str) -> str:

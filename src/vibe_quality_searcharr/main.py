@@ -75,7 +75,7 @@ app.add_middleware(SlowAPIMiddleware)
 #   - allow_credentials: True for cookie-based authentication (requires explicit origins)
 #   - allow_methods: Limited to necessary HTTP methods (no TRACE, CONNECT)
 #   - allow_headers: "*" is safe here (browser sends, server validates)
-#   - expose_headers: "*" exposes response headers to JavaScript
+#   - expose_headers: [] restricts response headers visible to JavaScript
 #
 # Security Notes:
 #   1. NEVER use allow_origins=["*"] with allow_credentials=True (violates CORS spec)
@@ -90,7 +90,7 @@ if settings.cors_origins:
         allow_credentials=settings.cors_allow_credentials,
         allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
         allow_headers=["*"],
-        expose_headers=["*"],
+        expose_headers=[],
     )
     logger.info("cors_middleware_enabled", origins=settings.cors_origins)
 
@@ -112,9 +112,9 @@ async def add_security_headers(request: Request, call_next):
     Implements OWASP recommendations:
     - X-Content-Type-Options: nosniff
     - X-Frame-Options: DENY
-    - X-XSS-Protection: 1; mode=block
     - Strict-Transport-Security (HSTS) in production
     - Content-Security-Policy with nonce-based script protection
+    - Permissions-Policy to disable unused browser features
     """
     # Generate a per-request CSP nonce for inline scripts
     # Templates access this via {{ request.state.csp_nonce }}
@@ -142,7 +142,6 @@ async def add_security_headers(request: Request, call_next):
     # Basic security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
     # HSTS (only in production with HTTPS)
@@ -163,8 +162,10 @@ async def add_security_headers(request: Request, call_next):
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'",
+        "object-src 'none'",
     ]
     response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
 
     return response
 

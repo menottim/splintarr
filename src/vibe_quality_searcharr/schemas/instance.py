@@ -202,6 +202,25 @@ class InstanceUpdate(BaseModel):
         description="Maximum requests per minute to this instance (10-300)",
     )
 
+    @field_validator("url")
+    @classmethod
+    def validate_url_ssrf(cls, v: HttpUrl | None) -> HttpUrl | None:
+        """Validate URL against SSRF attacks if provided."""
+        if v is None:
+            return v
+
+        url_str = str(v)
+
+        try:
+            # Check for SSRF (respects allow_local_instances setting)
+            validate_instance_url(url_str, allow_local=settings.allow_local_instances)
+        except SSRFError as e:
+            raise ValueError(f"URL blocked for security: {e}") from e
+        except Exception as e:
+            raise ValueError(f"Invalid URL: {e}") from e
+
+        return v
+
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str | None) -> str | None:
