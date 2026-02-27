@@ -111,10 +111,14 @@ def client(db_session, test_settings) -> Generator[TestClient, None, None]:
     def mock_init_db():
         pass
 
-    # Patch both settings and init_db BEFORE importing app
+    # Patch settings, init_db, and test_database_connection.
+    # We patch both splintarr.database (canonical location) and splintarr.main
+    # (where the lifespan context manager references them via module-level imports).
     with patch("splintarr.config.settings", test_settings), \
          patch("splintarr.database.init_db", mock_init_db), \
-         patch("splintarr.database.test_database_connection", lambda: True):
+         patch("splintarr.database.test_database_connection", lambda: True), \
+         patch("splintarr.main.init_db", mock_init_db), \
+         patch("splintarr.main.test_database_connection", lambda: True):
 
         # Import app AFTER patching
         from splintarr.main import app

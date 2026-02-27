@@ -32,6 +32,7 @@ from splintarr.core.auth import (
     generate_totp_qr_code_base64,
     generate_totp_secret,
     generate_totp_uri,
+    get_current_user_from_cookie as get_current_user,
     get_current_user_id_from_token,
     revoke_all_user_tokens,
     revoke_refresh_token,
@@ -142,57 +143,6 @@ def clear_auth_cookies(response: Response) -> None:
     response.delete_cookie(key="refresh_token", path="/api/auth")
     response.delete_cookie(key="2fa_pending_token", path="/")
     logger.debug("auth_cookies_cleared")
-
-
-async def get_current_user(
-    access_token: Annotated[str | None, Cookie()] = None,
-    db: Session = Depends(get_db),
-) -> User:
-    """
-    Get current authenticated user from access_token cookie.
-
-    This dependency function is used by API endpoints that require authentication.
-    For dashboard/web pages, use get_current_user_from_cookie in dashboard.py.
-
-    Args:
-        access_token: Access token from cookie
-        db: Database session
-
-    Returns:
-        User: Current user object
-
-    Raises:
-        HTTPException: If not authenticated, user not found, or account inactive
-    """
-    if not access_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
-
-    try:
-        user_id = get_current_user_id_from_token(access_token)
-        user = db.query(User).filter(User.id == user_id).first()
-
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found",
-            )
-
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Account is inactive",
-            )
-
-        return user
-
-    except TokenError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication failed",
-        ) from e
 
 
 @router.post(

@@ -5,11 +5,13 @@ Main application entry point with:
 - FastAPI app initialization
 - Middleware configuration (CORS, rate limiting, security headers)
 - Router registration
-- Startup/shutdown event handlers
+- Lifespan context manager (startup/shutdown)
 - Database initialization
 """
 
 import secrets
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 import structlog
 from fastapi import FastAPI, HTTPException, Request, status
@@ -50,6 +52,70 @@ limiter = Limiter(
     # multiple workers, use Redis: storage_uri="redis://localhost:6379"
 )
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """
+    Application lifespan context manager.
+
+    Handles startup (database init, scheduler start) and shutdown
+    (scheduler stop, database close) in a single context manager,
+    replacing the deprecated @app.on_event decorators.
+    """
+    # --- Startup ---
+    try:
+        logger.info(
+            "application_starting",
+            environment=settings.environment,
+            log_level=settings.log_level,
+        )
+
+        # Initialize database
+        init_db()
+        logger.info("database_initialized")
+
+        # Test database connection
+        test_database_connection()
+        logger.info("database_connection_verified")
+
+        # Start search scheduler
+        try:
+            await start_scheduler(get_session_factory())
+            logger.info("search_scheduler_started")
+        except Exception as e:
+            logger.error("search_scheduler_start_failed", error=str(e))
+            # Don't fail startup if scheduler fails to start
+            # This allows the app to run in read-only mode for troubleshooting
+
+        logger.info("application_started")
+
+    except Exception as e:
+        logger.error("application_startup_failed", error=str(e))
+        raise
+
+    yield
+
+    # --- Shutdown ---
+    try:
+        logger.info("application_shutting_down")
+
+        # Stop search scheduler
+        try:
+            await stop_scheduler()
+            logger.info("search_scheduler_stopped")
+        except Exception as e:
+            logger.error("search_scheduler_stop_failed", error=str(e))
+
+        # Close database connections
+        close_db()
+        logger.info("database_connections_closed")
+
+        logger.info("application_shutdown_complete")
+
+    except Exception as e:
+        logger.error("application_shutdown_error", error=str(e))
+
+
 # Create FastAPI application
 app = FastAPI(
     title=settings.app_name,
@@ -58,6 +124,7 @@ app = FastAPI(
     docs_url="/api/docs" if settings.environment != "production" else None,
     redoc_url="/api/redoc" if settings.environment != "production" else None,
     openapi_url="/api/openapi.json" if settings.environment != "production" else None,
+    lifespan=lifespan,
 )
 
 # Add rate limiter to app state
@@ -179,71 +246,6 @@ app.include_router(auth.router)
 app.include_router(instances.router)
 app.include_router(search_queue.router)
 app.include_router(search_history.router)
-
-
-@app.on_event("startup")
-async def startup_event():
-    """
-    Application startup event handler.
-
-    Initializes database and tests connection.
-    """
-    try:
-        logger.info(
-            "application_starting",
-            environment=settings.environment,
-            log_level=settings.log_level,
-        )
-
-        # Initialize database
-        init_db()
-        logger.info("database_initialized")
-
-        # Test database connection
-        test_database_connection()
-        logger.info("database_connection_verified")
-
-        # Start search scheduler
-        try:
-            await start_scheduler(get_session_factory())
-            logger.info("search_scheduler_started")
-        except Exception as e:
-            logger.error("search_scheduler_start_failed", error=str(e))
-            # Don't fail startup if scheduler fails to start
-            # This allows the app to run in read-only mode for troubleshooting
-
-        logger.info("application_started")
-
-    except Exception as e:
-        logger.error("application_startup_failed", error=str(e))
-        raise
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """
-    Application shutdown event handler.
-
-    Closes database connections gracefully.
-    """
-    try:
-        logger.info("application_shutting_down")
-
-        # Stop search scheduler
-        try:
-            await stop_scheduler()
-            logger.info("search_scheduler_stopped")
-        except Exception as e:
-            logger.error("search_scheduler_stop_failed", error=str(e))
-
-        # Close database connections
-        close_db()
-        logger.info("database_connections_closed")
-
-        logger.info("application_shutdown_complete")
-
-    except Exception as e:
-        logger.error("application_shutdown_error", error=str(e))
 
 
 # Root endpoint removed - handled by dashboard.router
