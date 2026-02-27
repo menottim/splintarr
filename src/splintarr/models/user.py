@@ -8,7 +8,7 @@ for JWT refresh token tracking and revocation.
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -91,9 +91,9 @@ class User(Base):
 
     # Two-Factor Authentication (TOTP)
     totp_secret = Column(
-        String(32),
+        Text,
         nullable=True,
-        comment="Base32-encoded TOTP secret for 2FA (NULL if disabled)",
+        comment="Fernet-encrypted TOTP secret for 2FA (NULL if disabled)",
     )
     totp_enabled = Column(
         Boolean,

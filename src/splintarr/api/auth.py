@@ -39,7 +39,7 @@ from splintarr.core.auth import (
     verify_2fa_pending_token,
     verify_totp_code,
 )
-from splintarr.core.security import hash_password, verify_password
+from splintarr.core.security import decrypt_field, encrypt_field, hash_password, verify_password
 from splintarr.database import get_db
 from splintarr.models.user import User
 from splintarr.schemas.user import (
@@ -631,9 +631,9 @@ async def setup_2fa(
             detail="2FA is already enabled",
         )
 
-    # Generate and store secret (not yet enabled)
+    # Generate secret and encrypt before storing
     secret = generate_totp_secret()
-    user.totp_secret = secret
+    user.totp_secret = encrypt_field(secret)
     db.commit()
 
     uri = generate_totp_uri(secret, user.username)
@@ -697,7 +697,7 @@ async def verify_2fa(
             detail="2FA setup not initiated. Call /2fa/setup first.",
         )
 
-    if not verify_totp_code(user.totp_secret, verify_data.code):
+    if not verify_totp_code(decrypt_field(user.totp_secret), verify_data.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid TOTP code",
@@ -762,7 +762,7 @@ async def login_verify_2fa(
             detail="2FA is not enabled for this account",
         )
 
-    if not verify_totp_code(user.totp_secret, verify_data.code):
+    if not verify_totp_code(decrypt_field(user.totp_secret), verify_data.code):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid TOTP code",
@@ -867,7 +867,7 @@ async def disable_2fa(
         )
 
     # Verify TOTP code
-    if not verify_totp_code(user.totp_secret, disable_data.code):
+    if not verify_totp_code(decrypt_field(user.totp_secret), disable_data.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid TOTP code",
