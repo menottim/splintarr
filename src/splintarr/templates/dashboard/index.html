@@ -34,6 +34,16 @@
             <small id="stat-searches-detail">{{ stats.searches.this_week }} this week &middot; {{ stats.searches.success_rate }}% success rate</small>
         </article>
     </a>
+
+    <a href="/dashboard/library" style="text-decoration: none; color: inherit;">
+        <article>
+            <hgroup>
+                <h2 id="stat-library-total">-</h2>
+                <p>Library Items</p>
+            </hgroup>
+            <small id="stat-library-detail">Loading...</small>
+        </article>
+    </a>
 </div>
 
 <!-- Recent Activity -->
@@ -99,6 +109,7 @@
 <div class="grid">
     <article>
         <h4>Quick Actions</h4>
+        <p><a href="/dashboard/library">Browse Library</a></p>
         <p><a href="/dashboard/search-queues">Create Search Queue</a></p>
         <p><a href="/dashboard/instances">Add Instance</a></p>
         <p><a href="/dashboard/search-history">View History</a></p>
@@ -142,6 +153,23 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+// Load library stats on page load
+(async function() {
+    try {
+        var response = await fetch('/api/library/stats');
+        if (response.ok) {
+            var data = await response.json();
+            var total = document.getElementById('stat-library-total');
+            var detail = document.getElementById('stat-library-detail');
+            if (total) total.textContent = data.total_items;
+            if (detail) detail.textContent = data.complete_count + ' complete \u00b7 ' + data.missing_count + ' missing';
+        }
+    } catch (e) {
+        var detail = document.getElementById('stat-library-detail');
+        if (detail) detail.textContent = 'Not available';
+    }
+})();
+
 // Auto-refresh stats every 30 seconds
 setInterval(async () => {
     try {
