@@ -35,7 +35,7 @@
         <div>
             <dl>
                 <dt>Instance</dt>
-                <dd>{{ queue.instance.name }} ({{ queue.instance.instance_type }})</dd>
+                <dd><a href="/dashboard/instances">{{ queue.instance.name }}</a> ({{ queue.instance.instance_type }})</dd>
 
                 <dt>Strategy</dt>
                 <dd><code>{{ queue.strategy }}</code></dd>
@@ -90,7 +90,7 @@
     {% else %}
     <button class="secondary" data-action="pause-queue" data-id="{{ queue.id }}">Pause</button>
     {% endif %}
-    <button class="secondary" data-action="start-queue" data-id="{{ queue.id }}">Start Now</button>
+    <button class="secondary" data-action="start-queue" data-id="{{ queue.id }}" {% if queue.status == 'in_progress' %}disabled aria-busy="true"{% endif %}>{% if queue.status == 'in_progress' %}Running...{% else %}Start Now{% endif %}</button>
     <button class="secondary" style="color: var(--del-color);" data-action="delete-queue" data-id="{{ queue.id }}" data-name="{{ queue.name }}">Delete</button>
     <a href="/dashboard/search-queues" role="button" class="secondary" style="margin-left: auto;">Back to Queues</a>
 </div>
@@ -116,10 +116,10 @@
                 <tr>
                     <td><small>{{ entry.started_at|timeago }}</small></td>
                     <td>
-                        {% if entry.status == 'completed' %}
-                        <span style="color: var(--ins-color);">Completed</span>
-                        {% elif entry.status == 'running' %}
-                        <span style="color: var(--primary);">Running</span>
+                        {% if entry.status == 'success' %}
+                        <span style="color: var(--ins-color);">Success</span>
+                        {% elif entry.status == 'partial_success' %}
+                        <span style="color: var(--brand-warning);">Partial</span>
                         {% elif entry.status == 'failed' %}
                         <span style="color: var(--del-color);">Failed</span>
                         {% else %}
@@ -190,35 +190,64 @@ async function resumeQueue(queueId) {
 
 async function startQueue(queueId) {
     try {
-        const btn = document.querySelector('[data-action="start-queue"]');
+        var btn = document.querySelector('[data-action="start-queue"]');
         btn.setAttribute('aria-busy', 'true');
         btn.disabled = true;
+        btn.textContent = 'Running...';
 
-        const response = await fetch(`/api/search-queues/${queueId}/start`, { method: 'POST' });
-        const data = await response.json();
+        var response = await fetch('/api/search-queues/' + queueId + '/start', { method: 'POST' });
+        var data = await response.json();
 
         if (response.ok) {
             showNotification(data.message || 'Search started', 'success');
-            setTimeout(() => location.reload(), 1500);
+            pollQueueStatus(queueId);
+        } else if (response.status === 409) {
+            showNotification('Search is already running');
+            pollQueueStatus(queueId);
         } else {
             showNotification('Failed to start: ' + (data.detail || 'Unknown error'));
             btn.setAttribute('aria-busy', 'false');
             btn.disabled = false;
+            btn.textContent = 'Start Now';
         }
     } catch (error) {
         showNotification('Failed to start: ' + error.message);
     }
 }
 
+function pollQueueStatus(queueId) {
+    var interval = setInterval(async function() {
+        try {
+            var response = await fetch('/api/search-queues/' + queueId + '/status');
+            if (!response.ok) { clearInterval(interval); return; }
+            var data = await response.json();
+            if (data.status !== 'in_progress') {
+                clearInterval(interval);
+                location.reload();
+            }
+        } catch (e) {
+            clearInterval(interval);
+        }
+    }, 3000);
+}
+
+// Auto-poll if page loads while queue is in_progress
+(function() {
+    var btn = document.querySelector('[data-action="start-queue"]');
+    if (btn && btn.disabled) {
+        pollQueueStatus({{ queue.id }});
+    }
+})();
+
 async function deleteQueue(queueId, name) {
-    if (!confirm(`Are you sure you want to delete queue "${name}"?`)) return;
+    if (!confirm('Are you sure you want to delete queue "' + name + '"?')) return;
 
     try {
-        const response = await fetch(`/api/search-queues/${queueId}`, { method: 'DELETE' });
+        var response = await fetch('/api/search-queues/' + queueId, { method: 'DELETE' });
         if (response.ok) {
             window.location.href = '/dashboard/search-queues';
         } else {
-            const data = await response.json();
+            var data = await response.json();
             showNotification('Delete failed: ' + (data.detail || 'Unknown error'));
         }
     } catch (error) {

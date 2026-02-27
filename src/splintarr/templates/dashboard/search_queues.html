@@ -19,7 +19,7 @@
     <article>
         <header>
             <h3>
-                {{ queue.name }}
+                <a href="/dashboard/search-queues/{{ queue.id }}" style="text-decoration: none; color: inherit;">{{ queue.name }}</a>
                 {% if not queue.is_active %}
                 <small style="color: var(--muted-color);">⏸ Paused</small>
                 {% elif queue.status == 'failed' %}
@@ -36,7 +36,7 @@
 
         <dl>
             <dt>Instance</dt>
-            <dd>{{ queue.instance.name }}</dd>
+            <dd><a href="/dashboard/instances">{{ queue.instance.name }}</a></dd>
 
             <dt>Strategy</dt>
             <dd><code>{{ queue.strategy }}</code></dd>

@@ -227,6 +227,8 @@ class SearchHistory(Base):
         self.completed_at = datetime.utcnow()
         self.status = "failed"
         self.error_message = error
+        if self.errors_encountered is None:
+            self.errors_encountered = 0
         self.errors_encountered += 1
 
         # Calculate duration

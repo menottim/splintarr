@@ -11,7 +11,7 @@ This module provides REST API endpoints for managing search queues:
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
@@ -442,6 +442,22 @@ async def delete_search_queue(
         )
 
 
+async def _run_search_queue_background(queue_id: int) -> None:
+    """Background task to execute a search queue."""
+    try:
+        queue_manager = SearchQueueManager(get_session_factory())
+        result = await queue_manager.execute_queue(queue_id)
+        logger.info(
+            "search_queue_background_completed",
+            queue_id=queue_id,
+            status=result.get("status"),
+            items_searched=result.get("items_searched", 0),
+            items_found=result.get("items_found", 0),
+        )
+    except Exception as e:
+        logger.error("search_queue_background_failed", queue_id=queue_id, error=str(e))
+
+
 @router.post(
     "/{queue_id}/start",
     response_model=MessageResponse,
@@ -452,13 +468,15 @@ async def delete_search_queue(
 async def start_search_queue(
     request: Request,
     queue_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """
     Start search queue immediately.
 
-    Triggers immediate execution regardless of schedule.
+    Triggers execution as a background task and returns immediately.
+    The queue status can be polled via GET /{queue_id}/status.
     """
     try:
         queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
@@ -467,6 +485,13 @@ async def start_search_queue(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Search queue {queue_id} not found",
+            )
+
+        # Prevent starting a search that's already in progress
+        if queue.status == "in_progress":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Search queue is already running",
             )
 
         # Verify instance belongs to user
@@ -485,20 +510,20 @@ async def start_search_queue(
                 detail="Access denied to this search queue",
             )
 
-        queue_manager = SearchQueueManager(get_session_factory())
-        result = await queue_manager.execute_queue(queue_id)
+        # Mark as in_progress immediately so the UI reflects the state
+        queue.mark_in_progress()
+        db.commit()
+
+        # Run the search in the background
+        background_tasks.add_task(_run_search_queue_background, queue_id)
 
         logger.info(
             "search_queue_started_manually",
             queue_id=queue_id,
             user_id=current_user.id,
-            status=result.get("status"),
         )
 
-        return MessageResponse(
-            message=f"Search queue started: {result['status']} "
-            f"({result['items_found']}/{result['items_searched']} items found)"
-        )
+        return MessageResponse(message="Search queue started")
 
     except HTTPException:
         raise

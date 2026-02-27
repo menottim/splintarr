@@ -26,10 +26,10 @@
             <tbody>
                 {% for item in history %}
                 <tr>
-                    <td>{{ item.instance.name }}</td>
+                    <td><a href="/dashboard/instances">{{ item.instance.name }}</a></td>
                     <td>
                         {% if item.search_queue %}
-                        {{ item.search_queue.name }}
+                        <a href="/dashboard/search-queues/{{ item.search_queue.id }}">{{ item.search_queue.name }}</a>
                         {% else %}
                         <span style="color: var(--muted-color);">Manual</span>
                         {% endif %}

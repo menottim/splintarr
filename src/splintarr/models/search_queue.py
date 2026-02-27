@@ -230,6 +230,8 @@ class SearchQueue(Base):
         """
         self.status = "failed"
         self.error_message = error
+        if self.consecutive_failures is None:
+            self.consecutive_failures = 0
         self.consecutive_failures += 1
 
         # Deactivate after too many consecutive failures
