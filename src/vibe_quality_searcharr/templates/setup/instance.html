@@ -129,15 +129,15 @@ async function testConnection() {
             const itemLabel = instanceType === 'sonarr' ? 'Series' : 'Movies';
             let countLine;
             if (data.items_count != null) {
-                countLine = `${itemLabel}: ${data.items_count}`;
+                countLine = `${escapeHtml(itemLabel)}: ${escapeHtml(data.items_count)}`;
             } else {
-                countLine = `${itemLabel} count: unavailable <small>(library count could not be retrieved, but the connection is working)</small>`;
+                countLine = `${escapeHtml(itemLabel)} count: unavailable <small>(library count could not be retrieved, but the connection is working)</small>`;
             }
-            const infoLine = data.instance_info ? `<br>Instance: ${data.instance_info}` : '';
+            const infoLine = data.instance_info ? `<br>Instance: ${escapeHtml(data.instance_info)}` : '';
             testResult.innerHTML = `
                 <div class="alert alert-success" style="margin-top: 1rem;">
                     <strong>✓ Connection successful!</strong><br>
-                    Version: ${data.version || 'Unknown'}${infoLine}<br>
+                    Version: ${escapeHtml(data.version || 'Unknown')}${infoLine}<br>
                     ${countLine}
                 </div>
             `;
@@ -153,7 +153,7 @@ async function testConnection() {
             errorMsg = errorMsg || 'Unknown error';
             testResult.innerHTML = `
                 <div class="alert alert-danger" style="margin-top: 1rem;">
-                    <strong>✗ Connection failed:</strong> ${errorMsg}<br>
+                    <strong>✗ Connection failed:</strong> ${escapeHtml(errorMsg)}<br>
                     <small>Check the <strong>Docker Networking Tip</strong> under the URL field if you're running inside Docker</small>
                 </div>
             `;
@@ -161,7 +161,7 @@ async function testConnection() {
     } catch (error) {
         testResult.innerHTML = `
             <div class="alert alert-danger" style="margin-top: 1rem;">
-                <strong>✗ Connection failed:</strong> ${error.message}<br>
+                <strong>✗ Connection failed:</strong> ${escapeHtml(error.message)}<br>
                 <small>See the <strong>Docker Networking Tip</strong> above if you're running inside Docker</small>
             </div>
         `;

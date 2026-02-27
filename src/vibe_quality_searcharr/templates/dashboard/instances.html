@@ -261,22 +261,22 @@ document.getElementById('addTestBtn').addEventListener('click', async function()
         if (response.ok && data.success) {
             const itemLabel = instanceType === 'sonarr' ? 'Series' : 'Movies';
             const countText = data.items_count != null ? data.items_count : 'N/A';
-            const infoLine = data.instance_info ? `<br>Instance: ${data.instance_info}` : '';
+            const infoLine = data.instance_info ? `<br>Instance: ${escapeHtml(data.instance_info)}` : '';
             resultDiv.innerHTML = `
                 <div class="alert alert-success">
                     <strong>Connection successful!</strong><br>
-                    Version: ${data.version || 'Unknown'}${infoLine}<br>
-                    ${itemLabel}: ${countText}
+                    Version: ${escapeHtml(data.version || 'Unknown')}${infoLine}<br>
+                    ${escapeHtml(itemLabel)}: ${escapeHtml(countText)}
                 </div>`;
         } else {
             let errorMsg = data.message || '';
             if (!errorMsg && data.detail) {
                 errorMsg = Array.isArray(data.detail) ? data.detail.map(e => e.msg || e).join('; ') : data.detail;
             }
-            resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${errorMsg || 'Unknown error'}</div>`;
+            resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${escapeHtml(errorMsg || 'Unknown error')}</div>`;
         }
     } catch (error) {
-        resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${error.message}</div>`;
+        resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${escapeHtml(error.message)}</div>`;
     }
 });
 
@@ -305,12 +305,12 @@ document.getElementById('addInstanceForm').addEventListener('submit', async func
                 const data = JSON.parse(text);
                 errorMsg = data.detail || data.error || errorMsg;
             } catch { errorMsg = text || errorMsg; }
-            document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${errorMsg}</div>`;
+            document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${escapeHtml(errorMsg)}</div>`;
             btn.disabled = false;
             btn.setAttribute('aria-busy', 'false');
         }
     } catch (error) {
-        document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+        document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${escapeHtml(error.message)}</div>`;
         btn.disabled = false;
         btn.setAttribute('aria-busy', 'false');
     }

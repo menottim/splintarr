@@ -185,6 +185,13 @@ function validateUsername(username) {
     return errors;
 }
 
+// Sanitize a string for safe insertion into innerHTML
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 // Export functions for use in templates
 window.QualitySearcharr = {
     apiCall,
@@ -193,6 +200,7 @@ window.QualitySearcharr = {
     formatTimeAgo,
     validatePassword,
     validateUsername,
+    escapeHtml,
     AutoRefresh,
 };
 
