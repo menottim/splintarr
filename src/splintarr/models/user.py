@@ -101,6 +101,11 @@ class User(Base):
         nullable=False,
         comment="Whether two-factor authentication is enabled",
     )
+    totp_last_used_counter = Column(
+        Integer,
+        nullable=True,
+        comment="TOTP time-step counter of last used code (replay protection)",
+    )
 
     # Timestamps
     created_at = Column(

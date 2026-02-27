@@ -31,6 +31,7 @@ from tenacity import (
 )
 
 from splintarr.config import settings
+from splintarr.core.ssrf_protection import SSRFError, validate_instance_url
 
 logger = structlog.get_logger()
 
@@ -144,7 +145,7 @@ class SonarrClient:
             self._client = httpx.AsyncClient(
                 timeout=httpx.Timeout(self.timeout),
                 verify=self.verify_ssl,
-                follow_redirects=True,  # httpx strips sensitive headers on cross-origin redirects
+                follow_redirects=False,  # Disabled: prevents X-Api-Key leaking to redirect targets
                 headers={
                     "X-Api-Key": self.api_key,
                     "User-Agent": f"{settings.app_name}/0.1.0",
@@ -213,6 +214,22 @@ class SonarrClient:
         await self._ensure_client()
         await self._rate_limit()
 
+        # Re-validate URL against SSRF immediately before each request to prevent
+        # DNS rebinding attacks (TOCTOU: DNS may resolve differently than at config time)
+        try:
+            validate_instance_url(
+                self.url, allow_local=settings.allow_local_instances
+            )
+        except SSRFError as e:
+            logger.error(
+                "sonarr_ssrf_blocked",
+                url=self.url,
+                error=str(e),
+            )
+            raise SonarrConnectionError(
+                f"SSRF protection blocked request to {self.url}: {e}"
+            ) from e
+
         url = f"{self.url}{endpoint}"
 
         try:
@@ -244,6 +261,20 @@ class SonarrClient:
             if response.status_code == 429:
                 logger.warning("sonarr_rate_limit_exceeded", url=self.url)
                 raise SonarrRateLimitError("Rate limit exceeded")
+
+            # Handle redirects (don't follow — prevents API key leaking to redirect target)
+            if 300 <= response.status_code < 400:
+                location = response.headers.get("Location", "unknown")
+                logger.warning(
+                    "sonarr_redirect_not_followed",
+                    url=self.url,
+                    location=location,
+                    status_code=response.status_code,
+                )
+                raise SonarrConnectionError(
+                    f"Instance returned redirect ({response.status_code}) to {location}. "
+                    "Check the instance URL configuration."
+                )
 
             # Handle client errors (4xx)
             if 400 <= response.status_code < 500:
@@ -289,6 +320,9 @@ class SonarrClient:
                 error=str(e),
             )
             raise SonarrAPIError(f"HTTP error: {e}") from e
+
+        except SonarrError:
+            raise
 
         except Exception as e:
             logger.error("sonarr_unexpected_error", url=self.url, error=str(e))

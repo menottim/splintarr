@@ -553,17 +553,19 @@ class TestTwoFactorAuth:
         totp = pyotp.TOTP(secret)
         code = totp.now()
 
-        result = verify_totp_code(secret, code)
+        is_valid, used_counter = verify_totp_code(secret, code)
 
-        assert result is True
+        assert is_valid is True
+        assert used_counter is not None
 
     def test_verify_totp_code_invalid(self):
         """Test verifying invalid TOTP code."""
         secret = pyotp.random_base32()
 
-        result = verify_totp_code(secret, "000000")
+        is_valid, used_counter = verify_totp_code(secret, "000000")
 
-        assert result is False
+        assert is_valid is False
+        assert used_counter is None
 
     def test_verify_totp_code_with_time_window(self):
         """Test verifying TOTP code with time window."""
@@ -576,11 +578,11 @@ class TestTwoFactorAuth:
             old_code = totp.now()
 
         # Should still be valid due to time window (valid_window=1)
-        result = verify_totp_code(secret, old_code)
+        is_valid, used_counter = verify_totp_code(secret, old_code)
 
         # This might fail if we're right at the boundary, so we'll accept both
         # In production, the time window allows for clock drift
-        assert isinstance(result, bool)
+        assert isinstance(is_valid, bool)
 
 
 class TestTwoFactorPendingToken:

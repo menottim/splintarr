@@ -17,7 +17,6 @@ from typing import Annotated
 import structlog
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from splintarr.config import settings
@@ -25,6 +24,7 @@ from splintarr.core.auth import (
     AuthenticationError,
     TokenError,
     authenticate_user,
+    blacklist_2fa_pending_token,
     blacklist_access_token,
     create_2fa_pending_token,
     create_access_token,
@@ -39,6 +39,7 @@ from splintarr.core.auth import (
     verify_2fa_pending_token,
     verify_totp_code,
 )
+from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.core.security import decrypt_field, encrypt_field, hash_password, verify_password
 from splintarr.database import get_db
 from splintarr.models.user import User
@@ -57,7 +58,7 @@ from splintarr.schemas.user import (
 logger = structlog.get_logger()
 
 # Initialize rate limiter
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=rate_limit_key_func)
 
 # Create router
 router = APIRouter(
@@ -68,10 +69,10 @@ router = APIRouter(
 
 def get_client_ip(request: Request) -> str:
     """
-    Extract client IP address from request.
+    Extract client IP address from request for logging purposes.
 
-    Only trusts X-Forwarded-For in production (where a reverse proxy is expected).
-    In development/test, uses the direct client IP to prevent spoofing.
+    Delegates to the shared rate_limit_key_func to ensure consistent
+    IP extraction logic between rate limiting and audit logging.
 
     Args:
         request: FastAPI request object
@@ -79,14 +80,7 @@ def get_client_ip(request: Request) -> str:
     Returns:
         str: Client IP address
     """
-    # Only trust X-Forwarded-For when behind a reverse proxy (production)
-    # In development, attackers can spoof this header to bypass rate limiting
-    if settings.environment == "production":
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            # Take the first IP (client IP set by the reverse proxy)
-            return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    return rate_limit_key_func(request)
 
 
 def set_auth_cookies(
@@ -697,14 +691,18 @@ async def verify_2fa(
             detail="2FA setup not initiated. Call /2fa/setup first.",
         )
 
-    if not verify_totp_code(decrypt_field(user.totp_secret), verify_data.code):
+    is_valid, used_counter = verify_totp_code(
+        decrypt_field(user.totp_secret), verify_data.code, user.totp_last_used_counter
+    )
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid TOTP code",
         )
 
-    # Enable 2FA
+    # Enable 2FA and record used counter for replay protection
     user.totp_enabled = True
+    user.totp_last_used_counter = used_counter
     db.commit()
 
     logger.info("2fa_enabled", user_id=user.id)
@@ -756,19 +754,53 @@ async def login_verify_2fa(
             detail="Authentication failed",
         )
 
+    # Check account lockout before TOTP verification (fixes #14)
+    if user.is_locked():
+        logger.warning(
+            "2fa_login_rejected_account_locked",
+            user_id=user.id,
+            locked_until=str(user.account_locked_until),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Account is temporarily locked due to too many failed attempts",
+        )
+
     if not user.totp_secret or not user.totp_enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="2FA is not enabled for this account",
         )
 
-    if not verify_totp_code(decrypt_field(user.totp_secret), verify_data.code):
+    is_valid, used_counter = verify_totp_code(
+        decrypt_field(user.totp_secret), verify_data.code, user.totp_last_used_counter
+    )
+    if not is_valid:
+        # Track failed TOTP attempt for per-account lockout (fixes #14)
+        user.increment_failed_login(
+            max_attempts=settings.max_failed_login_attempts,
+            lockout_duration_minutes=settings.account_lockout_duration_minutes,
+        )
+        db.commit()
+        logger.warning(
+            "2fa_login_invalid_totp",
+            user_id=user.id,
+            failed_attempts=user.failed_login_attempts,
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid TOTP code",
         )
 
-    # 2FA passed — issue full tokens
+    # 2FA passed — blacklist the pending token to prevent replay attacks
+    blacklist_2fa_pending_token(pending_token)
+
+    # Reset failed attempt counter and record used TOTP counter
+    user.reset_failed_login()
+    user.totp_last_used_counter = used_counter
+    db.commit()
+
+    # Issue full tokens
     ip_address = get_client_ip(request)
     access_token = create_access_token(user.id, user.username)
     user_agent = request.headers.get("User-Agent", "unknown")
@@ -867,15 +899,19 @@ async def disable_2fa(
         )
 
     # Verify TOTP code
-    if not verify_totp_code(decrypt_field(user.totp_secret), disable_data.code):
+    is_valid, used_counter = verify_totp_code(
+        decrypt_field(user.totp_secret), disable_data.code, user.totp_last_used_counter
+    )
+    if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid TOTP code",
         )
 
-    # Clear secret and disable
+    # Clear secret, counter, and disable
     user.totp_secret = None
     user.totp_enabled = False
+    user.totp_last_used_counter = None
     db.commit()
 
     logger.info("2fa_disabled", user_id=user.id)

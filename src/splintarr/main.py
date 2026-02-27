@@ -21,11 +21,11 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from slowapi.util import get_remote_address
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from splintarr.api import auth, dashboard, instances, search_history, search_queue
 from splintarr.config import settings
+from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import (
     close_db,
     database_health_check,
@@ -42,7 +42,7 @@ logger = structlog.get_logger(__name__)
 
 # Initialize rate limiter
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=rate_limit_key_func,
     default_limits=[f"{settings.rate_limit_per_minute}/minute"],
     storage_uri="memory://",  # WARNING: In-memory storage does not share state across workers.
     # With workers > 1, each worker has independent rate counters, effectively
