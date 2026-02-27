@@ -31,6 +31,7 @@ from tenacity import (
 )
 
 from splintarr.config import settings
+from splintarr.core.ssrf_protection import SSRFError, validate_instance_url
 
 logger = structlog.get_logger()
 
@@ -212,6 +213,22 @@ class RadarrClient:
         """
         await self._ensure_client()
         await self._rate_limit()
+
+        # Re-validate URL against SSRF immediately before each request to prevent
+        # DNS rebinding attacks (TOCTOU: DNS may resolve differently than at config time)
+        try:
+            validate_instance_url(
+                self.url, allow_local=settings.allow_local_instances
+            )
+        except SSRFError as e:
+            logger.error(
+                "radarr_ssrf_blocked",
+                url=self.url,
+                error=str(e),
+            )
+            raise RadarrConnectionError(
+                f"SSRF protection blocked request to {self.url}: {e}"
+            ) from e
 
         url = f"{self.url}{endpoint}"
 
