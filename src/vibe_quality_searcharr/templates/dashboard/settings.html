@@ -80,8 +80,49 @@
     <p>
         <small>Add an extra layer of security to your account by requiring a code from your authenticator app during login.</small>
     </p>
-    <button disabled class="secondary" style="opacity: 0.5; cursor: not-allowed;">Enable 2FA</button>
-    <small style="display: block; margin-top: 0.5rem; color: var(--muted-color);">Coming soon in a future release.</small>
+    <p>
+        <small style="color: var(--muted-color);">
+            <strong>Note:</strong> This 2FA implementation is AI-generated and has not been independently verified by security experts.
+            See the <a href="https://github.com/menottim/vibe-quality-searcharr#ai-generated-code-warning" target="_blank" rel="noopener">project README</a> for details.
+        </small>
+    </p>
+
+    {% if user.totp_enabled %}
+    <p><mark>Enabled</mark></p>
+    <details>
+        <summary role="button" class="secondary outline" style="color: var(--del-color);">Disable 2FA</summary>
+        <form id="disable2faForm" style="margin-top: 1rem;">
+            <label for="disable_2fa_password">
+                Password
+                <input type="password" id="disable_2fa_password" required autocomplete="current-password">
+            </label>
+            <label for="disable_2fa_code">
+                Authenticator Code
+                <input type="text" id="disable_2fa_code" required inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="Enter 6-digit code" autocomplete="one-time-code">
+            </label>
+            <button type="submit" id="disable2faBtn" style="color: var(--del-color);">Disable 2FA</button>
+        </form>
+    </details>
+    {% else %}
+    <div id="setup2faSection">
+        <button id="enable2faBtn" class="secondary">Enable 2FA</button>
+    </div>
+    <div id="setup2faQR" style="display: none;">
+        <p><strong>Scan this QR code with your authenticator app:</strong></p>
+        <img id="qrCodeImg" alt="TOTP QR Code" style="max-width: 256px; margin: 1rem 0;">
+        <details>
+            <summary>Manual entry key</summary>
+            <code id="manualSecret" style="word-break: break-all;"></code>
+        </details>
+        <form id="verify2faForm" style="margin-top: 1rem;">
+            <label for="verify_2fa_code">
+                Enter the code from your authenticator app to verify:
+                <input type="text" id="verify_2fa_code" required inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="Enter 6-digit code" autocomplete="one-time-code">
+            </label>
+            <button type="submit" id="verify2faBtn">Verify and Enable</button>
+        </form>
+    </div>
+    {% endif %}
 </article>
 
 <!-- Danger Zone -->
@@ -150,6 +191,118 @@ document.getElementById('changePasswordForm').addEventListener('submit', async (
         submitBtn.setAttribute('aria-busy', 'false');
     }
 });
+
+// 2FA setup
+var enable2faBtn = document.getElementById('enable2faBtn');
+if (enable2faBtn) {
+    enable2faBtn.addEventListener('click', async function() {
+        enable2faBtn.disabled = true;
+        enable2faBtn.setAttribute('aria-busy', 'true');
+
+        try {
+            var response = await fetch('/api/auth/2fa/setup', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                var data = await response.json();
+                document.getElementById('qrCodeImg').src = data.qr_code_data_uri;
+                document.getElementById('manualSecret').textContent = data.secret;
+                document.getElementById('setup2faSection').style.display = 'none';
+                document.getElementById('setup2faQR').style.display = 'block';
+                document.getElementById('verify_2fa_code').focus();
+            } else {
+                var data = await response.json();
+                alert('Failed to setup 2FA: ' + (data.detail || 'Unknown error'));
+                enable2faBtn.disabled = false;
+                enable2faBtn.setAttribute('aria-busy', 'false');
+            }
+        } catch (error) {
+            alert('Failed to setup 2FA: ' + error.message);
+            enable2faBtn.disabled = false;
+            enable2faBtn.setAttribute('aria-busy', 'false');
+        }
+    });
+}
+
+// 2FA verify (complete setup)
+var verify2faForm = document.getElementById('verify2faForm');
+if (verify2faForm) {
+    verify2faForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        var submitBtn = document.getElementById('verify2faBtn');
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+
+        var code = document.getElementById('verify_2fa_code').value;
+
+        try {
+            var response = await fetch('/api/auth/2fa/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code })
+            });
+
+            if (response.ok) {
+                alert('Two-factor authentication enabled successfully!');
+                window.location.reload();
+            } else {
+                var data = await response.json();
+                alert('Verification failed: ' + (data.detail || 'Invalid code'));
+                submitBtn.disabled = false;
+                submitBtn.setAttribute('aria-busy', 'false');
+                document.getElementById('verify_2fa_code').value = '';
+                document.getElementById('verify_2fa_code').focus();
+            }
+        } catch (error) {
+            alert('Verification failed: ' + error.message);
+            submitBtn.disabled = false;
+            submitBtn.setAttribute('aria-busy', 'false');
+        }
+    });
+}
+
+// 2FA disable
+var disable2faForm = document.getElementById('disable2faForm');
+if (disable2faForm) {
+    disable2faForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (!confirm('Are you sure you want to disable two-factor authentication?')) {
+            return;
+        }
+
+        var submitBtn = document.getElementById('disable2faBtn');
+        submitBtn.disabled = true;
+        submitBtn.setAttribute('aria-busy', 'true');
+
+        var password = document.getElementById('disable_2fa_password').value;
+        var code = document.getElementById('disable_2fa_code').value;
+
+        try {
+            var response = await fetch('/api/auth/2fa/disable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: password, code: code })
+            });
+
+            if (response.ok) {
+                alert('Two-factor authentication disabled.');
+                window.location.reload();
+            } else {
+                var data = await response.json();
+                alert('Failed to disable 2FA: ' + (data.detail || 'Unknown error'));
+                submitBtn.disabled = false;
+                submitBtn.setAttribute('aria-busy', 'false');
+            }
+        } catch (error) {
+            alert('Failed to disable 2FA: ' + error.message);
+            submitBtn.disabled = false;
+            submitBtn.setAttribute('aria-busy', 'false');
+        }
+    });
+}
 
 async function logoutAllSessions() {
     if (!confirm('Are you sure you want to logout all sessions?\n\nYou will need to log in again on all devices.')) {

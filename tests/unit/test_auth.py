@@ -18,14 +18,17 @@ from vibe_quality_searcharr.core.auth import (
     TokenError,
     authenticate_user,
     cleanup_expired_tokens,
+    create_2fa_pending_token,
     create_access_token,
     create_refresh_token,
+    generate_totp_qr_code_base64,
     generate_totp_secret,
     generate_totp_uri,
     get_current_user_id_from_token,
     revoke_all_user_tokens,
     revoke_refresh_token,
     rotate_refresh_token,
+    verify_2fa_pending_token,
     verify_access_token,
     verify_refresh_token,
     verify_totp_code,
@@ -578,6 +581,77 @@ class TestTwoFactorAuth:
         # This might fail if we're right at the boundary, so we'll accept both
         # In production, the time window allows for clock drift
         assert isinstance(result, bool)
+
+
+class TestTwoFactorPendingToken:
+    """Tests for 2FA pending token creation and verification."""
+
+    def test_create_2fa_pending_token(self):
+        """Test creating a 2FA pending token."""
+        token = create_2fa_pending_token(1, "testuser")
+        assert isinstance(token, str)
+        assert len(token) > 0
+
+        payload = jwt.decode(
+            token,
+            settings.get_secret_key(),
+            algorithms=[settings.algorithm],
+        )
+        assert payload["sub"] == "1"
+        assert payload["username"] == "testuser"
+        assert payload["type"] == "2fa_pending"
+        assert "exp" in payload
+        assert "jti" in payload
+
+    def test_verify_2fa_pending_token(self):
+        """Test verifying a valid 2FA pending token."""
+        token = create_2fa_pending_token(1, "testuser")
+        payload = verify_2fa_pending_token(token)
+
+        assert payload["sub"] == "1"
+        assert payload["username"] == "testuser"
+        assert payload["type"] == "2fa_pending"
+
+    def test_pending_token_rejected_by_access_verify(self):
+        """Test that a 2FA pending token is rejected by verify_access_token."""
+        token = create_2fa_pending_token(1, "testuser")
+        with pytest.raises(TokenError, match="Invalid token type"):
+            verify_access_token(token)
+
+    def test_access_token_rejected_by_pending_verify(self):
+        """Test that an access token is rejected by verify_2fa_pending_token."""
+        token = create_access_token(1, "testuser")
+        with pytest.raises(TokenError, match="Invalid token type"):
+            verify_2fa_pending_token(token)
+
+    def test_pending_token_expires(self):
+        """Test that a 2FA pending token expires."""
+        expire = datetime.utcnow() - timedelta(seconds=1)
+        claims = {
+            "sub": "1",
+            "username": "testuser",
+            "type": "2fa_pending",
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "jti": "test-jti",
+        }
+        token = jwt.encode(claims, settings.get_secret_key(), algorithm=settings.algorithm)
+
+        with pytest.raises(TokenError, match="Invalid 2FA pending token"):
+            verify_2fa_pending_token(token)
+
+    def test_generate_totp_qr_code_base64(self):
+        """Test QR code generation returns a valid data URI."""
+        uri = "otpauth://totp/Test:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Test"
+        result = generate_totp_qr_code_base64(uri)
+
+        assert result.startswith("data:image/png;base64,")
+        # Verify the base64 portion is valid
+        b64_data = result.split(",", 1)[1]
+        import base64
+        decoded = base64.b64decode(b64_data)
+        # PNG files start with these bytes
+        assert decoded[:4] == b"\x89PNG"
 
 
 class TestTokenCleanup:

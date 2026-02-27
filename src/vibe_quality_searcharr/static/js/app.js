@@ -65,7 +65,7 @@ function showNotification(message, type = 'error') {
 }
 
 // Confirm dialog
-function confirm(message) {
+function confirmAction(message) {
     return window.confirm(message);
 }
 

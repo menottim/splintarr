@@ -354,7 +354,7 @@ class TwoFactorSetup(BaseModel):
     """
     Schema for two-factor authentication setup response.
 
-    Contains the TOTP secret and QR code URI for scanning.
+    Contains the TOTP secret, QR code URI, and pre-rendered QR code image.
     """
 
     secret: str = Field(
@@ -365,9 +365,9 @@ class TwoFactorSetup(BaseModel):
         ...,
         description="otpauth:// URI for QR code generation",
     )
-    backup_codes: list[str] = Field(
-        default_factory=list,
-        description="Backup codes for account recovery (optional)",
+    qr_code_data_uri: str = Field(
+        ...,
+        description="QR code as data:image/png;base64,... for embedding in HTML",
     )
 
     model_config = {
@@ -376,7 +376,7 @@ class TwoFactorSetup(BaseModel):
                 {
                     "secret": "JBSWY3DPEHPK3PXP",
                     "qr_code_uri": "otpauth://totp/Vibe-Quality-Searcharr:admin?secret=JBSWY3DPEHPK3PXP&issuer=Vibe-Quality-Searcharr",
-                    "backup_codes": ["12345678", "87654321"],
+                    "qr_code_data_uri": "data:image/png;base64,...",
                 }
             ]
         }
