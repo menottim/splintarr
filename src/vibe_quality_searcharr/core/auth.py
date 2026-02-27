@@ -525,6 +525,10 @@ def authenticate_user(
 
         # Check if account is locked
         if user.is_locked():
+            # Perform dummy verification to equalize timing with the password
+            # check path, preventing attackers from distinguishing locked vs
+            # unlocked accounts via response time.
+            verify_password("dummy", DUMMY_PASSWORD_HASH)
             logger.warning(
                 "authentication_failed_account_locked",
                 username=username,

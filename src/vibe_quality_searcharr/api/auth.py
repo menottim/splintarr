@@ -813,7 +813,9 @@ async def login_verify_2fa(
     summary="Disable two-factor authentication",
     description="Disable 2FA. Requires password and current TOTP code.",
 )
+@limiter.limit("3/minute")
 async def disable_2fa(
+    request: Request,
     disable_data: TwoFactorDisable,
     access_token: Annotated[str | None, Cookie()] = None,
     db: Session = Depends(get_db),
@@ -854,6 +856,11 @@ async def disable_2fa(
 
     # Verify password
     if not verify_password(disable_data.password, user.password_hash):
+        user.increment_failed_login(
+            max_attempts=settings.max_failed_login_attempts,
+            lockout_duration_minutes=settings.account_lockout_duration_minutes,
+        )
+        db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid password",
@@ -952,6 +959,10 @@ async def change_password(
 
         # Revoke all refresh tokens (force re-login on all devices)
         revoke_all_user_tokens(db, user.id)
+
+        # Blacklist current access token for immediate revocation
+        if access_token:
+            blacklist_access_token(access_token)
 
         logger.info("password_changed", user_id=user.id)
 

@@ -316,9 +316,17 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
         method=request.method,
         errors=exc.errors(),
     )
+    errors = []
+    for error in exc.errors():
+        # Ensure all values are JSON-serializable (bytes input causes TypeError)
+        sanitized = {
+            k: v.decode("utf-8", errors="replace") if isinstance(v, bytes) else v
+            for k, v in error.items()
+        }
+        errors.append(sanitized)
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        content={"detail": exc.errors()},
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": errors},
     )
 
 

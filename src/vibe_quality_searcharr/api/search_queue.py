@@ -130,7 +130,7 @@ async def create_search_queue(
         logger.error("create_search_queue_failed", error=str(e), user_id=current_user.id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create search queue: {str(e)}",
+            detail="Failed to create search queue",
         )
 
 
@@ -506,7 +506,7 @@ async def start_search_queue(
         logger.error("start_search_queue_failed", error=str(e), queue_id=queue_id)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to start search queue: {str(e)}",
+            detail="Failed to start search queue",
         )
 
 

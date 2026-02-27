@@ -488,7 +488,7 @@ async def delete_instance(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete instance: {str(e)}",
+            detail="Failed to delete instance",
         ) from e
 
 
@@ -750,7 +750,7 @@ async def test_instance_connection(
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"API error: {str(e)}",
+            detail="API error",
         ) from e
     except HTTPException:
         raise
@@ -763,7 +763,7 @@ async def test_instance_connection(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to test connection: {str(e)}",
+            detail="Failed to test connection",
         ) from e
 
 
@@ -884,7 +884,7 @@ async def check_configuration_drift(
         )
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"API error: {str(e)}",
+            detail="API error",
         ) from e
     except HTTPException:
         raise
@@ -897,5 +897,5 @@ async def check_configuration_drift(
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to check configuration drift: {str(e)}",
+            detail="Failed to check configuration drift",
         ) from e
