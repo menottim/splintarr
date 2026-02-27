@@ -35,11 +35,11 @@ def mock_instance_sonarr():
     """Create a mock Sonarr instance."""
     instance = MagicMock(spec=Instance)
     instance.id = 1
-    instance.type = "sonarr"
+    instance.instance_type = "sonarr"
     instance.url = "https://sonarr.example.com"
-    instance.encrypted_api_key = "encrypted_key"
+    instance.api_key = "encrypted_key"
     instance.verify_ssl = True
-    instance.rate_limit = 5.0
+    instance.rate_limit_per_second = 5
     return instance
 
 
@@ -48,11 +48,11 @@ def mock_instance_radarr():
     """Create a mock Radarr instance."""
     instance = MagicMock(spec=Instance)
     instance.id = 2
-    instance.type = "radarr"
+    instance.instance_type = "radarr"
     instance.url = "https://radarr.example.com"
-    instance.encrypted_api_key = "encrypted_key"
+    instance.api_key = "encrypted_key"
     instance.verify_ssl = True
-    instance.rate_limit = 5.0
+    instance.rate_limit_per_second = 5
     return instance
 
 
@@ -97,6 +97,8 @@ class TestPaginationOffByOne:
         page 2 was skipped due to the off-by-one.
         """
         mock_decrypt.return_value = "test_api_key"
+        # Bypass rate limiter so all items are processed
+        queue_manager._check_rate_limit = AsyncMock(return_value=True)
 
         # Build mock client that returns 2 pages then empty
         mock_client = AsyncMock()
@@ -136,6 +138,7 @@ class TestPaginationOffByOne:
     ):
         """Test that missing strategy processes all pages for Radarr."""
         mock_decrypt.return_value = "test_api_key"
+        queue_manager._check_rate_limit = AsyncMock(return_value=True)
 
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
@@ -173,6 +176,7 @@ class TestPaginationOffByOne:
     ):
         """Test that cutoff strategy processes all pages for Sonarr."""
         mock_decrypt.return_value = "test_api_key"
+        queue_manager._check_rate_limit = AsyncMock(return_value=True)
         mock_queue.strategy = "cutoff_unmet"
 
         mock_client = AsyncMock()
@@ -211,6 +215,7 @@ class TestPaginationOffByOne:
     ):
         """Test that cutoff strategy processes all pages for Radarr."""
         mock_decrypt.return_value = "test_api_key"
+        queue_manager._check_rate_limit = AsyncMock(return_value=True)
         mock_queue.strategy = "cutoff_unmet"
 
         mock_client = AsyncMock()
@@ -249,6 +254,7 @@ class TestPaginationOffByOne:
     ):
         """Test that pagination terminates when empty records are returned."""
         mock_decrypt.return_value = "test_api_key"
+        queue_manager._check_rate_limit = AsyncMock(return_value=True)
 
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client

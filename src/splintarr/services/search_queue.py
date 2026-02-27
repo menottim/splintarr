@@ -215,7 +215,7 @@ class SearchQueueManager:
         Returns:
             dict: Execution results
         """
-        logger.info("executing_missing_strategy", instance_type=instance.type)
+        logger.info("executing_missing_strategy", instance_type=instance.instance_type)
 
         items_searched = 0
         items_found = 0
@@ -224,14 +224,14 @@ class SearchQueueManager:
 
         try:
             # Decrypt API key
-            api_key = decrypt_api_key(instance.encrypted_api_key)
+            api_key = decrypt_api_key(instance.api_key)
 
-            if instance.type == "sonarr":
+            if instance.instance_type == "sonarr":
                 async with SonarrClient(
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get all missing episodes
                     page = 1
@@ -280,7 +280,7 @@ class SearchQueueManager:
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get all missing movies
                     page = 1
@@ -359,7 +359,7 @@ class SearchQueueManager:
         Returns:
             dict: Execution results
         """
-        logger.info("executing_cutoff_strategy", instance_type=instance.type)
+        logger.info("executing_cutoff_strategy", instance_type=instance.instance_type)
 
         items_searched = 0
         items_found = 0
@@ -368,14 +368,14 @@ class SearchQueueManager:
 
         try:
             # Decrypt API key
-            api_key = decrypt_api_key(instance.encrypted_api_key)
+            api_key = decrypt_api_key(instance.api_key)
 
-            if instance.type == "sonarr":
+            if instance.instance_type == "sonarr":
                 async with SonarrClient(
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get all cutoff unmet episodes
                     page = 1
@@ -418,7 +418,7 @@ class SearchQueueManager:
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get all cutoff unmet movies
                     page = 1
@@ -493,7 +493,7 @@ class SearchQueueManager:
         Returns:
             dict: Execution results
         """
-        logger.info("executing_recent_strategy", instance_type=instance.type)
+        logger.info("executing_recent_strategy", instance_type=instance.instance_type)
 
         # Recent strategy prioritizes newest missing items
         # Similar to missing strategy but with different sorting
@@ -504,14 +504,14 @@ class SearchQueueManager:
 
         try:
             # Decrypt API key
-            api_key = decrypt_api_key(instance.encrypted_api_key)
+            api_key = decrypt_api_key(instance.api_key)
 
-            if instance.type == "sonarr":
+            if instance.instance_type == "sonarr":
                 async with SonarrClient(
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get recent missing episodes (sorted by air date descending)
                     result = await client.get_wanted_missing(
@@ -552,7 +552,7 @@ class SearchQueueManager:
                     url=instance.url,
                     api_key=api_key,
                     verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit or 5.0,
+                    rate_limit_per_second=instance.rate_limit_per_second or 5,
                 ) as client:
                     # Get recent missing movies (sorted by added date descending)
                     result = await client.get_wanted_missing(
@@ -623,7 +623,7 @@ class SearchQueueManager:
         Returns:
             dict: Execution results
         """
-        logger.info("executing_custom_strategy", instance_type=instance.type)
+        logger.info("executing_custom_strategy", instance_type=instance.instance_type)
 
         # Parse custom filters
         filters = {}
