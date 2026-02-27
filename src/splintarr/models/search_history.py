@@ -192,6 +192,7 @@ class SearchHistory(Base):
         searches_triggered: int,
         errors_encountered: int = 0,
         error_message: str | None = None,
+        search_metadata: str | None = None,
     ) -> None:
         """
         Mark the search as completed with results.
@@ -203,6 +204,7 @@ class SearchHistory(Base):
             searches_triggered: Number of searches triggered in the instance
             errors_encountered: Number of errors during execution (default: 0)
             error_message: Error message if failed (optional)
+            search_metadata: JSON-encoded per-item execution details (optional)
         """
         self.completed_at = datetime.utcnow()
         self.status = status
@@ -211,6 +213,8 @@ class SearchHistory(Base):
         self.searches_triggered = searches_triggered
         self.errors_encountered = errors_encountered
         self.error_message = error_message
+        if search_metadata is not None:
+            self.search_metadata = search_metadata
 
         # Calculate duration
         if self.started_at:

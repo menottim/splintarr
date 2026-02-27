@@ -58,6 +58,7 @@ templates.env.filters["datetime"] = lambda value: (
     value.strftime("%Y-%m-%d %H:%M:%S") if value else ""
 )
 templates.env.filters["timeago"] = lambda value: (_timeago(value) if value else "")
+templates.env.filters["parse_search_log"] = lambda value: _parse_search_log(value)
 
 
 def _timeago(dt: datetime) -> str:
@@ -81,6 +82,18 @@ def _timeago(dt: datetime) -> str:
         return f"{days} day{'s' if days != 1 else ''} ago"
     else:
         return dt.strftime("%Y-%m-%d")
+
+
+def _parse_search_log(value: str | None) -> list[dict]:
+    """Parse JSON search_metadata into a list of log entries for template rendering."""
+    if not value:
+        return []
+    try:
+        import json
+
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return []
 
 
 # ============================================================================

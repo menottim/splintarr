@@ -29,6 +29,31 @@ from splintarr.services.sonarr import SonarrClient
 logger = structlog.get_logger()
 
 
+def _episode_label(episode: dict[str, Any]) -> str:
+    """Build a human-readable label from a Sonarr episode record."""
+    series = episode.get("series", {})
+    series_title = series.get("title", "Unknown Series")
+    season = episode.get("seasonNumber", "?")
+    ep_num = episode.get("episodeNumber", "?")
+    ep_title = episode.get("title", "")
+    if isinstance(season, int) and isinstance(ep_num, int):
+        label = f"{series_title} S{season:02d}E{ep_num:02d}"
+    else:
+        label = f"{series_title} S{season}E{ep_num}"
+    if ep_title:
+        label += f" - {ep_title}"
+    return label
+
+
+def _movie_label(movie: dict[str, Any]) -> str:
+    """Build a human-readable label from a Radarr movie record."""
+    title = movie.get("title", "Unknown Movie")
+    year = movie.get("year")
+    if year:
+        return f"{title} ({year})"
+    return title
+
+
 class SearchQueueError(Exception):
     """Base exception for search queue errors."""
 
@@ -128,12 +153,17 @@ class SearchQueueManager:
                     items_searched=result["items_searched"],
                 )
 
+                # Serialize per-item search log into metadata
+                search_log = result.get("search_log", [])
+                metadata_json = json.dumps(search_log) if search_log else None
+
                 history.mark_completed(
                     status=result["status"],
                     items_searched=result["items_searched"],
                     items_found=result["items_found"],
                     searches_triggered=result["searches_triggered"],
                     errors_encountered=len(result.get("errors", [])),
+                    search_metadata=metadata_json,
                 )
 
                 db.commit()
@@ -220,7 +250,8 @@ class SearchQueueManager:
         items_searched = 0
         items_found = 0
         searches_triggered = 0
-        errors = []
+        errors: list[str] = []
+        search_log: list[dict[str, Any]] = []
 
         try:
             # Decrypt API key
@@ -248,30 +279,49 @@ class SearchQueueManager:
                                 continue
 
                             items_searched += 1
+                            label = _episode_label(episode)
 
                             # Check cooldown
                             if self._is_in_cooldown(f"sonarr_{instance.id}_episode_{episode_id}"):
                                 logger.debug("item_in_cooldown", episode_id=episode_id)
+                                search_log.append(
+                                    {"item": label, "action": "skipped", "reason": "cooldown"}
+                                )
                                 continue
 
                             # Check rate limit
                             if not await self._check_rate_limit(instance.id):
                                 logger.warning("rate_limit_reached", instance_id=instance.id)
+                                search_log.append(
+                                    {"item": label, "action": "skipped", "reason": "rate_limit"}
+                                )
                                 break
 
                             # Trigger search
                             try:
-                                await client.search_episodes([episode_id])
+                                cmd_result = await client.search_episodes([episode_id])
                                 items_found += 1
                                 searches_triggered += 1
                                 self._set_cooldown(f"sonarr_{instance.id}_episode_{episode_id}")
                                 logger.debug("episode_search_triggered", episode_id=episode_id)
+                                search_log.append({
+                                    "item": label,
+                                    "action": "EpisodeSearch",
+                                    "command_id": cmd_result.get("id"),
+                                    "result": "sent",
+                                })
 
                             except Exception as e:
                                 errors.append(f"Episode {episode_id}: {str(e)}")
                                 logger.error(
                                     "episode_search_failed", episode_id=episode_id, error=str(e)
                                 )
+                                search_log.append({
+                                    "item": label,
+                                    "action": "EpisodeSearch",
+                                    "result": "error",
+                                    "error": str(e),
+                                })
 
                         page += 1
 
@@ -297,28 +347,47 @@ class SearchQueueManager:
                                 continue
 
                             items_searched += 1
+                            label = _movie_label(movie)
 
                             # Check cooldown
                             if self._is_in_cooldown(f"radarr_{instance.id}_movie_{movie_id}"):
                                 logger.debug("item_in_cooldown", movie_id=movie_id)
+                                search_log.append(
+                                    {"item": label, "action": "skipped", "reason": "cooldown"}
+                                )
                                 continue
 
                             # Check rate limit
                             if not await self._check_rate_limit(instance.id):
                                 logger.warning("rate_limit_reached", instance_id=instance.id)
+                                search_log.append(
+                                    {"item": label, "action": "skipped", "reason": "rate_limit"}
+                                )
                                 break
 
                             # Trigger search
                             try:
-                                await client.search_movies([movie_id])
+                                cmd_result = await client.search_movies([movie_id])
                                 items_found += 1
                                 searches_triggered += 1
                                 self._set_cooldown(f"radarr_{instance.id}_movie_{movie_id}")
                                 logger.debug("movie_search_triggered", movie_id=movie_id)
+                                search_log.append({
+                                    "item": label,
+                                    "action": "MoviesSearch",
+                                    "command_id": cmd_result.get("id"),
+                                    "result": "sent",
+                                })
 
                             except Exception as e:
                                 errors.append(f"Movie {movie_id}: {str(e)}")
                                 logger.error("movie_search_failed", movie_id=movie_id, error=str(e))
+                                search_log.append({
+                                    "item": label,
+                                    "action": "MoviesSearch",
+                                    "result": "error",
+                                    "error": str(e),
+                                })
 
                         page += 1
 
@@ -334,6 +403,7 @@ class SearchQueueManager:
                 "items_found": items_found,
                 "searches_triggered": searches_triggered,
                 "errors": errors,
+                "search_log": search_log,
             }
 
         except Exception as e:
@@ -364,7 +434,8 @@ class SearchQueueManager:
         items_searched = 0
         items_found = 0
         searches_triggered = 0
-        errors = []
+        errors: list[str] = []
+        search_log: list[dict[str, Any]] = []
 
         try:
             # Decrypt API key
@@ -392,24 +463,43 @@ class SearchQueueManager:
                                 continue
 
                             items_searched += 1
+                            label = _episode_label(episode)
 
                             # Check cooldown
                             if self._is_in_cooldown(f"sonarr_{instance.id}_episode_{episode_id}"):
+                                search_log.append(
+                                    {"item": label, "action": "skipped", "reason": "cooldown"}
+                                )
                                 continue
 
                             # Check rate limit
                             if not await self._check_rate_limit(instance.id):
+                                search_log.append(
+                                    {"item": label, "action": "skipped", "reason": "rate_limit"}
+                                )
                                 break
 
                             # Trigger search
                             try:
-                                await client.search_episodes([episode_id])
+                                cmd_result = await client.search_episodes([episode_id])
                                 items_found += 1
                                 searches_triggered += 1
                                 self._set_cooldown(f"sonarr_{instance.id}_episode_{episode_id}")
+                                search_log.append({
+                                    "item": label,
+                                    "action": "EpisodeSearch",
+                                    "command_id": cmd_result.get("id"),
+                                    "result": "sent",
+                                })
 
                             except Exception as e:
                                 errors.append(f"Episode {episode_id}: {str(e)}")
+                                search_log.append({
+                                    "item": label,
+                                    "action": "EpisodeSearch",
+                                    "result": "error",
+                                    "error": str(e),
+                                })
 
                         page += 1
 
@@ -435,24 +525,43 @@ class SearchQueueManager:
                                 continue
 
                             items_searched += 1
+                            label = _movie_label(movie)
 
                             # Check cooldown
                             if self._is_in_cooldown(f"radarr_{instance.id}_movie_{movie_id}"):
+                                search_log.append(
+                                    {"item": label, "action": "skipped", "reason": "cooldown"}
+                                )
                                 continue
 
                             # Check rate limit
                             if not await self._check_rate_limit(instance.id):
+                                search_log.append(
+                                    {"item": label, "action": "skipped", "reason": "rate_limit"}
+                                )
                                 break
 
                             # Trigger search
                             try:
-                                await client.search_movies([movie_id])
+                                cmd_result = await client.search_movies([movie_id])
                                 items_found += 1
                                 searches_triggered += 1
                                 self._set_cooldown(f"radarr_{instance.id}_movie_{movie_id}")
+                                search_log.append({
+                                    "item": label,
+                                    "action": "MoviesSearch",
+                                    "command_id": cmd_result.get("id"),
+                                    "result": "sent",
+                                })
 
                             except Exception as e:
                                 errors.append(f"Movie {movie_id}: {str(e)}")
+                                search_log.append({
+                                    "item": label,
+                                    "action": "MoviesSearch",
+                                    "result": "error",
+                                    "error": str(e),
+                                })
 
                         page += 1
 
@@ -468,6 +577,7 @@ class SearchQueueManager:
                 "items_found": items_found,
                 "searches_triggered": searches_triggered,
                 "errors": errors,
+                "search_log": search_log,
             }
 
         except Exception as e:
@@ -500,7 +610,8 @@ class SearchQueueManager:
         items_searched = 0
         items_found = 0
         searches_triggered = 0
-        errors = []
+        errors: list[str] = []
+        search_log: list[dict[str, Any]] = []
 
         try:
             # Decrypt API key
@@ -528,24 +639,43 @@ class SearchQueueManager:
                             continue
 
                         items_searched += 1
+                        label = _episode_label(episode)
 
                         # Check cooldown
                         if self._is_in_cooldown(f"sonarr_{instance.id}_episode_{episode_id}"):
+                            search_log.append(
+                                {"item": label, "action": "skipped", "reason": "cooldown"}
+                            )
                             continue
 
                         # Check rate limit
                         if not await self._check_rate_limit(instance.id):
+                            search_log.append(
+                                {"item": label, "action": "skipped", "reason": "rate_limit"}
+                            )
                             break
 
                         # Trigger search
                         try:
-                            await client.search_episodes([episode_id])
+                            cmd_result = await client.search_episodes([episode_id])
                             items_found += 1
                             searches_triggered += 1
                             self._set_cooldown(f"sonarr_{instance.id}_episode_{episode_id}")
+                            search_log.append({
+                                "item": label,
+                                "action": "EpisodeSearch",
+                                "command_id": cmd_result.get("id"),
+                                "result": "sent",
+                            })
 
                         except Exception as e:
                             errors.append(f"Episode {episode_id}: {str(e)}")
+                            search_log.append({
+                                "item": label,
+                                "action": "EpisodeSearch",
+                                "result": "error",
+                                "error": str(e),
+                            })
 
             else:  # radarr
                 async with RadarrClient(
@@ -569,24 +699,43 @@ class SearchQueueManager:
                             continue
 
                         items_searched += 1
+                        label = _movie_label(movie)
 
                         # Check cooldown
                         if self._is_in_cooldown(f"radarr_{instance.id}_movie_{movie_id}"):
+                            search_log.append(
+                                {"item": label, "action": "skipped", "reason": "cooldown"}
+                            )
                             continue
 
                         # Check rate limit
                         if not await self._check_rate_limit(instance.id):
+                            search_log.append(
+                                {"item": label, "action": "skipped", "reason": "rate_limit"}
+                            )
                             break
 
                         # Trigger search
                         try:
-                            await client.search_movies([movie_id])
+                            cmd_result = await client.search_movies([movie_id])
                             items_found += 1
                             searches_triggered += 1
                             self._set_cooldown(f"radarr_{instance.id}_movie_{movie_id}")
+                            search_log.append({
+                                "item": label,
+                                "action": "MoviesSearch",
+                                "command_id": cmd_result.get("id"),
+                                "result": "sent",
+                            })
 
                         except Exception as e:
                             errors.append(f"Movie {movie_id}: {str(e)}")
+                            search_log.append({
+                                "item": label,
+                                "action": "MoviesSearch",
+                                "result": "error",
+                                "error": str(e),
+                            })
 
             # Determine status
             if errors:
@@ -600,6 +749,7 @@ class SearchQueueManager:
                 "items_found": items_found,
                 "searches_triggered": searches_triggered,
                 "errors": errors,
+                "search_log": search_log,
             }
 
         except Exception as e:

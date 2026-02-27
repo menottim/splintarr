@@ -136,6 +136,47 @@
                         {% endif %}
                     </td>
                 </tr>
+                {% if entry.search_metadata %}
+                <tr>
+                    <td colspan="5" style="padding: 0 1rem 1rem;">
+                        <details>
+                            <summary style="cursor: pointer; font-size: 0.85rem; color: var(--muted-color);">
+                                API details ({{ entry.search_metadata|parse_search_log|length }} items)
+                            </summary>
+                            <div style="max-height: 300px; overflow-y: auto; margin-top: 0.5rem;">
+                                <table role="grid" style="font-size: 0.8rem; margin: 0;">
+                                    <thead>
+                                        <tr>
+                                            <th>Item</th>
+                                            <th>Command</th>
+                                            <th>Result</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for log_entry in entry.search_metadata|parse_search_log %}
+                                        <tr>
+                                            <td>{{ log_entry.item }}</td>
+                                            <td><code>{{ log_entry.action }}</code></td>
+                                            <td>
+                                                {% if log_entry.result == 'sent' %}
+                                                <span style="color: var(--ins-color);">sent</span>
+                                                {% elif log_entry.result == 'error' %}
+                                                <span style="color: var(--del-color);" title="{{ log_entry.error }}">error</span>
+                                                {% elif log_entry.action == 'skipped' %}
+                                                <span style="color: var(--muted-color);">{{ log_entry.reason }}</span>
+                                                {% else %}
+                                                {{ log_entry.get('result', log_entry.get('reason', '-')) }}
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    </td>
+                </tr>
+                {% endif %}
                 {% endfor %}
             </tbody>
         </table>
