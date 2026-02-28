@@ -193,11 +193,11 @@ async def test_notification(
 
     try:
         webhook_url = decrypt_field(config.webhook_url)
-    except Exception:
+    except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to decrypt webhook URL.",
-        )
+        ) from e
 
     service = DiscordNotificationService(webhook_url)
     success = await service.send_test_message()

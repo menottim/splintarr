@@ -15,7 +15,6 @@ from sqlalchemy.sql import func
 
 from splintarr.database import Base
 
-
 # Default events configuration — all enabled by default
 DEFAULT_EVENTS: dict[str, bool] = {
     "search_triggered": True,

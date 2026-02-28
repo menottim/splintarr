@@ -177,7 +177,7 @@ class DiscordNotificationService:
         else:
             color = COLOR_RED
             title = f"Instance Down: {instance_name}"
-            description = f"Connection lost."
+            description = "Connection lost."
             if error:
                 description += f"\n**Error:** {error}"
 
