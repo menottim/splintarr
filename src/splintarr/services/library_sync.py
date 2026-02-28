@@ -194,11 +194,6 @@ class LibrarySyncService:
                         now=now,
                     )
 
-                    # Download poster if not cached
-                    self._download_poster_if_needed(
-                        item, instance.id, "series", external_id
-                    )
-
                     # Sync episodes
                     episodes = await client.get_episodes(external_id)
                     self._upsert_episodes(db, item.id, episodes)
@@ -235,19 +230,24 @@ class LibrarySyncService:
                     .first()
                 )
                 if item and not item.poster_path:
-                    poster_data = await client.get_poster_bytes(ext_id)
-                    if poster_data:
-                        rel_path = self._save_poster(
-                            instance.id, "series", ext_id, poster_data
-                        )
-                        item.poster_path = rel_path
-                        logger.debug(
-                            "library_sync_poster_saved",
-                            instance_id=instance.id,
-                            content_type="series",
-                            external_id=ext_id,
-                            size_bytes=len(poster_data),
-                        )
+                    # Check if poster already cached on disk
+                    rel = f"{instance.id}/series/{ext_id}.jpg"
+                    if (self.poster_dir / rel).exists():
+                        item.poster_path = rel
+                    else:
+                        poster_data = await client.get_poster_bytes(ext_id)
+                        if poster_data:
+                            rel_path = self._save_poster(
+                                instance.id, "series", ext_id, poster_data
+                            )
+                            item.poster_path = rel_path
+                            logger.debug(
+                                "library_sync_poster_saved",
+                                instance_id=instance.id,
+                                content_type="series",
+                                external_id=ext_id,
+                                size_bytes=len(poster_data),
+                            )
             db.commit()
 
         # Remove items no longer in the instance
@@ -351,19 +351,23 @@ class LibrarySyncService:
                     .first()
                 )
                 if item and not item.poster_path:
-                    poster_data = await client.get_poster_bytes(ext_id)
-                    if poster_data:
-                        rel_path = self._save_poster(
-                            instance.id, "movie", ext_id, poster_data
-                        )
-                        item.poster_path = rel_path
-                        logger.debug(
-                            "library_sync_poster_saved",
-                            instance_id=instance.id,
-                            content_type="movie",
-                            external_id=ext_id,
-                            size_bytes=len(poster_data),
-                        )
+                    rel = f"{instance.id}/movie/{ext_id}.jpg"
+                    if (self.poster_dir / rel).exists():
+                        item.poster_path = rel
+                    else:
+                        poster_data = await client.get_poster_bytes(ext_id)
+                        if poster_data:
+                            rel_path = self._save_poster(
+                                instance.id, "movie", ext_id, poster_data
+                            )
+                            item.poster_path = rel_path
+                            logger.debug(
+                                "library_sync_poster_saved",
+                                instance_id=instance.id,
+                                content_type="movie",
+                                external_id=ext_id,
+                                size_bytes=len(poster_data),
+                            )
             db.commit()
 
         # Remove stale items
@@ -548,16 +552,35 @@ class LibrarySyncService:
         seen_ids: set[int],
     ) -> int:
         """Delete library items no longer in the instance. Returns count removed."""
+        if not seen_ids:
+            # No items were successfully synced — skip cleanup to avoid
+            # deleting everything when the API is temporarily unreachable.
+            logger.warning(
+                "library_sync_cleanup_skipped_empty",
+                instance_id=instance_id,
+                content_type=content_type,
+            )
+            return 0
+
         stale = (
             db.query(LibraryItem)
             .filter(
                 LibraryItem.instance_id == instance_id,
                 LibraryItem.content_type == content_type,
-                ~LibraryItem.external_id.in_(seen_ids) if seen_ids else True,
+                ~LibraryItem.external_id.in_(seen_ids),
             )
             .all()
         )
         for item in stale:
+            # Clean up poster file from disk
+            if item.poster_path:
+                poster_file = self.poster_dir / item.poster_path
+                if poster_file.exists():
+                    poster_file.unlink()
+                    logger.debug(
+                        "library_sync_poster_file_removed",
+                        path=str(poster_file),
+                    )
             logger.info(
                 "library_sync_removing_stale_item",
                 instance_id=instance_id,
@@ -567,19 +590,6 @@ class LibrarySyncService:
             )
             db.delete(item)
         return len(stale)
-
-    def _download_poster_if_needed(
-        self,
-        item: LibraryItem,
-        instance_id: int,
-        content_type: str,
-        external_id: int,
-    ) -> None:
-        """Check if poster file exists; mark path if it does."""
-        rel_path = f"{instance_id}/{content_type}/{external_id}.jpg"
-        full_path = self.poster_dir / rel_path
-        if full_path.exists():
-            item.poster_path = rel_path
 
     def _save_poster(
         self,

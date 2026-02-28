@@ -93,7 +93,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # the APScheduler job is registered when the scheduler starts)
         try:
             get_sync_service(get_session_factory())
-            logger.info("library_sync_service_initialized")
+            logger.info("library_sync_service_ready")
         except Exception as e:
             logger.error("library_sync_init_failed", error=str(e))
 

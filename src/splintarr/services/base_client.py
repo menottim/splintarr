@@ -382,6 +382,7 @@ class BaseArrClient:
             bytes | None: Raw response bytes, or None on failure
         """
         await self._ensure_client()
+        assert self._client is not None  # guaranteed by _ensure_client()
         await self._rate_limit()
 
         # SSRF validation (same as _request)
