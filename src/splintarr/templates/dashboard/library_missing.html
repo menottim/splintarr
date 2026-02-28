@@ -10,18 +10,7 @@
 
 <!-- Filters -->
 <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;">
-    <select id="filter-instance" onchange="applyFilters()" style="max-width: 200px; margin-bottom: 0;">
-        <option value="">All Instances</option>
-        {% for inst in instances %}
-        <option value="{{ inst.id }}" {{ 'selected' if selected_instance_id == inst.id else '' }}>{{ inst.name }}</option>
-        {% endfor %}
-    </select>
-
-    <select id="filter-type" onchange="applyFilters()" style="max-width: 150px; margin-bottom: 0;">
-        <option value="">All Types</option>
-        <option value="series" {{ 'selected' if selected_content_type == 'series' else '' }}>Series</option>
-        <option value="movie" {{ 'selected' if selected_content_type == 'movie' else '' }}>Movies</option>
-    </select>
+    {% include "components/library_filters.html" %}
 
     <a href="/dashboard/library" role="button" class="secondary" style="margin-left: auto; margin-bottom: 0;">Back to Library</a>
 </div>

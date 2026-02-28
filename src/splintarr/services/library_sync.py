@@ -61,11 +61,7 @@ class LibrarySyncService:
         errors: list[str] = []
 
         try:
-            instances = (
-                db.query(Instance)
-                .filter(Instance.is_active.is_(True))
-                .all()
-            )
+            instances = db.query(Instance).filter(Instance.is_active.is_(True)).all()
 
             logger.info("library_sync_started", instance_count=len(instances))
 
@@ -114,9 +110,7 @@ class LibrarySyncService:
         """
         db = self.db_session_factory()
         try:
-            instance = (
-                db.query(Instance).filter(Instance.id == instance_id).first()
-            )
+            instance = db.query(Instance).filter(Instance.id == instance_id).first()
             if not instance:
                 raise LibrarySyncError(f"Instance {instance_id} not found")
             return await self._sync_instance(instance, db)
@@ -185,9 +179,7 @@ class LibrarySyncService:
                         title=series.get("title", "Unknown"),
                         year=series.get("year"),
                         status=series.get("status"),
-                        quality_profile=str(
-                            series.get("qualityProfileId", "")
-                        ),
+                        quality_profile=str(series.get("qualityProfileId", "")),
                         episode_count=stats.get("episodeCount", 0),
                         episode_have=stats.get("episodeFileCount", 0),
                         added_at=series.get("added"),
@@ -215,45 +207,11 @@ class LibrarySyncService:
                 items=count,
             )
 
-            # Download posters (separate pass to batch commits)
-            for series in series_list:
-                ext_id = series.get("id")
-                if not ext_id:
-                    continue
-                item = (
-                    db.query(LibraryItem)
-                    .filter(
-                        LibraryItem.instance_id == instance.id,
-                        LibraryItem.content_type == "series",
-                        LibraryItem.external_id == ext_id,
-                    )
-                    .first()
-                )
-                if item and not item.poster_path:
-                    # Check if poster already cached on disk
-                    rel = f"{instance.id}/series/{ext_id}.jpg"
-                    if (self.poster_dir / rel).exists():
-                        item.poster_path = rel
-                    else:
-                        poster_data = await client.get_poster_bytes(ext_id)
-                        if poster_data:
-                            rel_path = self._save_poster(
-                                instance.id, "series", ext_id, poster_data
-                            )
-                            item.poster_path = rel_path
-                            logger.debug(
-                                "library_sync_poster_saved",
-                                instance_id=instance.id,
-                                content_type="series",
-                                external_id=ext_id,
-                                size_bytes=len(poster_data),
-                            )
+            await self._download_posters(client, db, instance.id, "series", series_list)
             db.commit()
 
         # Remove items no longer in the instance
-        stale_count = self._cleanup_stale_items(
-            db, instance.id, "series", seen_external_ids
-        )
+        stale_count = self._cleanup_stale_items(db, instance.id, "series", seen_external_ids)
         db.commit()
 
         logger.info(
@@ -310,9 +268,7 @@ class LibrarySyncService:
                         title=movie.get("title", "Unknown"),
                         year=movie.get("year"),
                         status=movie.get("status"),
-                        quality_profile=str(
-                            movie.get("qualityProfileId", "")
-                        ),
+                        quality_profile=str(movie.get("qualityProfileId", "")),
                         episode_count=1,
                         episode_have=1 if has_file else 0,
                         added_at=movie.get("added"),
@@ -336,44 +292,11 @@ class LibrarySyncService:
                 items=count,
             )
 
-            # Download posters
-            for movie in movie_list:
-                ext_id = movie.get("id")
-                if not ext_id:
-                    continue
-                item = (
-                    db.query(LibraryItem)
-                    .filter(
-                        LibraryItem.instance_id == instance.id,
-                        LibraryItem.content_type == "movie",
-                        LibraryItem.external_id == ext_id,
-                    )
-                    .first()
-                )
-                if item and not item.poster_path:
-                    rel = f"{instance.id}/movie/{ext_id}.jpg"
-                    if (self.poster_dir / rel).exists():
-                        item.poster_path = rel
-                    else:
-                        poster_data = await client.get_poster_bytes(ext_id)
-                        if poster_data:
-                            rel_path = self._save_poster(
-                                instance.id, "movie", ext_id, poster_data
-                            )
-                            item.poster_path = rel_path
-                            logger.debug(
-                                "library_sync_poster_saved",
-                                instance_id=instance.id,
-                                content_type="movie",
-                                external_id=ext_id,
-                                size_bytes=len(poster_data),
-                            )
+            await self._download_posters(client, db, instance.id, "movie", movie_list)
             db.commit()
 
         # Remove stale items
-        stale_count = self._cleanup_stale_items(
-            db, instance.id, "movie", seen_external_ids
-        )
+        stale_count = self._cleanup_stale_items(db, instance.id, "movie", seen_external_ids)
         db.commit()
 
         logger.info(
@@ -383,6 +306,47 @@ class LibrarySyncService:
             stale_removed=stale_count,
         )
         return count
+
+    async def _download_posters(
+        self,
+        client: SonarrClient | RadarrClient,
+        db: Session,
+        instance_id: int,
+        content_type: str,
+        items_list: list[dict[str, Any]],
+    ) -> None:
+        """Download and cache poster images for items missing a poster_path."""
+        for raw_item in items_list:
+            ext_id = raw_item.get("id")
+            if not ext_id:
+                continue
+            item = (
+                db.query(LibraryItem)
+                .filter(
+                    LibraryItem.instance_id == instance_id,
+                    LibraryItem.content_type == content_type,
+                    LibraryItem.external_id == ext_id,
+                )
+                .first()
+            )
+            if not item or item.poster_path:
+                continue
+            rel = f"{instance_id}/{content_type}/{ext_id}.jpg"
+            if (self.poster_dir / rel).exists():
+                item.poster_path = rel
+            else:
+                poster_data = await client.get_poster_bytes(ext_id)
+                if poster_data:
+                    item.poster_path = self._save_poster(
+                        instance_id, content_type, ext_id, poster_data
+                    )
+                    logger.debug(
+                        "library_sync_poster_saved",
+                        instance_id=instance_id,
+                        content_type=content_type,
+                        external_id=ext_id,
+                        size_bytes=len(poster_data),
+                    )
 
     def _upsert_library_item(
         self,
@@ -413,9 +377,7 @@ class LibrarySyncService:
         parsed_added = None
         if added_at:
             try:
-                parsed_added = datetime.fromisoformat(
-                    added_at.replace("Z", "+00:00")
-                )
+                parsed_added = datetime.fromisoformat(added_at.replace("Z", "+00:00"))
             except (ValueError, TypeError):
                 logger.debug(
                     "library_sync_date_parse_failed",
@@ -495,9 +457,7 @@ class LibrarySyncService:
             air_date = None
             if ep.get("airDateUtc"):
                 try:
-                    air_date = datetime.fromisoformat(
-                        ep["airDateUtc"].replace("Z", "+00:00")
-                    )
+                    air_date = datetime.fromisoformat(ep["airDateUtc"].replace("Z", "+00:00"))
                 except (ValueError, TypeError):
                     logger.debug(
                         "library_sync_episode_date_parse_failed",
@@ -526,9 +486,7 @@ class LibrarySyncService:
 
         # Delete episodes no longer in the API response
         all_existing = (
-            db.query(LibraryEpisode)
-            .filter(LibraryEpisode.library_item_id == library_item_id)
-            .all()
+            db.query(LibraryEpisode).filter(LibraryEpisode.library_item_id == library_item_id).all()
         )
         deleted_count = 0
         for existing_ep in all_existing:
@@ -621,10 +579,6 @@ def get_sync_service(
     global _sync_service
     if _sync_service is None:
         if db_session_factory is None:
-            raise RuntimeError(
-                "db_session_factory required on first call"
-            )
-        _sync_service = LibrarySyncService(
-            db_session_factory, poster_dir=poster_dir
-        )
+            raise RuntimeError("db_session_factory required on first call")
+        _sync_service = LibrarySyncService(db_session_factory, poster_dir=poster_dir)
     return _sync_service

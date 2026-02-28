@@ -226,26 +226,34 @@ class SearchQueueManager:
         else:
             raise SearchQueueError(f"Unknown strategy: {queue.strategy}")
 
-    async def _execute_missing_strategy(
+    async def _search_paginated_records(
         self,
-        queue: SearchQueue,
         instance: Instance,
-        db: Session,
+        fetch_method: str,
+        strategy_name: str,
+        paginate_all: bool = True,
+        sort_key: str | None = None,
+        sort_dir: str | None = None,
     ) -> dict[str, Any]:
-        """
-        Execute missing items strategy.
+        """Shared search loop for all strategies.
 
-        Searches for all missing episodes/movies.
+        Creates the appropriate client, fetches records via fetch_method
+        (e.g. "get_wanted_missing"), and triggers per-item searches with
+        cooldown and rate-limit enforcement.
 
         Args:
-            queue: Search queue
             instance: Instance to search on
-            db: Database session
-
-        Returns:
-            dict: Execution results
+            fetch_method: Name of the client method that returns paginated records
+            strategy_name: Used for log events (e.g. "missing", "cutoff")
+            paginate_all: If True, iterate all pages; if False, fetch only page 1
+            sort_key: Optional sort key passed to the fetch method
+            sort_dir: Optional sort direction passed to the fetch method
         """
-        logger.info("executing_missing_strategy", instance_type=instance.instance_type)
+        logger.info(
+            "executing_strategy",
+            strategy=strategy_name,
+            instance_type=instance.instance_type,
+        )
 
         items_searched = 0
         items_found = 0
@@ -253,152 +261,108 @@ class SearchQueueManager:
         errors: list[str] = []
         search_log: list[dict[str, Any]] = []
 
+        is_sonarr = instance.instance_type == "sonarr"
+        item_type = "episode" if is_sonarr else "movie"
+        action_name = "EpisodeSearch" if is_sonarr else "MoviesSearch"
+
         try:
-            # Decrypt API key
             api_key = decrypt_api_key(instance.api_key)
 
-            if instance.instance_type == "sonarr":
-                async with SonarrClient(
-                    url=instance.url,
-                    api_key=api_key,
-                    verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit_per_second or 5,
-                ) as client:
-                    # Get all missing episodes
-                    page = 1
-                    while True:
-                        result = await client.get_wanted_missing(page=page, page_size=50)
-                        records = result.get("records", [])
+            client_cls = SonarrClient if is_sonarr else RadarrClient
+            async with client_cls(
+                url=instance.url,
+                api_key=api_key,
+                verify_ssl=instance.verify_ssl,
+                rate_limit_per_second=instance.rate_limit_per_second or 5,
+            ) as client:
+                search_fn = client.search_episodes if is_sonarr else client.search_movies
+                label_fn = _episode_label if is_sonarr else _movie_label
+                fetch_fn = getattr(client, fetch_method)
 
-                        if not records:
+                page = 1
+                rate_limited = False
+                while not rate_limited:
+                    fetch_kwargs: dict[str, Any] = {
+                        "page": page,
+                        "page_size": 50,
+                    }
+                    if sort_key:
+                        fetch_kwargs["sort_key"] = sort_key
+                    if sort_dir:
+                        fetch_kwargs["sort_dir"] = sort_dir
+
+                    result = await fetch_fn(**fetch_kwargs)
+                    records = result.get("records", [])
+                    if not records:
+                        break
+
+                    for record in records:
+                        item_id = record.get("id")
+                        if not item_id:
+                            continue
+
+                        items_searched += 1
+                        label = label_fn(record)
+                        cooldown_key = (
+                            f"{instance.instance_type}_{instance.id}_{item_type}_{item_id}"
+                        )
+
+                        if self._is_in_cooldown(cooldown_key):
+                            search_log.append(
+                                {
+                                    "item": label,
+                                    "action": "skipped",
+                                    "reason": "cooldown",
+                                }
+                            )
+                            continue
+
+                        if not await self._check_rate_limit(instance.id):
+                            search_log.append(
+                                {
+                                    "item": label,
+                                    "action": "skipped",
+                                    "reason": "rate_limit",
+                                }
+                            )
+                            rate_limited = True
                             break
 
-                        for episode in records:
-                            episode_id = episode.get("id")
-                            if not episode_id:
-                                continue
-
-                            items_searched += 1
-                            label = _episode_label(episode)
-
-                            # Check cooldown
-                            if self._is_in_cooldown(f"sonarr_{instance.id}_episode_{episode_id}"):
-                                logger.debug("item_in_cooldown", episode_id=episode_id)
-                                search_log.append(
-                                    {"item": label, "action": "skipped", "reason": "cooldown"}
-                                )
-                                continue
-
-                            # Check rate limit
-                            if not await self._check_rate_limit(instance.id):
-                                logger.warning("rate_limit_reached", instance_id=instance.id)
-                                search_log.append(
-                                    {"item": label, "action": "skipped", "reason": "rate_limit"}
-                                )
-                                break
-
-                            # Trigger search
-                            try:
-                                cmd_result = await client.search_episodes([episode_id])
-                                items_found += 1
-                                searches_triggered += 1
-                                self._set_cooldown(f"sonarr_{instance.id}_episode_{episode_id}")
-                                logger.debug("episode_search_triggered", episode_id=episode_id)
-                                search_log.append({
+                        try:
+                            cmd_result = await search_fn([item_id])
+                            items_found += 1
+                            searches_triggered += 1
+                            self._set_cooldown(cooldown_key)
+                            search_log.append(
+                                {
                                     "item": label,
-                                    "action": "EpisodeSearch",
+                                    "action": action_name,
                                     "command_id": cmd_result.get("id"),
                                     "result": "sent",
-                                })
-
-                            except Exception as e:
-                                errors.append(f"Episode {episode_id}: {str(e)}")
-                                logger.error(
-                                    "episode_search_failed", episode_id=episode_id, error=str(e)
-                                )
-                                search_log.append({
+                                }
+                            )
+                        except Exception as e:
+                            errors.append(f"{item_type.title()} {item_id}: {e}")
+                            search_log.append(
+                                {
                                     "item": label,
-                                    "action": "EpisodeSearch",
+                                    "action": action_name,
                                     "result": "error",
                                     "error": str(e),
-                                })
+                                }
+                            )
 
-                        page += 1
+                    if not paginate_all:
+                        break
+                    page += 1
 
-            else:  # radarr
-                async with RadarrClient(
-                    url=instance.url,
-                    api_key=api_key,
-                    verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit_per_second or 5,
-                ) as client:
-                    # Get all missing movies
-                    page = 1
-                    while True:
-                        result = await client.get_wanted_missing(page=page, page_size=50)
-                        records = result.get("records", [])
-
-                        if not records:
-                            break
-
-                        for movie in records:
-                            movie_id = movie.get("id")
-                            if not movie_id:
-                                continue
-
-                            items_searched += 1
-                            label = _movie_label(movie)
-
-                            # Check cooldown
-                            if self._is_in_cooldown(f"radarr_{instance.id}_movie_{movie_id}"):
-                                logger.debug("item_in_cooldown", movie_id=movie_id)
-                                search_log.append(
-                                    {"item": label, "action": "skipped", "reason": "cooldown"}
-                                )
-                                continue
-
-                            # Check rate limit
-                            if not await self._check_rate_limit(instance.id):
-                                logger.warning("rate_limit_reached", instance_id=instance.id)
-                                search_log.append(
-                                    {"item": label, "action": "skipped", "reason": "rate_limit"}
-                                )
-                                break
-
-                            # Trigger search
-                            try:
-                                cmd_result = await client.search_movies([movie_id])
-                                items_found += 1
-                                searches_triggered += 1
-                                self._set_cooldown(f"radarr_{instance.id}_movie_{movie_id}")
-                                logger.debug("movie_search_triggered", movie_id=movie_id)
-                                search_log.append({
-                                    "item": label,
-                                    "action": "MoviesSearch",
-                                    "command_id": cmd_result.get("id"),
-                                    "result": "sent",
-                                })
-
-                            except Exception as e:
-                                errors.append(f"Movie {movie_id}: {str(e)}")
-                                logger.error("movie_search_failed", movie_id=movie_id, error=str(e))
-                                search_log.append({
-                                    "item": label,
-                                    "action": "MoviesSearch",
-                                    "result": "error",
-                                    "error": str(e),
-                                })
-
-                        page += 1
-
-            # Determine status
             if errors:
-                status = "partial_success" if items_found > 0 else "failed"
+                result_status = "partial_success" if items_found > 0 else "failed"
             else:
-                status = "success"
+                result_status = "success"
 
             return {
-                "status": status,
+                "status": result_status,
                 "items_searched": items_searched,
                 "items_found": items_found,
                 "searches_triggered": searches_triggered,
@@ -407,8 +371,25 @@ class SearchQueueManager:
             }
 
         except Exception as e:
-            logger.error("missing_strategy_failed", error=str(e))
+            logger.error(
+                "strategy_execution_failed",
+                strategy=strategy_name,
+                error=str(e),
+            )
             raise
+
+    async def _execute_missing_strategy(
+        self,
+        queue: SearchQueue,
+        instance: Instance,
+        db: Session,
+    ) -> dict[str, Any]:
+        """Execute missing items strategy -- searches all missing episodes/movies."""
+        return await self._search_paginated_records(
+            instance,
+            fetch_method="get_wanted_missing",
+            strategy_name="missing",
+        )
 
     async def _execute_cutoff_strategy(
         self,
@@ -416,187 +397,12 @@ class SearchQueueManager:
         instance: Instance,
         db: Session,
     ) -> dict[str, Any]:
-        """
-        Execute cutoff unmet strategy.
-
-        Searches for items that don't meet quality cutoff.
-
-        Args:
-            queue: Search queue
-            instance: Instance to search on
-            db: Database session
-
-        Returns:
-            dict: Execution results
-        """
-        logger.info("executing_cutoff_strategy", instance_type=instance.instance_type)
-
-        items_searched = 0
-        items_found = 0
-        searches_triggered = 0
-        errors: list[str] = []
-        search_log: list[dict[str, Any]] = []
-
-        try:
-            # Decrypt API key
-            api_key = decrypt_api_key(instance.api_key)
-
-            if instance.instance_type == "sonarr":
-                async with SonarrClient(
-                    url=instance.url,
-                    api_key=api_key,
-                    verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit_per_second or 5,
-                ) as client:
-                    # Get all cutoff unmet episodes
-                    page = 1
-                    while True:
-                        result = await client.get_wanted_cutoff(page=page, page_size=50)
-                        records = result.get("records", [])
-
-                        if not records:
-                            break
-
-                        for episode in records:
-                            episode_id = episode.get("id")
-                            if not episode_id:
-                                continue
-
-                            items_searched += 1
-                            label = _episode_label(episode)
-
-                            # Check cooldown
-                            if self._is_in_cooldown(f"sonarr_{instance.id}_episode_{episode_id}"):
-                                search_log.append(
-                                    {"item": label, "action": "skipped", "reason": "cooldown"}
-                                )
-                                continue
-
-                            # Check rate limit
-                            if not await self._check_rate_limit(instance.id):
-                                search_log.append(
-                                    {"item": label, "action": "skipped", "reason": "rate_limit"}
-                                )
-                                break
-
-                            # Trigger search for this cutoff-unmet episode.
-                            # Uses EpisodeSearch (targeted by ID) — the items are
-                            # already pre-filtered by /wanted/cutoff which only
-                            # returns episodes below the Quality Profile cutoff.
-                            # Sonarr evaluates Quality Profiles and Custom Formats
-                            # when deciding whether to grab a release.
-                            try:
-                                cmd_result = await client.search_episodes(
-                                    [episode_id]
-                                )
-                                items_found += 1
-                                searches_triggered += 1
-                                self._set_cooldown(f"sonarr_{instance.id}_episode_{episode_id}")
-                                search_log.append({
-                                    "item": label,
-                                    "action": "EpisodeSearch",
-                                    "command_id": cmd_result.get("id"),
-                                    "result": "sent",
-                                })
-
-                            except Exception as e:
-                                errors.append(f"Episode {episode_id}: {str(e)}")
-                                search_log.append({
-                                    "item": label,
-                                    "action": "EpisodeSearch",
-                                    "result": "error",
-                                    "error": str(e),
-                                })
-
-                        page += 1
-
-            else:  # radarr
-                async with RadarrClient(
-                    url=instance.url,
-                    api_key=api_key,
-                    verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit_per_second or 5,
-                ) as client:
-                    # Get all cutoff unmet movies
-                    page = 1
-                    while True:
-                        result = await client.get_wanted_cutoff(page=page, page_size=50)
-                        records = result.get("records", [])
-
-                        if not records:
-                            break
-
-                        for movie in records:
-                            movie_id = movie.get("id")
-                            if not movie_id:
-                                continue
-
-                            items_searched += 1
-                            label = _movie_label(movie)
-
-                            # Check cooldown
-                            if self._is_in_cooldown(f"radarr_{instance.id}_movie_{movie_id}"):
-                                search_log.append(
-                                    {"item": label, "action": "skipped", "reason": "cooldown"}
-                                )
-                                continue
-
-                            # Check rate limit
-                            if not await self._check_rate_limit(instance.id):
-                                search_log.append(
-                                    {"item": label, "action": "skipped", "reason": "rate_limit"}
-                                )
-                                break
-
-                            # Trigger search for this cutoff-unmet movie.
-                            # Uses MoviesSearch (targeted by ID) — the items are
-                            # already pre-filtered by /wanted/cutoff which only
-                            # returns movies below the Quality Profile cutoff.
-                            # Radarr evaluates Quality Profiles and Custom Formats
-                            # when deciding whether to grab a release.
-                            try:
-                                cmd_result = await client.search_movies(
-                                    [movie_id]
-                                )
-                                items_found += 1
-                                searches_triggered += 1
-                                self._set_cooldown(f"radarr_{instance.id}_movie_{movie_id}")
-                                search_log.append({
-                                    "item": label,
-                                    "action": "MoviesSearch",
-                                    "command_id": cmd_result.get("id"),
-                                    "result": "sent",
-                                })
-
-                            except Exception as e:
-                                errors.append(f"Movie {movie_id}: {str(e)}")
-                                search_log.append({
-                                    "item": label,
-                                    "action": "MoviesSearch",
-                                    "result": "error",
-                                    "error": str(e),
-                                })
-
-                        page += 1
-
-            # Determine status
-            if errors:
-                status = "partial_success" if items_found > 0 else "failed"
-            else:
-                status = "success"
-
-            return {
-                "status": status,
-                "items_searched": items_searched,
-                "items_found": items_found,
-                "searches_triggered": searches_triggered,
-                "errors": errors,
-                "search_log": search_log,
-            }
-
-        except Exception as e:
-            logger.error("cutoff_strategy_failed", error=str(e))
-            raise
+        """Execute cutoff unmet strategy -- searches items below quality cutoff."""
+        return await self._search_paginated_records(
+            instance,
+            fetch_method="get_wanted_cutoff",
+            strategy_name="cutoff",
+        )
 
     async def _execute_recent_strategy(
         self,
@@ -604,171 +410,20 @@ class SearchQueueManager:
         instance: Instance,
         db: Session,
     ) -> dict[str, Any]:
-        """
-        Execute recent additions strategy.
+        """Execute recent additions strategy -- newest missing items first."""
+        if instance.instance_type == "sonarr":
+            sort_key, sort_dir = "airDateUtc", "descending"
+        else:
+            sort_key, sort_dir = "added", "descending"
 
-        Searches for recently added items (newest first).
-
-        Args:
-            queue: Search queue
-            instance: Instance to search on
-            db: Database session
-
-        Returns:
-            dict: Execution results
-        """
-        logger.info("executing_recent_strategy", instance_type=instance.instance_type)
-
-        # Recent strategy prioritizes newest missing items
-        # Similar to missing strategy but with different sorting
-        items_searched = 0
-        items_found = 0
-        searches_triggered = 0
-        errors: list[str] = []
-        search_log: list[dict[str, Any]] = []
-
-        try:
-            # Decrypt API key
-            api_key = decrypt_api_key(instance.api_key)
-
-            if instance.instance_type == "sonarr":
-                async with SonarrClient(
-                    url=instance.url,
-                    api_key=api_key,
-                    verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit_per_second or 5,
-                ) as client:
-                    # Get recent missing episodes (sorted by air date descending)
-                    result = await client.get_wanted_missing(
-                        page=1,
-                        page_size=50,
-                        sort_key="airDateUtc",
-                        sort_dir="descending",
-                    )
-                    records = result.get("records", [])
-
-                    for episode in records:
-                        episode_id = episode.get("id")
-                        if not episode_id:
-                            continue
-
-                        items_searched += 1
-                        label = _episode_label(episode)
-
-                        # Check cooldown
-                        if self._is_in_cooldown(f"sonarr_{instance.id}_episode_{episode_id}"):
-                            search_log.append(
-                                {"item": label, "action": "skipped", "reason": "cooldown"}
-                            )
-                            continue
-
-                        # Check rate limit
-                        if not await self._check_rate_limit(instance.id):
-                            search_log.append(
-                                {"item": label, "action": "skipped", "reason": "rate_limit"}
-                            )
-                            break
-
-                        # Trigger search
-                        try:
-                            cmd_result = await client.search_episodes([episode_id])
-                            items_found += 1
-                            searches_triggered += 1
-                            self._set_cooldown(f"sonarr_{instance.id}_episode_{episode_id}")
-                            search_log.append({
-                                "item": label,
-                                "action": "EpisodeSearch",
-                                "command_id": cmd_result.get("id"),
-                                "result": "sent",
-                            })
-
-                        except Exception as e:
-                            errors.append(f"Episode {episode_id}: {str(e)}")
-                            search_log.append({
-                                "item": label,
-                                "action": "EpisodeSearch",
-                                "result": "error",
-                                "error": str(e),
-                            })
-
-            else:  # radarr
-                async with RadarrClient(
-                    url=instance.url,
-                    api_key=api_key,
-                    verify_ssl=instance.verify_ssl,
-                    rate_limit_per_second=instance.rate_limit_per_second or 5,
-                ) as client:
-                    # Get recent missing movies (sorted by added date descending)
-                    result = await client.get_wanted_missing(
-                        page=1,
-                        page_size=50,
-                        sort_key="added",
-                        sort_dir="descending",
-                    )
-                    records = result.get("records", [])
-
-                    for movie in records:
-                        movie_id = movie.get("id")
-                        if not movie_id:
-                            continue
-
-                        items_searched += 1
-                        label = _movie_label(movie)
-
-                        # Check cooldown
-                        if self._is_in_cooldown(f"radarr_{instance.id}_movie_{movie_id}"):
-                            search_log.append(
-                                {"item": label, "action": "skipped", "reason": "cooldown"}
-                            )
-                            continue
-
-                        # Check rate limit
-                        if not await self._check_rate_limit(instance.id):
-                            search_log.append(
-                                {"item": label, "action": "skipped", "reason": "rate_limit"}
-                            )
-                            break
-
-                        # Trigger search
-                        try:
-                            cmd_result = await client.search_movies([movie_id])
-                            items_found += 1
-                            searches_triggered += 1
-                            self._set_cooldown(f"radarr_{instance.id}_movie_{movie_id}")
-                            search_log.append({
-                                "item": label,
-                                "action": "MoviesSearch",
-                                "command_id": cmd_result.get("id"),
-                                "result": "sent",
-                            })
-
-                        except Exception as e:
-                            errors.append(f"Movie {movie_id}: {str(e)}")
-                            search_log.append({
-                                "item": label,
-                                "action": "MoviesSearch",
-                                "result": "error",
-                                "error": str(e),
-                            })
-
-            # Determine status
-            if errors:
-                status = "partial_success" if items_found > 0 else "failed"
-            else:
-                status = "success"
-
-            return {
-                "status": status,
-                "items_searched": items_searched,
-                "items_found": items_found,
-                "searches_triggered": searches_triggered,
-                "errors": errors,
-                "search_log": search_log,
-            }
-
-        except Exception as e:
-            logger.error("recent_strategy_failed", error=str(e))
-            raise
+        return await self._search_paginated_records(
+            instance,
+            fetch_method="get_wanted_missing",
+            strategy_name="recent",
+            paginate_all=False,
+            sort_key=sort_key,
+            sort_dir=sort_dir,
+        )
 
     async def _execute_custom_strategy(
         self,

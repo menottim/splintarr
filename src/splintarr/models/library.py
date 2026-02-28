@@ -113,10 +113,7 @@ class LibraryItem(Base):
     poster_path = Column(
         String(500),
         nullable=True,
-        comment=(
-            "Relative path to cached poster: "
-            "{instance_id}/{content_type}/{external_id}.jpg"
-        ),
+        comment=("Relative path to cached poster: {instance_id}/{content_type}/{external_id}.jpg"),
     )
 
     # Raw API data
@@ -292,18 +289,12 @@ class LibraryEpisode(Base):
     # Relationships
     library_item = relationship("LibraryItem", back_populates="episodes")
 
-    def __repr__(self) -> str:
-        """String representation of LibraryEpisode."""
-        sn = f"{self.season_number:02d}" if self.season_number is not None else "?"
-        en = f"{self.episode_number:02d}" if self.episode_number is not None else "?"
-        return (
-            f"<LibraryEpisode(id={self.id}, S{sn}E{en}, "
-            f"has_file={self.has_file})>"
-        )
-
     @property
     def episode_code(self) -> str:
         """Format as S01E05 style code."""
         sn = f"{self.season_number:02d}" if self.season_number is not None else "?"
         en = f"{self.episode_number:02d}" if self.episode_number is not None else "?"
         return f"S{sn}E{en}"
+
+    def __repr__(self) -> str:
+        return f"<LibraryEpisode(id={self.id}, {self.episode_code}, has_file={self.has_file})>"

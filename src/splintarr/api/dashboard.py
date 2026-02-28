@@ -59,7 +59,7 @@ templates = Jinja2Templates(directory="src/splintarr/templates")
 templates.env.filters["datetime"] = lambda value: (
     value.strftime("%Y-%m-%d %H:%M:%S") if value else ""
 )
-templates.env.filters["timeago"] = lambda value: (_timeago(value) if value else "")
+templates.env.filters["timeago"] = lambda value: _timeago(value) if value else ""
 templates.env.filters["parse_search_log"] = lambda value: _parse_search_log(value)
 
 
@@ -906,9 +906,7 @@ async def get_dashboard_stats(db: Session, user: User) -> dict[str, Any]:
 
     search_stats = (
         db.query(
-            func.sum(case((SearchHistory.started_at >= today, 1), else_=0)).label(
-                "searches_today"
-            ),
+            func.sum(case((SearchHistory.started_at >= today, 1), else_=0)).label("searches_today"),
             func.count(SearchHistory.id).label("searches_this_week"),
             func.sum(
                 case((SearchHistory.status.in_(["success", "partial_success"]), 1), else_=0)
@@ -979,20 +977,19 @@ async def api_dashboard_activity(
         .all()
     )
 
-    activity = []
-    for search in recent_searches:
-        activity.append(
-            {
-                "id": search.id,
-                "instance_name": search.instance.name,
-                "strategy": search.strategy,
-                "status": search.status,
-                "items_searched": search.items_searched,
-                "items_found": search.items_found,
-                "started_at": search.started_at.isoformat() if search.started_at else None,
-                "completed_at": search.completed_at.isoformat() if search.completed_at else None,
-            }
-        )
+    activity = [
+        {
+            "id": search.id,
+            "instance_name": search.instance.name,
+            "strategy": search.strategy,
+            "status": search.status,
+            "items_searched": search.items_searched,
+            "items_found": search.items_found,
+            "started_at": (search.started_at.isoformat() if search.started_at else None),
+            "completed_at": (search.completed_at.isoformat() if search.completed_at else None),
+        }
+        for search in recent_searches
+    ]
 
     return JSONResponse(content={"activity": activity})
 
@@ -1014,19 +1011,18 @@ async def api_dashboard_system_status(
         .all()
     )
 
-    instance_status = []
-    for inst in instances:
-        instance_status.append(
-            {
-                "id": inst.id,
-                "name": inst.name,
-                "instance_type": inst.instance_type,
-                "url": inst.sanitized_url,
-                "connection_status": inst.connection_status,
-                "last_connection_test": (
-                    inst.last_connection_test.isoformat() if inst.last_connection_test else None
-                ),
-            }
-        )
+    instance_status = [
+        {
+            "id": inst.id,
+            "name": inst.name,
+            "instance_type": inst.instance_type,
+            "url": inst.sanitized_url,
+            "connection_status": inst.connection_status,
+            "last_connection_test": (
+                inst.last_connection_test.isoformat() if inst.last_connection_test else None
+            ),
+        }
+        for inst in instances
+    ]
 
     return JSONResponse(content={"instances": instance_status})

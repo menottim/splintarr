@@ -92,10 +92,59 @@ def _apply_filters(
     if content_type is not None:
         query = query.filter(LibraryItem.content_type == content_type)
     if missing_only:
-        query = query.filter(
-            LibraryItem.episode_have < LibraryItem.episode_count
-        )
+        query = query.filter(LibraryItem.episode_have < LibraryItem.episode_count)
     return query
+
+
+def _render_library_page(
+    request: Request,
+    template_name: str,
+    db: Session,
+    user: User,
+    instance_id: int | None,
+    content_type: str | None,
+    missing_only: bool = False,
+) -> Response:
+    """Shared rendering logic for the library overview and missing pages."""
+    if content_type not in (None, "series", "movie"):
+        content_type = None
+
+    items = (
+        _apply_filters(
+            _base_library_query(db, user),
+            instance_id=instance_id,
+            content_type=content_type,
+            missing_only=missing_only,
+        )
+        .order_by(LibraryItem.title)
+        .all()
+    )
+
+    instances = (
+        db.query(Instance)
+        .filter(
+            Instance.user_id == user.id,
+            Instance.is_active == True,  # noqa: E712
+        )
+        .order_by(Instance.name)
+        .all()
+    )
+
+    stats = _get_library_stats(db, user)
+
+    return templates.TemplateResponse(
+        template_name,
+        {
+            "request": request,
+            "user": user,
+            "active_page": "library",
+            "items": items,
+            "instances": instances,
+            "stats": stats,
+            "selected_instance_id": instance_id,
+            "selected_content_type": content_type,
+        },
+    )
 
 
 def _get_library_stats(db: Session, user: User) -> dict[str, Any]:
@@ -106,8 +155,7 @@ def _get_library_stats(db: Session, user: User) -> dict[str, Any]:
             func.sum(
                 case(
                     (
-                        LibraryItem.episode_have
-                        >= LibraryItem.episode_count,
+                        LibraryItem.episode_have >= LibraryItem.episode_count,
                         1,
                     ),
                     else_=0,
@@ -116,8 +164,7 @@ def _get_library_stats(db: Session, user: User) -> dict[str, Any]:
             func.sum(
                 case(
                     (
-                        LibraryItem.episode_have
-                        < LibraryItem.episode_count,
+                        LibraryItem.episode_have < LibraryItem.episode_count,
                         1,
                     ),
                     else_=0,
@@ -168,51 +215,13 @@ async def library_overview(
     db: Session = Depends(get_db),
 ) -> Response:
     """Library overview page with poster grid."""
-    if content_type not in (None, "series", "movie"):
-        content_type = None
-
-    items = (
-        _apply_filters(
-            _base_library_query(db, current_user),
-            instance_id=instance_id,
-            content_type=content_type,
-        )
-        .order_by(LibraryItem.title)
-        .all()
-    )
-
-    instances = (
-        db.query(Instance)
-        .filter(
-            Instance.user_id == current_user.id,
-            Instance.is_active == True,  # noqa: E712
-        )
-        .order_by(Instance.name)
-        .all()
-    )
-
-    stats = _get_library_stats(db, current_user)
-
-    logger.debug(
-        "library_overview_rendered",
-        user_id=current_user.id,
-        item_count=len(items),
-        instance_filter=instance_id,
-        type_filter=content_type,
-    )
-
-    return templates.TemplateResponse(
+    return _render_library_page(
+        request,
         "dashboard/library.html",
-        {
-            "request": request,
-            "user": current_user,
-            "active_page": "library",
-            "items": items,
-            "instances": instances,
-            "stats": stats,
-            "selected_instance_id": instance_id,
-            "selected_content_type": content_type,
-        },
+        db,
+        current_user,
+        instance_id,
+        content_type,
     )
 
 
@@ -229,50 +238,14 @@ async def library_missing(
     db: Session = Depends(get_db),
 ) -> Response:
     """Missing content filtered view."""
-    if content_type not in (None, "series", "movie"):
-        content_type = None
-
-    items = (
-        _apply_filters(
-            _base_library_query(db, current_user),
-            instance_id=instance_id,
-            content_type=content_type,
-            missing_only=True,
-        )
-        .order_by(LibraryItem.title)
-        .all()
-    )
-
-    instances = (
-        db.query(Instance)
-        .filter(
-            Instance.user_id == current_user.id,
-            Instance.is_active == True,  # noqa: E712
-        )
-        .order_by(Instance.name)
-        .all()
-    )
-
-    stats = _get_library_stats(db, current_user)
-
-    logger.debug(
-        "library_missing_rendered",
-        user_id=current_user.id,
-        missing_count=len(items),
-    )
-
-    return templates.TemplateResponse(
+    return _render_library_page(
+        request,
         "dashboard/library_missing.html",
-        {
-            "request": request,
-            "user": current_user,
-            "active_page": "library",
-            "items": items,
-            "instances": instances,
-            "stats": stats,
-            "selected_instance_id": instance_id,
-            "selected_content_type": content_type,
-        },
+        db,
+        current_user,
+        instance_id,
+        content_type,
+        missing_only=True,
     )
 
 
@@ -288,11 +261,7 @@ async def library_item_detail(
     db: Session = Depends(get_db),
 ) -> Response:
     """Item detail page with episode breakdown."""
-    item = (
-        _base_library_query(db, current_user)
-        .filter(LibraryItem.id == item_id)
-        .first()
-    )
+    item = _base_library_query(db, current_user).filter(LibraryItem.id == item_id).first()
 
     if not item:
         logger.debug(
@@ -417,12 +386,7 @@ async def api_library_items(
     total_pages = max(1, (total + per_page - 1) // per_page)
     offset = (page - 1) * per_page
 
-    items = (
-        base_q.order_by(LibraryItem.title)
-        .offset(offset)
-        .limit(per_page)
-        .all()
-    )
+    items = base_q.order_by(LibraryItem.title).offset(offset).limit(per_page).all()
 
     logger.debug(
         "library_items_listed",
