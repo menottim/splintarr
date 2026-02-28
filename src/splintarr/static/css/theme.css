@@ -82,7 +82,6 @@
 
     /* Sidebar dimensions */
     --sidebar-width: 240px;
-    --sidebar-collapsed-width: 60px;
     --sidebar-bg: var(--slate-950);
     --sidebar-border: var(--slate-700);
 

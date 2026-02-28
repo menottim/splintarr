@@ -355,6 +355,11 @@ async def setup_admin_create(
 
         logger.info("setup_admin_created", user_id=user.id, username=user.username)
 
+        # Record first login
+        client_ip = request.client.host if request.client else "unknown"
+        user.record_login(client_ip)
+        db.commit()
+
         # Create auth tokens and set cookies
         access_token = create_access_token(user.id, user.username)
         refresh_token, _ = create_refresh_token(
