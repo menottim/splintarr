@@ -35,13 +35,39 @@ Sonarr and Radarr rely on RSS feeds for ongoing content — polling indexers eve
 | No search-by-age prioritization | [Sonarr #3067](https://github.com/Sonarr/Sonarr/issues/3067) |
 | Re-downloads of deleted content | Users who delete episodes see them re-downloaded by "missing" searches |
 
-### Competing Tools
+### Competing Tools & Landscape
 
-| Tool | Approach | Splintarr Advantage |
-|------|----------|---------------------|
-| [Huntarr](https://github.com/plexguide/Huntarr.io) | Batch-based, hourly API caps, multi-arr support | Indexer-aware throttling, adaptive prioritization, season pack intelligence, library overview, security-focused design |
-| [missarr](https://github.com/l3uddz/missarr) | CLI, config-file | Full web UI, scheduling, analytics, no scripting required |
-| [n8n workflow](https://n8n.io/workflows/5927) | Automation platform | Self-contained Docker app, no n8n infrastructure needed |
+| Tool | Status | Approach | Splintarr Advantage |
+|------|--------|----------|---------------------|
+| Huntarr | **Abandoned** (Feb 2025) | Batch-based, hourly API caps, multi-arr support | See below |
+| [NewtArr](https://github.com/elfhosted/newtarr) | Maintenance-only fork of Huntarr v6.6.3 | Same as Huntarr pre-controversy | Active development, security-first design, search intelligence |
+| [missarr](https://github.com/l3uddz/missarr) | Active | CLI, config-file | Full web UI, scheduling, analytics, no scripting required |
+| [n8n workflow](https://n8n.io/workflows/5927) | Active | Automation platform | Self-contained Docker app, no n8n infrastructure needed |
+
+#### The Huntarr Incident (February 2025)
+
+Huntarr was the most popular tool in this space until critical security vulnerabilities were publicly disclosed ([PiunikaWeb](https://piunikaweb.com/2026/02/24/huntarr-security-vulnerability-arr-api-keys-exposed/), [Lawrence Systems](https://forums.lawrencesystems.com/t/what-the-huntarr-controversy-teaches-about-self-hosted-security-youtube-release/26539)):
+
+- **Unauthenticated API key exposure**: Anyone on the network (or internet, if exposed) could pull Sonarr/Radarr/Prowlarr API keys without logging in
+- **Unauthenticated 2FA enrollment**: Allowed full account takeover with no password
+- **Unauthenticated setup clear**: Attacker could reset the app and create a new owner account
+- The project was 100% AI/vibe-coded with no code review or PR process
+- When vulnerabilities were reported, the developer deleted the GitHub repo, Discord server, and went dark
+- TrueNAS removed Huntarr from their app catalog ([Issue #4458](https://github.com/truenas/apps/issues/4458))
+
+**What the community liked about Huntarr** (and wants in a replacement):
+- Simple "missing content hunting" — conservative defaults (1 item every 15 minutes)
+- Multi-instance support with independent schedules per instance
+- Storage awareness — auto-pause when disk is low
+- Sort options for which missing items to search first (newest/oldest)
+- Lightweight Docker container alongside existing *arr stack
+
+**What the community rejected:**
+- Scope creep into replacing the entire *arr stack (built-in Radarr alternative, Prowlarr alternative, NZB client)
+- Telemetry and obfuscated code
+- No transparency, no code review, no security practices
+
+**Splintarr's positioning:** Fill the same core gap (scheduled backlog searching) with the security practices and transparency that Huntarr lacked. Stay focused on search automation — don't try to replace the *arr apps. The README's AI-generated code disclaimer and the comprehensive security documentation are direct responses to this community concern.
 
 ---
 
