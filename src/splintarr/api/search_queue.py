@@ -13,10 +13,10 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from splintarr.api.auth import get_current_user
+from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db, get_session_factory
 from splintarr.models import Instance, SearchQueue, User
 from splintarr.schemas import (
@@ -29,7 +29,7 @@ from splintarr.services import SearchQueueManager, get_history_service, get_sche
 
 logger = structlog.get_logger()
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=rate_limit_key_func)
 router = APIRouter(prefix="/api/search-queues", tags=["search-queues"])
 
 

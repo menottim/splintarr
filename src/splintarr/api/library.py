@@ -28,11 +28,11 @@ from fastapi import (
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from splintarr.core.auth import get_current_user_from_cookie
+from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db
 from splintarr.models.instance import Instance
 from splintarr.models.library import LibraryEpisode, LibraryItem
@@ -43,7 +43,7 @@ logger = structlog.get_logger()
 
 router = APIRouter(tags=["library"])
 templates = Jinja2Templates(directory="src/splintarr/templates")
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=rate_limit_key_func)
 
 
 # ============================================================================

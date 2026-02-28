@@ -18,11 +18,11 @@ import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from splintarr.api.auth import get_current_user
 from splintarr.config import settings
+from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.core.security import decrypt_field, encrypt_field
 from splintarr.core.ssrf_protection import SSRFError, validate_instance_url
 from splintarr.database import get_db
@@ -46,7 +46,7 @@ router = APIRouter(
 )
 
 # Rate limiter
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=rate_limit_key_func)
 
 
 def instance_to_response(instance: Instance) -> InstanceResponse:
