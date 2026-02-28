@@ -136,7 +136,7 @@ class SearchQueueCreate(BaseModel):
                 },
                 {
                     "instance_id": 2,
-                    "name": "Weekly Quality Upgrade",
+                    "name": "Weekly Cutoff Unmet",
                     "strategy": "cutoff_unmet",
                     "recurring": True,
                     "interval_hours": 168,

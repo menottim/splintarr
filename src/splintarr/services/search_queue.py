@@ -479,15 +479,18 @@ class SearchQueueManager:
                                 )
                                 break
 
-                            # Trigger search
+                            # Trigger cutoff unmet search (uses dedicated command
+                            # that honors Quality Profiles and Custom Formats)
                             try:
-                                cmd_result = await client.search_episodes([episode_id])
+                                cmd_result = await client.search_cutoff_unmet(
+                                    [episode_id]
+                                )
                                 items_found += 1
                                 searches_triggered += 1
                                 self._set_cooldown(f"sonarr_{instance.id}_episode_{episode_id}")
                                 search_log.append({
                                     "item": label,
-                                    "action": "EpisodeSearch",
+                                    "action": "CutoffUnmetEpisodeSearch",
                                     "command_id": cmd_result.get("id"),
                                     "result": "sent",
                                 })
@@ -496,7 +499,7 @@ class SearchQueueManager:
                                 errors.append(f"Episode {episode_id}: {str(e)}")
                                 search_log.append({
                                     "item": label,
-                                    "action": "EpisodeSearch",
+                                    "action": "CutoffUnmetEpisodeSearch",
                                     "result": "error",
                                     "error": str(e),
                                 })
@@ -541,15 +544,18 @@ class SearchQueueManager:
                                 )
                                 break
 
-                            # Trigger search
+                            # Trigger cutoff unmet search (uses dedicated command
+                            # that honors Quality Profiles and Custom Formats)
                             try:
-                                cmd_result = await client.search_movies([movie_id])
+                                cmd_result = await client.search_cutoff_unmet(
+                                    [movie_id]
+                                )
                                 items_found += 1
                                 searches_triggered += 1
                                 self._set_cooldown(f"radarr_{instance.id}_movie_{movie_id}")
                                 search_log.append({
                                     "item": label,
-                                    "action": "MoviesSearch",
+                                    "action": "CutoffUnmetMoviesSearch",
                                     "command_id": cmd_result.get("id"),
                                     "result": "sent",
                                 })
@@ -558,7 +564,7 @@ class SearchQueueManager:
                                 errors.append(f"Movie {movie_id}: {str(e)}")
                                 search_log.append({
                                     "item": label,
-                                    "action": "MoviesSearch",
+                                    "action": "CutoffUnmetMoviesSearch",
                                     "result": "error",
                                     "error": str(e),
                                 })
