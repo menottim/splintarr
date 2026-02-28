@@ -4,7 +4,7 @@
 
 <h1 align="center">Splintarr</h1>
 
-<p align="center"><strong>Version 0.1.0-alpha</strong> | Automated backlog search for Sonarr and Radarr, designed for homelab use.</p>
+<p align="center"><strong>Version 0.2.0</strong> | Automated backlog search for Sonarr and Radarr, designed for homelab use.</p>
 
 > **Status: Active Development -- Not Ready for Use**
 >

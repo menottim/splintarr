@@ -77,8 +77,8 @@ Huntarr was the most popular tool in this space until critical security vulnerab
 | # | Feature | Status | Release | Notes |
 |---|---------|--------|---------|-------|
 | 1 | [Library Overview](#1-library-overview) | **Done** | v0.1.0 | PRs #37-40 |
-| 2 | [Content Exclusion Lists](#2-content-exclusion-lists) | Planned | v0.2.0 | User-requested |
-| 7 | [Discord Notifications](#7-discord-notifications) | Planned | v0.2.0 | User-requested |
+| 2 | [Content Exclusion Lists](#2-content-exclusion-lists) | **Done** | v0.2.0 | PR #63 |
+| 7 | [Discord Notifications](#7-discord-notifications) | **Done** | v0.2.0 | PR #62 |
 | 3 | [Health Monitoring & Auto-Recovery](#3-health-monitoring--auto-recovery) | Planned | v0.2.1 | |
 | 4 | [Clone Queue & Presets](#4-clone-queue--presets) | Planned | v0.2.1 | Simplified from Search Profiles |
 | 5 | [Real-Time Activity Feed](#5-real-time-activity-feed) | Planned | v0.2.1 | WebSocket, useful for debugging |

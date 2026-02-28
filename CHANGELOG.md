@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-02-28
+
+### Added
+- **Content Exclusion Lists** — Exclude specific series or movies from searches with optional expiration (7/30/90 days or permanent). Exclusions visible as badges in library grid. Management page under new "Exclusions" nav item.
+- **Discord Webhook Notifications** — Receive Discord messages when searches find content, queues fail, or instances go down. Rich embeds with poster thumbnails. Configurable event toggles in Settings.
+- **Library Overview** — Browse Sonarr/Radarr library with poster grid, missing content view, per-item episode breakdown. Background sync every 6 hours.
+- **Per-item search execution details** — Collapsible API details on queue detail page showing each item searched, command sent, and result.
+- **Mobile hamburger menu** — Slide-out sidebar replaces collapsed icon bar on mobile.
+- Comprehensive security audit with 4 fix PRs (XSS, error info disclosure, rate limiter, setup validation)
+- Logging standard codified in CLAUDE.md with automatic enforcement
+- Security audit policy with automatic trigger after security-relevant changes
+
+### Changed
+- "Quality Upgrade" renamed to "Cutoff Unmet" to match Sonarr/Radarr terminology
+- Cutoff unmet strategy uses `/api/v3/wanted/cutoff` endpoint correctly
+- Code simplification pass: -462 lines across 8 files with no functionality changes
+- Screenshots added to README and getting-started tutorial
+
+### Fixed
+- Stored XSS via innerHTML in instance/setup templates
+- Raw exception text leaked in HTTP error responses
+- Rate limiter used proxy IP instead of client IP in 4 API modules
+- Setup wizard missing username validation and common password check
+- Pydantic settings secret leakage on validation error
+- Wrong GitHub URLs in setup wizard templates
+- Incorrect strategy names on setup complete page
+- "Page 1 of 0" in empty search history
+- Misleading "library is complete" when no data synced
+
+### Security
+- innerHTML XSS in instance templates (Critical — PR #42)
+- Error info disclosure in API responses (Critical — PR #41)
+- Rate limiter key inconsistency (High — PR #44)
+- Setup wizard validation gaps (Medium — PR #43)
+- 5 accepted risks documented with GitHub issue tracking (#45-#49)
+
+---
+
 ## [Unreleased]
 
 ### Added
