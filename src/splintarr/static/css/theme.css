@@ -24,7 +24,7 @@
     --brand-success: #48c774;
     --brand-warning: #ffb86c;
     --brand-danger: #ff5555;
-    --brand-info: #D4A017;
+    --brand-info: #E8C33A;
     --brand-maroon: #5C1414;
     --brand-maroon-light: #7B2222;
     --brand-maroon-dark: #3A0C0C;
@@ -370,7 +370,7 @@ button:not(.secondary):not(.outline):not([type="reset"]),
 [role="button"]:not(.secondary):not(.outline) {
     background-color: var(--brand-primary);
     border-color: var(--brand-primary);
-    color: #ffffff;
+    color: var(--primary-inverse);
     font-weight: 600;
 }
 
@@ -379,7 +379,7 @@ button:not(.secondary):not(.outline):not([type="reset"]):hover,
 [role="button"]:not(.secondary):not(.outline):hover {
     background-color: var(--brand-primary-hover);
     border-color: var(--brand-primary-hover);
-    color: #ffffff;
+    color: var(--primary-inverse);
     box-shadow: var(--button-hover-box-shadow);
 }
 

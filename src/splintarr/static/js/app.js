@@ -54,9 +54,9 @@ function showNotification(message, type = 'error') {
         toast.style.border = '1px solid #48c774';
         toast.style.color = '#48c774';
     } else {
-        toast.style.background = 'rgba(168,85,247,0.15)';
-        toast.style.border = '1px solid #a855f7';
-        toast.style.color = '#a855f7';
+        toast.style.background = 'rgba(212,160,23,0.15)';
+        toast.style.border = '1px solid #D4A017';
+        toast.style.color = '#D4A017';
     }
 
     toast.textContent = message;
