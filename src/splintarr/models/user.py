@@ -138,6 +138,12 @@ class User(Base):
         uselist=False,
         lazy="joined",
     )
+    search_exclusions = relationship(
+        "SearchExclusion",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
 
     def __repr__(self) -> str:
         """String representation of User."""

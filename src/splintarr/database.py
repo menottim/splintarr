@@ -312,6 +312,7 @@ def init_db() -> None:
             LibraryItem,
             NotificationConfig,
             RefreshToken,
+            SearchExclusion,
             SearchHistory,
             SearchQueue,
             User,

@@ -5,6 +5,7 @@ This module exports all SQLAlchemy models for easy import throughout the applica
 All models use the Base declarative base from database.py.
 """
 
+from splintarr.models.exclusion import SearchExclusion
 from splintarr.models.instance import Instance
 from splintarr.models.library import LibraryEpisode, LibraryItem
 from splintarr.models.notification import NotificationConfig
@@ -19,6 +20,7 @@ __all__ = [
     "Instance",
     "SearchQueue",
     "SearchHistory",
+    "SearchExclusion",
     "LibraryItem",
     "LibraryEpisode",
     "NotificationConfig",

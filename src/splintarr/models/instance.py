@@ -149,6 +149,12 @@ class Instance(Base):
         cascade="all, delete-orphan",
         lazy="dynamic",
     )
+    search_exclusions = relationship(
+        "SearchExclusion",
+        back_populates="instance",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
 
     def __repr__(self) -> str:
         """String representation of Instance."""
