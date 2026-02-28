@@ -134,43 +134,6 @@ class SonarrClient(BaseArrClient):
 
         return result
 
-    async def search_cutoff_unmet(self, episode_ids: list[int]) -> dict[str, Any]:
-        """
-        Trigger cutoff unmet search for specific episodes.
-
-        Uses the CutoffUnmetEpisodeSearch command which searches only for
-        upgrades that meet the quality profile cutoff, honoring Custom
-        Formats and quality rankings.
-
-        Args:
-            episode_ids: List of episode IDs to search for upgrades
-
-        Returns:
-            dict: Command response with status and ID
-
-        Raises:
-            SonarrError: If request fails
-            ValueError: If episode_ids is empty
-        """
-        if not episode_ids:
-            raise ValueError("episode_ids cannot be empty")
-
-        command = {
-            "name": "CutoffUnmetEpisodeSearch",
-            "episodeIds": episode_ids,
-        }
-
-        result = await self._request("POST", "/api/v3/command", json=command)
-
-        logger.info(
-            "sonarr_cutoff_unmet_search_triggered",
-            url=self.url,
-            episode_ids=episode_ids,
-            command_id=result.get("id"),
-        )
-
-        return result
-
     async def search_series(self, series_id: int) -> dict[str, Any]:
         """
         Trigger search for all missing episodes in a series.

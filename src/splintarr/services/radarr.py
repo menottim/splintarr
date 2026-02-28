@@ -134,43 +134,6 @@ class RadarrClient(BaseArrClient):
 
         return result
 
-    async def search_cutoff_unmet(self, movie_ids: list[int]) -> dict[str, Any]:
-        """
-        Trigger cutoff unmet search for specific movies.
-
-        Uses the CutoffUnmetMoviesSearch command which searches only for
-        upgrades that meet the quality profile cutoff, honoring Custom
-        Formats and quality rankings.
-
-        Args:
-            movie_ids: List of movie IDs to search for upgrades
-
-        Returns:
-            dict: Command response with status and ID
-
-        Raises:
-            RadarrError: If request fails
-            ValueError: If movie_ids is empty
-        """
-        if not movie_ids:
-            raise ValueError("movie_ids cannot be empty")
-
-        command = {
-            "name": "CutoffUnmetMoviesSearch",
-            "movieIds": movie_ids,
-        }
-
-        result = await self._request("POST", "/api/v3/command", json=command)
-
-        logger.info(
-            "radarr_cutoff_unmet_search_triggered",
-            url=self.url,
-            movie_ids=movie_ids,
-            command_id=result.get("id"),
-        )
-
-        return result
-
     async def get_movies(
         self, movie_id: int | None = None
     ) -> dict[str, Any] | list[dict[str, Any]]:

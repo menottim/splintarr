@@ -479,10 +479,14 @@ class SearchQueueManager:
                                 )
                                 break
 
-                            # Trigger cutoff unmet search (uses dedicated command
-                            # that honors Quality Profiles and Custom Formats)
+                            # Trigger search for this cutoff-unmet episode.
+                            # Uses EpisodeSearch (targeted by ID) — the items are
+                            # already pre-filtered by /wanted/cutoff which only
+                            # returns episodes below the Quality Profile cutoff.
+                            # Sonarr evaluates Quality Profiles and Custom Formats
+                            # when deciding whether to grab a release.
                             try:
-                                cmd_result = await client.search_cutoff_unmet(
+                                cmd_result = await client.search_episodes(
                                     [episode_id]
                                 )
                                 items_found += 1
@@ -490,7 +494,7 @@ class SearchQueueManager:
                                 self._set_cooldown(f"sonarr_{instance.id}_episode_{episode_id}")
                                 search_log.append({
                                     "item": label,
-                                    "action": "CutoffUnmetEpisodeSearch",
+                                    "action": "EpisodeSearch",
                                     "command_id": cmd_result.get("id"),
                                     "result": "sent",
                                 })
@@ -499,7 +503,7 @@ class SearchQueueManager:
                                 errors.append(f"Episode {episode_id}: {str(e)}")
                                 search_log.append({
                                     "item": label,
-                                    "action": "CutoffUnmetEpisodeSearch",
+                                    "action": "EpisodeSearch",
                                     "result": "error",
                                     "error": str(e),
                                 })
@@ -544,10 +548,14 @@ class SearchQueueManager:
                                 )
                                 break
 
-                            # Trigger cutoff unmet search (uses dedicated command
-                            # that honors Quality Profiles and Custom Formats)
+                            # Trigger search for this cutoff-unmet movie.
+                            # Uses MoviesSearch (targeted by ID) — the items are
+                            # already pre-filtered by /wanted/cutoff which only
+                            # returns movies below the Quality Profile cutoff.
+                            # Radarr evaluates Quality Profiles and Custom Formats
+                            # when deciding whether to grab a release.
                             try:
-                                cmd_result = await client.search_cutoff_unmet(
+                                cmd_result = await client.search_movies(
                                     [movie_id]
                                 )
                                 items_found += 1
@@ -555,7 +563,7 @@ class SearchQueueManager:
                                 self._set_cooldown(f"radarr_{instance.id}_movie_{movie_id}")
                                 search_log.append({
                                     "item": label,
-                                    "action": "CutoffUnmetMoviesSearch",
+                                    "action": "MoviesSearch",
                                     "command_id": cmd_result.get("id"),
                                     "result": "sent",
                                 })
@@ -564,7 +572,7 @@ class SearchQueueManager:
                                 errors.append(f"Movie {movie_id}: {str(e)}")
                                 search_log.append({
                                     "item": label,
-                                    "action": "CutoffUnmetMoviesSearch",
+                                    "action": "MoviesSearch",
                                     "result": "error",
                                     "error": str(e),
                                 })
