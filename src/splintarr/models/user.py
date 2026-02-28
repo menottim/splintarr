@@ -131,6 +131,13 @@ class User(Base):
         cascade="all, delete-orphan",
         lazy="dynamic",
     )
+    notification_config = relationship(
+        "NotificationConfig",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
+        lazy="joined",
+    )
 
     def __repr__(self) -> str:
         """String representation of User."""

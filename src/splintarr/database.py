@@ -310,6 +310,7 @@ def init_db() -> None:
             Instance,
             LibraryEpisode,
             LibraryItem,
+            NotificationConfig,
             RefreshToken,
             SearchHistory,
             SearchQueue,
