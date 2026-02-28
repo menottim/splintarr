@@ -85,7 +85,7 @@ class HealthCheckService:
         except Exception as e:
             # Client creation or connection entirely failed — treat as unhealthy
             logger.error(
-                "instance_health_check_client_error",
+                "instance_health_check_failed",
                 instance_id=instance.id,
                 instance_name=instance.name,
                 error=str(e),
