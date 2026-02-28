@@ -1026,6 +1026,9 @@ async def api_dashboard_system_status(
             "last_connection_test": (
                 inst.last_connection_test.isoformat() if inst.last_connection_test else None
             ),
+            "consecutive_failures": inst.consecutive_failures,
+            "response_time_ms": inst.response_time_ms,
+            "connection_error": inst.connection_error,
         }
         for inst in instances
     ]

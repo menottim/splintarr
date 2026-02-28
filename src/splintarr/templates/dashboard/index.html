@@ -238,6 +238,20 @@ function buildStatusRow(inst) {
     checked.textContent = inst.last_connection_test ? 'checked' : 'never checked';
     row.appendChild(checked);
 
+    if (inst.response_time_ms !== null && inst.response_time_ms !== undefined && inst.connection_status === 'healthy') {
+        var latency = document.createElement('small');
+        latency.style.cssText = 'color: var(--muted-color); margin-left: 0.25rem;';
+        latency.textContent = inst.response_time_ms + 'ms';
+        row.appendChild(latency);
+    }
+
+    if (inst.connection_status === 'unhealthy' && inst.connection_error) {
+        dot.title = 'Unhealthy: ' + inst.connection_error;
+    }
+    if (inst.consecutive_failures > 0) {
+        dot.title += ' (' + inst.consecutive_failures + ' consecutive failures)';
+    }
+
     return row;
 }
 
@@ -258,6 +272,6 @@ setInterval(async () => {
     } catch (error) {
         console.error('Failed to refresh system status:', error);
     }
-}, 60000);
+}, 30000);
 </script>
 {% endblock %}

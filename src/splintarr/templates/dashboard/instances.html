@@ -54,6 +54,15 @@
                 <span style="color: var(--muted-color);">? Unknown</span>
                 {% endif %}
             </dd>
+
+            {% if instance.response_time_ms is not none and instance.is_healthy() %}
+            <dt>Response Time</dt>
+            <dd>{{ instance.response_time_ms }}ms</dd>
+            {% endif %}
+            {% if instance.connection_error %}
+            <dt>Last Error</dt>
+            <dd><small style="color: var(--del-color);">{{ instance.connection_error }}</small></dd>
+            {% endif %}
         </dl>
 
         <footer>
