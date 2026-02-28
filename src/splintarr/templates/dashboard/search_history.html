@@ -113,7 +113,7 @@
             <dd>{{ total_count }}</dd>
 
             <dt>Current Page</dt>
-            <dd>{{ page }} of {{ total_pages }}</dd>
+            <dd>{{ page }} of {{ [total_pages, 1]|max }}</dd>
 
             <dt>Per Page</dt>
             <dd>{{ per_page }}</dd>
@@ -122,7 +122,7 @@
 
     <article>
         <h4>Filters</h4>
-        <p><small style="color: var(--muted-color);">Advanced filtering coming soon</small></p>
+        <p><small style="color: var(--muted-color);">Filter by instance, strategy, or date range from the <a href="/api/search-history">API</a>.</small></p>
     </article>
 </div>
 {% endblock %}

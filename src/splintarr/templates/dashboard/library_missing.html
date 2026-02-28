@@ -44,7 +44,11 @@
 {% else %}
 <article>
     <p class="empty-state">
+        {% if stats.total_items == 0 %}
+        No library data yet. <a href="/dashboard/library">Sync your library</a> first to see missing content.
+        {% else %}
         No missing content found. Your library is complete!
+        {% endif %}
     </p>
 </article>
 {% endif %}
