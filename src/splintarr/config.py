@@ -9,11 +9,15 @@ This module provides secure configuration management following OWASP best practi
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+import structlog
+from pydantic import Field, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+logger = structlog.get_logger()
 
 
 class Settings(BaseSettings):
@@ -435,9 +439,8 @@ class Settings(BaseSettings):
             )
         if len(v) < 32:
             raise ValueError(
-                f"JWT secret key must be at least 32 bytes (256 bits). "
-                f"Current length: {len(v)} bytes. "
-                f"Generate a secure key with: openssl rand -base64 32"
+                "JWT secret key must be at least 32 bytes (256 bits). "
+                "Generate a secure key with: openssl rand -base64 32"
             )
         return v
 
@@ -456,9 +459,8 @@ class Settings(BaseSettings):
             )
         if len(v) < 32:
             raise ValueError(
-                f"Database encryption key must be at least 32 bytes (256 bits). "
-                f"Current length: {len(v)} bytes. "
-                f"Generate a secure key with: openssl rand -base64 32"
+                "Database encryption key must be at least 32 bytes (256 bits). "
+                "Generate a secure key with: openssl rand -base64 32"
             )
         return v
 
@@ -477,12 +479,23 @@ class Settings(BaseSettings):
             )
         if len(v) < 32:
             raise ValueError(
-                f"Password hashing pepper must be at least 32 bytes (256 bits). "
-                f"Current length: {len(v)} bytes. "
-                f"Generate a secure key with: openssl rand -base64 32"
+                "Password hashing pepper must be at least 32 bytes (256 bits). "
+                "Generate a secure key with: openssl rand -base64 32"
             )
         return v
 
 
 # Global settings instance
-settings = Settings()
+try:
+    settings = Settings()
+except ValidationError as e:
+    # Log a generic error without secret values that Pydantic may include in the message.
+    # ValidationError.__str__() can contain the raw input values for secret fields.
+    error_fields = [err.get("loc", ("unknown",))[0] for err in e.errors()]
+    logger.critical(
+        "settings_validation_failed",
+        fields=error_fields,
+        hint="Check environment variables or Docker secrets. "
+        "Run 'scripts/generate-secrets.sh' to generate required secrets.",
+    )
+    sys.exit(1)

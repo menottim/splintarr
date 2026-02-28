@@ -43,6 +43,7 @@ from splintarr.models.instance import Instance
 from splintarr.models.search_history import SearchHistory
 from splintarr.models.search_queue import SearchQueue
 from splintarr.models.user import User
+from splintarr.schemas.user import common_passwords
 from splintarr.services.radarr import RadarrClient, RadarrError
 from splintarr.services.sonarr import SonarrClient, SonarrError
 
@@ -244,6 +245,30 @@ async def setup_admin_create(
     if user_count > 0:
         return RedirectResponse(url="/", status_code=status.HTTP_302_FOUND)
 
+    # Validate username format (must match UserRegister schema rules)
+    username_error = None
+    if len(username) < 3:
+        username_error = "Username must be at least 3 characters long"
+    elif len(username) > 32:
+        username_error = "Username must not exceed 32 characters"
+    elif not re.match(r"^[a-zA-Z][a-zA-Z0-9_]*$", username):
+        username_error = (
+            "Username must start with a letter and contain only "
+            "alphanumeric characters and underscore"
+        )
+
+    if username_error:
+        return templates.TemplateResponse(
+            "setup/admin.html",
+            {
+                "request": request,
+                "app_name": settings.app_name,
+                "error": username_error,
+                "username": username,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
     # Validate passwords match
     if password != confirm_password:
         return templates.TemplateResponse(
@@ -278,6 +303,19 @@ async def setup_admin_create(
                 "request": request,
                 "app_name": settings.app_name,
                 "error": password_errors[0],
+                "username": username,
+            },
+            status_code=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Check against common password blocklist (NIST SP 800-63B)
+    if password.lower() in common_passwords:
+        return templates.TemplateResponse(
+            "setup/admin.html",
+            {
+                "request": request,
+                "app_name": settings.app_name,
+                "error": "Password is too common. Please choose a more unique password.",
                 "username": username,
             },
             status_code=status.HTTP_400_BAD_REQUEST,
