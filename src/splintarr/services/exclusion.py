@@ -15,7 +15,6 @@ import structlog
 from sqlalchemy.orm import Session
 
 from splintarr.models.exclusion import SearchExclusion
-from splintarr.models.instance import Instance
 
 logger = structlog.get_logger()
 
