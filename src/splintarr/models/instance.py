@@ -92,6 +92,30 @@ class Instance(Base):
         comment="Error message from last failed connection attempt",
     )
 
+    # Health monitoring (v0.2.1)
+    consecutive_failures = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Number of consecutive failed connection tests",
+    )
+    consecutive_successes = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Number of consecutive successful connection tests",
+    )
+    last_healthy_at = Column(
+        DateTime,
+        nullable=True,
+        comment="Timestamp of last successful health check",
+    )
+    response_time_ms = Column(
+        Integer,
+        nullable=True,
+        comment="Response time of last connection test in milliseconds",
+    )
+
     # Configuration
     verify_ssl = Column(
         Boolean,
@@ -172,32 +196,27 @@ class Instance(Base):
         """
         return self.last_connection_success is True
 
-    def record_connection_test(self, success: bool, error: str | None = None) -> None:
-        """
-        Record the result of a connection test.
-
-        Args:
-            success: Whether the connection test succeeded
-            error: Error message if connection failed (optional)
-        """
+    def record_connection_test(
+        self, success: bool, error: str | None = None, response_time_ms: int | None = None
+    ) -> None:
+        """Record the result of a connection test."""
         self.last_connection_test = datetime.utcnow()
         self.last_connection_success = success
         self.connection_error = error if not success else None
+        self.response_time_ms = response_time_ms
+
+    def mark_healthy(self, response_time_ms: int | None = None) -> None:
+        """Mark instance as healthy after a successful connection test."""
+        self.record_connection_test(success=True, response_time_ms=response_time_ms)
+        self.consecutive_failures = 0
+        self.consecutive_successes = (self.consecutive_successes or 0) + 1
+        self.last_healthy_at = datetime.utcnow()
 
     def mark_unhealthy(self, error: str) -> None:
-        """
-        Mark instance as unhealthy with an error message.
-
-        Args:
-            error: Error message describing the connection failure
-        """
+        """Mark instance as unhealthy after a failed connection test."""
         self.record_connection_test(success=False, error=error)
-        # Optionally deactivate after repeated failures
-        # This could be enhanced with a failure counter
-
-    def mark_healthy(self) -> None:
-        """Mark instance as healthy and clear any error messages."""
-        self.record_connection_test(success=True, error=None)
+        self.consecutive_failures = (self.consecutive_failures or 0) + 1
+        self.consecutive_successes = 0
 
     @property
     def connection_status(self) -> str:
