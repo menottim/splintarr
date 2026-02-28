@@ -368,6 +368,61 @@ class BaseArrClient:
             logger.error(f"{svc}_unexpected_error", url=self.url, error=str(e))
             raise self._error_base(f"Unexpected error: {e}") from e
 
+    async def _request_bytes(self, endpoint: str) -> bytes | None:
+        """
+        Download binary content (e.g., poster images) from the *arr API.
+
+        Returns None on any error instead of raising, since missing
+        posters are non-fatal.
+
+        Args:
+            endpoint: API endpoint path
+
+        Returns:
+            bytes | None: Raw response bytes, or None on failure
+        """
+        await self._ensure_client()
+        assert self._client is not None  # guaranteed by _ensure_client()
+        await self._rate_limit()
+
+        # SSRF validation (same as _request)
+        try:
+            validate_instance_url(
+                self.url, allow_local=settings.allow_local_instances
+            )
+        except SSRFError as e:
+            logger.warning(
+                f"{self.service_name}_binary_ssrf_blocked",
+                url=self.url,
+                endpoint=endpoint,
+                error=str(e),
+            )
+            return None
+
+        url = f"{self.url}{endpoint}"
+        try:
+            response = await self._client.request(method="GET", url=url)
+            if response.status_code == 200:
+                logger.debug(
+                    f"{self.service_name}_binary_download_ok",
+                    endpoint=endpoint,
+                    size_bytes=len(response.content),
+                )
+                return response.content
+            logger.debug(
+                f"{self.service_name}_binary_request_non_200",
+                endpoint=endpoint,
+                status_code=response.status_code,
+            )
+            return None
+        except Exception as e:
+            logger.warning(
+                f"{self.service_name}_binary_request_failed",
+                endpoint=endpoint,
+                error=str(e),
+            )
+            return None
+
     # -- Shared API endpoints ---------------------------------------------------
 
     async def test_connection(self) -> dict[str, Any]:

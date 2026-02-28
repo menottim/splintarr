@@ -162,3 +162,17 @@ class RadarrClient(BaseArrClient):
             )
 
         return result
+
+    async def get_poster_bytes(self, movie_id: int) -> bytes | None:
+        """
+        Download poster image for a movie.
+
+        Args:
+            movie_id: Movie ID
+
+        Returns:
+            bytes | None: JPEG poster data, or None if unavailable
+        """
+        return await self._request_bytes(
+            f"/api/v3/mediacover/{movie_id}/poster.jpg"
+        )

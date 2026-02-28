@@ -11,6 +11,7 @@ Main application entry point with:
 
 import secrets
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncIterator
 
 import structlog
@@ -37,6 +38,7 @@ from splintarr.database import (
 )
 from splintarr.logging_config import configure_logging
 from splintarr.services import start_scheduler, stop_scheduler
+from splintarr.services.library_sync import get_sync_service
 
 # Configure comprehensive logging system
 configure_logging()
@@ -86,6 +88,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.error("search_scheduler_start_failed", error=str(e))
             # Don't fail startup if scheduler fails to start
             # This allows the app to run in read-only mode for troubleshooting
+
+        # Initialize library sync service (singleton, no background job yet —
+        # the APScheduler job is registered when the scheduler starts)
+        try:
+            get_sync_service(get_session_factory())
+            logger.info("library_sync_service_ready")
+        except Exception as e:
+            logger.error("library_sync_init_failed", error=str(e))
 
         logger.info("application_started")
 
@@ -239,6 +249,11 @@ async def add_security_headers(request: Request, call_next):
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="src/splintarr/static"), name="static")
+
+# Mount poster cache (served from data volume, created on first sync)
+_poster_dir = Path("data/posters")
+_poster_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/posters", StaticFiles(directory=str(_poster_dir)), name="posters")
 
 # Include routers
 app.include_router(dashboard.router)  # Dashboard router (includes root, setup, login)

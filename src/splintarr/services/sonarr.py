@@ -191,3 +191,42 @@ class SonarrClient(BaseArrClient):
             )
 
         return result
+
+    async def get_episodes(self, series_id: int) -> list[dict[str, Any]]:
+        """
+        Get all episodes for a series.
+
+        Args:
+            series_id: Series ID to get episodes for
+
+        Returns:
+            list[dict]: List of episode records
+
+        Raises:
+            SonarrError: If request fails
+        """
+        result = await self._request(
+            "GET", "/api/v3/episode", params={"seriesId": series_id}
+        )
+        episodes = result if isinstance(result, list) else []
+        logger.debug(
+            "sonarr_episodes_retrieved",
+            url=self.url,
+            series_id=series_id,
+            count=len(episodes),
+        )
+        return episodes
+
+    async def get_poster_bytes(self, series_id: int) -> bytes | None:
+        """
+        Download poster image for a series.
+
+        Args:
+            series_id: Series ID
+
+        Returns:
+            bytes | None: JPEG poster data, or None if unavailable
+        """
+        return await self._request_bytes(
+            f"/api/v3/mediacover/{series_id}/poster.jpg"
+        )
