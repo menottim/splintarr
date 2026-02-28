@@ -18,19 +18,22 @@
     --slate-200: #d1d5db;
     --slate-100: #f3f4f6;
 
-    /* Brand colors */
-    --brand-primary: #9333ea;
-    --brand-primary-hover: #7e22ce;
+    /* Brand colors — gold/maroon (matching Splinter's clan symbol) */
+    --brand-primary: #D4A017;
+    --brand-primary-hover: #B8860B;
     --brand-success: #48c774;
     --brand-warning: #ffb86c;
     --brand-danger: #ff5555;
-    --brand-info: #a855f7;
+    --brand-info: #D4A017;
+    --brand-maroon: #5C1414;
+    --brand-maroon-light: #7B2222;
+    --brand-maroon-dark: #3A0C0C;
 
     /* Override Pico CSS — dark defaults */
     --primary: var(--brand-primary);
     --primary-hover: var(--brand-primary-hover);
-    --primary-focus: rgba(147, 51, 234, 0.25);
-    --primary-inverse: #ffffff;
+    --primary-focus: rgba(212, 160, 23, 0.25);
+    --primary-inverse: #1A1A1A;
 
     /* Backgrounds */
     --background-color: var(--slate-900);
@@ -94,7 +97,7 @@
     --dropdown-border-color: var(--slate-600);
     --dropdown-color: var(--slate-200);
     --dropdown-hover-background-color: var(--slate-700);
-    --mark-background-color: rgba(147, 51, 234, 0.2);
+    --mark-background-color: rgba(212, 160, 23, 0.2);
     --mark-color: var(--slate-100);
     --del-color: var(--brand-danger);
     --ins-color: var(--brand-success);
@@ -135,7 +138,7 @@ hgroup p {
     font-weight: 400;
 }
 
-/* Links — light grey, purple on hover (exclude buttons) */
+/* Links — light grey, gold on hover (exclude buttons) */
 a:not([role="button"]) { color: var(--slate-200); transition: color var(--transition); }
 a:not([role="button"]):hover { color: var(--brand-primary); }
 
@@ -236,7 +239,7 @@ a:not([role="button"]):hover { color: var(--brand-primary); }
 .sidebar-nav a.active {
     color: var(--brand-primary);
     border-left-color: var(--brand-primary);
-    background: rgba(147, 51, 234, 0.1);
+    background: rgba(212, 160, 23, 0.1);
 }
 
 .sidebar-nav .nav-icon {
@@ -254,7 +257,7 @@ a:not([role="button"]):hover { color: var(--brand-primary); }
 .sidebar-nav .nav-badge {
     margin-left: auto;
     background: var(--brand-primary);
-    color: white;
+    color: var(--primary-inverse);
     font-size: 0.7rem;
     font-weight: 600;
     padding: 0.125rem 0.4rem;
@@ -361,7 +364,7 @@ button,
     font-size: 0.875rem;
 }
 
-/* Primary buttons — purple, white text */
+/* Primary buttons — gold, dark text */
 button:not(.secondary):not(.outline):not([type="reset"]),
 [type="submit"],
 [role="button"]:not(.secondary):not(.outline) {
@@ -452,7 +455,7 @@ label small {
 .badge-success { background: rgba(72, 199, 116, 0.15); color: var(--brand-success); }
 .badge-warning { background: rgba(255, 184, 108, 0.15); color: var(--brand-warning); }
 .badge-danger { background: rgba(255, 85, 85, 0.15); color: var(--brand-danger); }
-.badge-info { background: rgba(168, 85, 247, 0.15); color: var(--brand-info); }
+.badge-info { background: rgba(212, 160, 23, 0.15); color: var(--brand-info); }
 
 /* ============================================
    Alerts
@@ -466,7 +469,7 @@ label small {
     font-size: 0.875rem;
 }
 
-.alert-info { background: rgba(168, 85, 247, 0.1); border-color: var(--brand-info); color: var(--brand-info); }
+.alert-info { background: rgba(212, 160, 23, 0.1); border-color: var(--brand-info); color: var(--brand-info); }
 .alert-success { background: rgba(72, 199, 116, 0.1); border-color: var(--brand-success); color: var(--brand-success); }
 .alert-warning { background: rgba(255, 184, 108, 0.1); border-color: var(--brand-warning); color: var(--brand-warning); }
 .alert-danger { background: rgba(255, 85, 85, 0.1); border-color: var(--brand-danger); color: var(--brand-danger); }
@@ -514,7 +517,7 @@ label small {
 
 .setup-progress .step.active {
     background: var(--brand-primary);
-    color: white;
+    color: var(--primary-inverse);
     border-color: var(--brand-primary);
     font-weight: 600;
 }
