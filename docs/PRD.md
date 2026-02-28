@@ -1,6 +1,6 @@
 # Splintarr — Product Requirements Document
 
-> **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. Previous versioned PRDs are archived in `docs/plans/`.
+> **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. This is the sole source of truth; versioned PRDs have been retired.
 
 **Last updated:** 2026-02-28
 
@@ -79,7 +79,7 @@ Huntarr was the most popular tool in this space until critical security vulnerab
 | 1 | [Library Overview](#1-library-overview) | **Done** | v0.1.0 | PRs #37-40 |
 | 2 | [Content Exclusion Lists](#2-content-exclusion-lists) | **Done** | v0.2.0 | PR #63 |
 | 7 | [Discord Notifications](#7-discord-notifications) | **Done** | v0.2.0 | PR #62 |
-| - | [v0.2.0 Bug Fixes & UX Polish](#bug-fixes-from-v020-e2e-testing) | Planned | v0.2.1 | Issues #65-#67 |
+| - | [v0.2.0 Bug Fixes & UX Polish](#bug-fixes-from-v020-e2e-testing) | **Done** | v0.2.1 | PRs #70, #72; issues #65-#67 closed |
 | 3 | [Health Monitoring & Auto-Recovery](#3-health-monitoring--auto-recovery) | Planned | v0.2.1 | |
 | 4 | [Clone Queue & Presets](#4-clone-queue--presets) | Planned | v0.2.1 | Simplified from Search Profiles |
 | 5 | [Real-Time Activity Feed](#5-real-time-activity-feed) | Planned | v0.2.1 | WebSocket, useful for debugging |
@@ -101,15 +101,39 @@ Huntarr was the most popular tool in this space until critical security vulnerab
 
 Pulls and caches series/movie data from connected Sonarr/Radarr instances. Poster grid, missing content view, per-item detail with episode breakdown. Background sync every 6 hours (configurable). Poster images cached locally.
 
+### 2. Content Exclusion Lists
+
+**Status: Done** (PR #63, 2026-02-28) — see [detailed spec](#2-content-exclusion-lists)
+
+Per-item exclusions with reason field and configurable expiration (permanent, 7/30/90 days). Exclusion management page with instance filter. Bulk exclude from library grid. Excluded items remain visible in library with badge. Exclusions checked before search execution.
+
+### 7. Discord Notifications
+
+**Status: Done** (PR #62, 2026-02-28) — see [detailed spec](#7-discord-notifications)
+
+Discord webhook URL (Fernet-encrypted) with per-event toggles. Rich embeds with poster thumbnails. Batched summaries per search run. Test button in settings. Fires on: search completion, queue failure, instance health changes.
+
+### v0.2.0 Bug Fixes
+
+**Status: Done** (PRs #70, #72, 2026-02-28)
+
+Three bugs from E2E testing resolved: setup wizard login timestamp (#67 fixed), mobile sidebar (#65 verified correct), notification 404 (#66 verified correct).
+
+### Gold/Maroon Rebrand
+
+**Status: Done** (PR #69, 2026-02-28)
+
+New triple-ring logo and gold/maroon color scheme. All documentation screenshots updated (PR #73).
+
 ---
 
-## v0.2.0 — Ship First
+## v0.2.0 — Shipped
 
 Two high-value, low-effort features that address the most immediate user needs.
 
 ### 2. Content Exclusion Lists
 
-**Priority:** High | **Effort:** Low | **Status:** Planned
+**Priority:** High | **Effort:** Low | **Status: Done** (PR #63, 2026-02-28)
 
 **Problem:** Users have content they don't want searched — abandoned series, movies they don't care about upgrading, problematic releases. API calls are wasted on these items.
 
@@ -131,7 +155,7 @@ Two high-value, low-effort features that address the most immediate user needs.
 
 ### 7. Discord Notifications
 
-**Priority:** High | **Effort:** Low | **Status:** Planned
+**Priority:** High | **Effort:** Low | **Status: Done** (PR #62, 2026-02-28)
 
 **Problem:** No way to know when searches find content or fail without checking the dashboard.
 
@@ -158,11 +182,13 @@ Operational improvements, debugging tools, and UX polish from v0.2.0 E2E testing
 
 ### Bug Fixes from v0.2.0 E2E Testing
 
-The following bugs were identified during end-to-end UX testing and should be fixed in v0.2.1:
+**Status: Done** (PRs #70, #72)
 
-- **Mobile sidebar conflict** ([#65](https://github.com/menottim/splintarr/issues/65)) — Hamburger menu CSS conflicts with old collapsed-icon CSS; sidebar shows as icons instead of being hidden on mobile
-- **Notification config 404 on first load** ([#66](https://github.com/menottim/splintarr/issues/66)) — Settings page JS doesn't handle missing notification config gracefully
-- **"Last Login: Never" after setup wizard** ([#67](https://github.com/menottim/splintarr/issues/67)) — Setup wizard login doesn't record last_login timestamp
+All three bugs identified during E2E testing are closed:
+
+- ~~**Mobile sidebar conflict** ([#65](https://github.com/menottim/splintarr/issues/65))~~ — Verified correct: CSS already uses `translateX(-100%)` on mobile; old collapsed-icon rules already removed. No code change needed.
+- ~~**Notification config 404 on first load** ([#66](https://github.com/menottim/splintarr/issues/66))~~ — Verified correct: JS already handles 404 gracefully (`response.ok` check + `try/catch`). Browser console network error is expected, not a bug.
+- ~~**"Last Login: Never" after setup wizard** ([#67](https://github.com/menottim/splintarr/issues/67))~~ — Fixed: calls `record_successful_login()` after account creation in setup wizard (PR #70, method name corrected in PR #72).
 
 ### UX Polish
 
@@ -369,6 +395,10 @@ Time-series charts, strategy comparison, instance comparison. Lightweight chart 
 | v0.2.0 scope | Exclusion Lists + Discord Notifications only | 2026-02-28 |
 | v0.2.1 scope | Health Monitoring moved here from v0.2.0 | 2026-02-28 |
 | v0.3 split | v0.3.0 = core algorithm, v0.3.1 = Prowlarr + Season Packs | 2026-02-28 |
+| Bug #65 (mobile sidebar) | Verified correct — no code change needed | 2026-02-28 |
+| Bug #66 (notification 404) | Verified correct — browser console error, not a bug | 2026-02-28 |
+| Bug #67 (last login) | Fixed — `record_successful_login()` in setup wizard | 2026-02-28 |
+| PRD-v0.2.md | Deprecated and removed from repo; unified PRD is sole source of truth | 2026-02-28 |
 
 ---
 
@@ -377,8 +407,12 @@ Time-series charts, strategy comparison, instance comparison. Lightweight chart 
 | Date | Change |
 |------|--------|
 | 2026-02-26 | PRD v0.2 created with Features 1-9 |
-| 2026-02-27 | Feature 1 (Library Overview) implemented |
+| 2026-02-27 | Feature 1 (Library Overview) implemented (PRs #37-40) |
 | 2026-02-28 | Features 10-12 proposed based on community research |
 | 2026-02-28 | Merged into unified ongoing PRD; versioned PRDs archived |
 | 2026-02-28 | Huntarr incident context added (security vulnerabilities, community response) |
 | 2026-02-28 | Feature walkthrough: simplified #4, #6; reordered releases; resolved 11 open questions |
+| 2026-02-28 | v0.2.0 shipped: Exclusion Lists (PR #63) + Discord Notifications (PR #62) |
+| 2026-02-28 | Gold/maroon rebrand (PR #69), screenshots updated (PR #73) |
+| 2026-02-28 | v0.2.0 bug fixes resolved: #65-#67 all closed (PRs #70, #72) |
+| 2026-02-28 | PRD updated to reflect all shipped work; `PRD-v0.2.md` archived (deleted from repo) |
