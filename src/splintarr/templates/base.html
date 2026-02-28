@@ -17,7 +17,8 @@
     {% if user and not no_sidebar %}
     <!-- Authenticated layout: sidebar + content -->
     <div class="app-layout">
-        <aside class="sidebar">
+        <button class="sidebar-toggle" aria-label="Toggle navigation" onclick="document.querySelector('.sidebar').classList.toggle('sidebar-open')">&#9776;</button>
+        <aside class="sidebar" onclick="if(window.innerWidth<=768)this.classList.remove('sidebar-open')">
             <div class="sidebar-brand">
                 <img src="/static/img/logo.svg" alt="Splintarr" class="sidebar-brand-icon" />
                 <span class="sidebar-brand-text">Splintarr</span>

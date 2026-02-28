@@ -108,7 +108,13 @@
                     <option value="{{ instance.id }}">{{ instance.name }}</option>
                     {% endfor %}
                 </select>
-                <small>Which Sonarr or Radarr instance to search against</small>
+                <small>
+                    {% if not instances %}
+                    No instances configured. <a href="/dashboard/instances">Add one first</a>.
+                    {% else %}
+                    Which Sonarr or Radarr instance to search against
+                    {% endif %}
+                </small>
             </label>
 
             <label for="strategy">
