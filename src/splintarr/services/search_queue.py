@@ -479,9 +479,16 @@ class SearchQueueManager:
                                 )
                                 break
 
-                            # Trigger search
+                            # Trigger search for this cutoff-unmet episode.
+                            # Uses EpisodeSearch (targeted by ID) — the items are
+                            # already pre-filtered by /wanted/cutoff which only
+                            # returns episodes below the Quality Profile cutoff.
+                            # Sonarr evaluates Quality Profiles and Custom Formats
+                            # when deciding whether to grab a release.
                             try:
-                                cmd_result = await client.search_episodes([episode_id])
+                                cmd_result = await client.search_episodes(
+                                    [episode_id]
+                                )
                                 items_found += 1
                                 searches_triggered += 1
                                 self._set_cooldown(f"sonarr_{instance.id}_episode_{episode_id}")
@@ -541,9 +548,16 @@ class SearchQueueManager:
                                 )
                                 break
 
-                            # Trigger search
+                            # Trigger search for this cutoff-unmet movie.
+                            # Uses MoviesSearch (targeted by ID) — the items are
+                            # already pre-filtered by /wanted/cutoff which only
+                            # returns movies below the Quality Profile cutoff.
+                            # Radarr evaluates Quality Profiles and Custom Formats
+                            # when deciding whether to grab a release.
                             try:
-                                cmd_result = await client.search_movies([movie_id])
+                                cmd_result = await client.search_movies(
+                                    [movie_id]
+                                )
                                 items_found += 1
                                 searches_triggered += 1
                                 self._set_cooldown(f"radarr_{instance.id}_movie_{movie_id}")

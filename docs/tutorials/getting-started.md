@@ -113,7 +113,7 @@ Schedule: 0 2 * * * (2 AM daily)
 Batch Size: 50
 ```
 
-**Weekly quality upgrade:**
+**Weekly cutoff unmet search:**
 ```
 Name: Weekend Upgrades
 Strategy: Cutoff Unmet
