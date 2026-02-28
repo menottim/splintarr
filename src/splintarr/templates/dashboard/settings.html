@@ -125,6 +125,57 @@
     {% endif %}
 </article>
 
+<!-- Notifications -->
+<article>
+    <header>
+        <h3>Notifications</h3>
+    </header>
+
+    <p>
+        <small>Receive Discord notifications for search events, queue failures, and instance health changes.</small>
+    </p>
+
+    <form id="notificationForm">
+        <label for="webhook_url">
+            Discord Webhook URL
+            <input type="password" id="webhook_url" name="webhook_url" placeholder="https://discord.com/api/webhooks/..." autocomplete="off">
+            <small>Paste your Discord channel webhook URL. It will be encrypted before storage.</small>
+        </label>
+
+        <fieldset>
+            <legend>Events</legend>
+            <label>
+                <input type="checkbox" id="evt_search_triggered" name="search_triggered" checked>
+                Search completed (items found)
+            </label>
+            <label>
+                <input type="checkbox" id="evt_queue_failed" name="queue_failed" checked>
+                Queue failed
+            </label>
+            <label>
+                <input type="checkbox" id="evt_instance_health" name="instance_health" checked>
+                Instance health change
+            </label>
+            <label>
+                <input type="checkbox" id="evt_library_sync" name="library_sync" checked>
+                Library sync completed
+            </label>
+        </fieldset>
+
+        <label>
+            <input type="checkbox" id="notifications_active" name="is_active" checked>
+            Enable notifications
+        </label>
+
+        <div class="grid">
+            <button type="submit" id="saveNotificationsBtn">Save</button>
+            <button type="button" id="testNotificationBtn" class="secondary">Test Notification</button>
+        </div>
+    </form>
+
+    <small id="notificationStatus" style="display: none; margin-top: 0.5rem;"></small>
+</article>
+
 <!-- Danger Zone -->
 <article style="border-color: var(--del-color);">
     <header>
@@ -323,5 +374,108 @@ async function logoutAllSessions() {
         alert('Failed to logout: ' + error.message);
     }
 }
+
+// ---------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------
+
+function showNotificationStatus(message, isError) {
+    var el = document.getElementById('notificationStatus');
+    el.textContent = message;
+    el.style.display = 'block';
+    el.style.color = isError ? 'var(--del-color)' : 'var(--ins-color)';
+}
+
+// Load existing notification config on page load
+(async function loadNotificationConfig() {
+    try {
+        var response = await fetch('/api/notifications/config');
+        if (response.ok) {
+            var data = await response.json();
+            document.getElementById('webhook_url').placeholder = data.webhook_url_masked;
+            document.getElementById('evt_search_triggered').checked = data.events_enabled.search_triggered || false;
+            document.getElementById('evt_queue_failed').checked = data.events_enabled.queue_failed || false;
+            document.getElementById('evt_instance_health').checked = data.events_enabled.instance_health || false;
+            document.getElementById('evt_library_sync').checked = data.events_enabled.library_sync || false;
+            document.getElementById('notifications_active').checked = data.is_active;
+        }
+        // 404 is fine — means no config yet
+    } catch (error) {
+        // Ignore load errors — user may not have config yet
+    }
+})();
+
+// Save notification config
+document.getElementById('notificationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    var webhookUrl = document.getElementById('webhook_url').value.trim();
+    if (!webhookUrl) {
+        alert('Please enter a Discord webhook URL');
+        return;
+    }
+
+    var submitBtn = document.getElementById('saveNotificationsBtn');
+    submitBtn.disabled = true;
+    submitBtn.setAttribute('aria-busy', 'true');
+
+    var payload = {
+        webhook_url: webhookUrl,
+        events_enabled: {
+            search_triggered: document.getElementById('evt_search_triggered').checked,
+            queue_failed: document.getElementById('evt_queue_failed').checked,
+            instance_health: document.getElementById('evt_instance_health').checked,
+            library_sync: document.getElementById('evt_library_sync').checked
+        },
+        is_active: document.getElementById('notifications_active').checked
+    };
+
+    try {
+        var response = await fetch('/api/notifications/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            showNotificationStatus('Notification settings saved.', false);
+            document.getElementById('webhook_url').value = '';
+            document.getElementById('webhook_url').placeholder = '\u2022\u2022\u2022\u2022webhook';
+        } else {
+            var data = await response.json();
+            showNotificationStatus('Failed to save: ' + (data.detail || 'Unknown error'), true);
+        }
+    } catch (error) {
+        showNotificationStatus('Failed to save: ' + error.message, true);
+    }
+
+    submitBtn.disabled = false;
+    submitBtn.setAttribute('aria-busy', 'false');
+});
+
+// Test notification
+document.getElementById('testNotificationBtn').addEventListener('click', async function() {
+    var btn = this;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    try {
+        var response = await fetch('/api/notifications/test', {
+            method: 'POST'
+        });
+
+        var data = await response.json();
+        if (response.ok) {
+            showNotificationStatus('Test notification sent successfully!', false);
+        } else {
+            showNotificationStatus('Test failed: ' + (data.detail || data.message || 'Unknown error'), true);
+        }
+    } catch (error) {
+        showNotificationStatus('Test failed: ' + error.message, true);
+    }
+
+    btn.disabled = false;
+    btn.setAttribute('aria-busy', 'false');
+});
 </script>
 {% endblock %}

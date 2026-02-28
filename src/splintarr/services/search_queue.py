@@ -21,8 +21,9 @@ from typing import Any
 import structlog
 from sqlalchemy.orm import Session
 
-from splintarr.core.security import decrypt_api_key
-from splintarr.models import Instance, SearchHistory, SearchQueue
+from splintarr.core.security import decrypt_api_key, decrypt_field
+from splintarr.models import Instance, NotificationConfig, SearchHistory, SearchQueue
+from splintarr.services.discord import DiscordNotificationService
 from splintarr.services.radarr import RadarrClient
 from splintarr.services.sonarr import SonarrClient
 
@@ -176,6 +177,19 @@ class SearchQueueManager:
                     items_found=result["items_found"],
                 )
 
+                # Fire-and-forget: send Discord notification on successful search
+                if result["items_found"] > 0:
+                    await self._notify_search_summary(
+                        db=db,
+                        user_id=instance.user_id,
+                        search_name=queue.name,
+                        instance_name=instance.name,
+                        strategy=queue.strategy,
+                        items_searched=result["items_searched"],
+                        items_found=result["items_found"],
+                        duration_seconds=0.0,  # duration not tracked yet
+                    )
+
                 return result
 
             except Exception as e:
@@ -186,6 +200,18 @@ class SearchQueueManager:
                 db.commit()
 
                 logger.error("search_queue_execution_failed", queue_id=queue_id, error=error_msg)
+
+                # Fire-and-forget: send Discord notification on failure
+                await self._notify_queue_failed(
+                    db=db,
+                    user_id=instance.user_id,
+                    queue_name=queue.name,
+                    instance_name=instance.name,
+                    error=error_msg,
+                    consecutive_failures=queue.consecutive_failures
+                    if hasattr(queue, "consecutive_failures")
+                    else 1,
+                )
 
                 return {
                     "status": "failed",
@@ -547,3 +573,87 @@ class SearchQueueManager:
             return True
 
         return False
+
+    # ------------------------------------------------------------------
+    # Discord notification helpers (fire-and-forget)
+    # ------------------------------------------------------------------
+
+    async def _notify_search_summary(
+        self,
+        db: Session,
+        user_id: int,
+        search_name: str,
+        instance_name: str,
+        strategy: str,
+        items_searched: int,
+        items_found: int,
+        duration_seconds: float,
+    ) -> None:
+        """Send a search summary Discord notification if configured and enabled."""
+        try:
+            config = (
+                db.query(NotificationConfig)
+                .filter(
+                    NotificationConfig.user_id == user_id,
+                    NotificationConfig.is_active.is_(True),
+                )
+                .first()
+            )
+            if not config or not config.is_event_enabled("search_triggered"):
+                return
+
+            webhook_url = decrypt_field(config.webhook_url)
+            service = DiscordNotificationService(webhook_url)
+            await service.send_search_summary(
+                search_name=search_name,
+                instance_name=instance_name,
+                strategy=strategy,
+                items_searched=items_searched,
+                items_found=items_found,
+                duration_seconds=duration_seconds,
+            )
+        except Exception as e:
+            logger.warning(
+                "discord_notification_send_failed",
+                event="search_triggered",
+                user_id=user_id,
+                error=str(e),
+            )
+
+    async def _notify_queue_failed(
+        self,
+        db: Session,
+        user_id: int,
+        queue_name: str,
+        instance_name: str,
+        error: str,
+        consecutive_failures: int,
+    ) -> None:
+        """Send a queue failure Discord notification if configured and enabled."""
+        try:
+            config = (
+                db.query(NotificationConfig)
+                .filter(
+                    NotificationConfig.user_id == user_id,
+                    NotificationConfig.is_active.is_(True),
+                )
+                .first()
+            )
+            if not config or not config.is_event_enabled("queue_failed"):
+                return
+
+            webhook_url = decrypt_field(config.webhook_url)
+            service = DiscordNotificationService(webhook_url)
+            await service.send_queue_failed(
+                queue_name=queue_name,
+                instance_name=instance_name,
+                error=error,
+                consecutive_failures=consecutive_failures,
+            )
+        except Exception as e:
+            logger.warning(
+                "discord_notification_send_failed",
+                event="queue_failed",
+                user_id=user_id,
+                error=str(e),
+            )
