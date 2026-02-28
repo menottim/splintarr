@@ -79,6 +79,7 @@ Huntarr was the most popular tool in this space until critical security vulnerab
 | 1 | [Library Overview](#1-library-overview) | **Done** | v0.1.0 | PRs #37-40 |
 | 2 | [Content Exclusion Lists](#2-content-exclusion-lists) | **Done** | v0.2.0 | PR #63 |
 | 7 | [Discord Notifications](#7-discord-notifications) | **Done** | v0.2.0 | PR #62 |
+| - | [v0.2.0 Bug Fixes & UX Polish](#bug-fixes-from-v020-e2e-testing) | Planned | v0.2.1 | Issues #65-#67 |
 | 3 | [Health Monitoring & Auto-Recovery](#3-health-monitoring--auto-recovery) | Planned | v0.2.1 | |
 | 4 | [Clone Queue & Presets](#4-clone-queue--presets) | Planned | v0.2.1 | Simplified from Search Profiles |
 | 5 | [Real-Time Activity Feed](#5-real-time-activity-feed) | Planned | v0.2.1 | WebSocket, useful for debugging |
@@ -153,7 +154,22 @@ Two high-value, low-effort features that address the most immediate user needs.
 
 ## v0.2.1 — Ship Next
 
-Operational improvements and debugging tools.
+Operational improvements, debugging tools, and UX polish from v0.2.0 E2E testing.
+
+### Bug Fixes from v0.2.0 E2E Testing
+
+The following bugs were identified during end-to-end UX testing and should be fixed in v0.2.1:
+
+- **Mobile sidebar conflict** ([#65](https://github.com/menottim/splintarr/issues/65)) — Hamburger menu CSS conflicts with old collapsed-icon CSS; sidebar shows as icons instead of being hidden on mobile
+- **Notification config 404 on first load** ([#66](https://github.com/menottim/splintarr/issues/66)) — Settings page JS doesn't handle missing notification config gracefully
+- **"Last Login: Never" after setup wizard** ([#67](https://github.com/menottim/splintarr/issues/67)) — Setup wizard login doesn't record last_login timestamp
+
+### UX Polish
+
+- **Settings page organization** — Settings is getting long with Account, Password, 2FA, Notifications, and Danger Zone sections. Consider tabs or collapsible accordion sections.
+- **Filter UX** — Add "Clear filters" button to Library and Exclusions filter dropdowns
+- **Notification save feedback** — Add loading state to "Save" button in notification settings (disable + spinner while saving)
+- **Quick Actions consistency** — "Browse Library" link in dashboard Quick Actions should be visually styled the same as other links (underline/color)
 
 ### 3. Health Monitoring & Auto-Recovery
 
