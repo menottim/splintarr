@@ -227,7 +227,7 @@ const addDialog = document.getElementById('add-instance');
 
 function openAddModal() {
     document.getElementById('addInstanceForm').reset();
-    document.getElementById('addTestResult').innerHTML = '';
+    document.getElementById('addTestResult').replaceChildren();
     addDialog.showModal();
 }
 
@@ -244,11 +244,18 @@ document.getElementById('addTestBtn').addEventListener('click', async function()
     const apiKey = document.getElementById('add_api_key').value;
 
     if (!instanceType || !url || !apiKey) {
-        resultDiv.innerHTML = '<div class="alert alert-danger">Please fill in all fields</div>';
+        const valAlert = document.createElement('div');
+        valAlert.className = 'alert alert-danger';
+        valAlert.textContent = 'Please fill in all fields';
+        resultDiv.replaceChildren(valAlert);
         return;
     }
 
-    resultDiv.innerHTML = '<div class="alert alert-info"><progress></progress> Testing connection...</div>';
+    const loadAlert = document.createElement('div');
+    loadAlert.className = 'alert alert-info';
+    loadAlert.appendChild(document.createElement('progress'));
+    loadAlert.appendChild(document.createTextNode(' Testing connection...'));
+    resultDiv.replaceChildren(loadAlert);
 
     try {
         const response = await fetch('/api/instances/test', {
@@ -260,23 +267,36 @@ document.getElementById('addTestBtn').addEventListener('click', async function()
 
         if (response.ok && data.success) {
             const itemLabel = instanceType === 'sonarr' ? 'Series' : 'Movies';
-            const countText = data.items_count != null ? data.items_count : 'N/A';
-            const infoLine = data.instance_info ? `<br>Instance: ${escapeHtml(data.instance_info)}` : '';
-            resultDiv.innerHTML = `
-                <div class="alert alert-success">
-                    <strong>Connection successful!</strong><br>
-                    Version: ${escapeHtml(data.version || 'Unknown')}${infoLine}<br>
-                    ${escapeHtml(itemLabel)}: ${escapeHtml(countText)}
-                </div>`;
+            const countText = data.items_count != null ? String(data.items_count) : 'N/A';
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success';
+            const strong = document.createElement('strong');
+            strong.textContent = 'Connection successful!';
+            alert.appendChild(strong);
+            alert.appendChild(document.createElement('br'));
+            alert.appendChild(document.createTextNode('Version: ' + (data.version || 'Unknown')));
+            if (data.instance_info) {
+                alert.appendChild(document.createElement('br'));
+                alert.appendChild(document.createTextNode('Instance: ' + data.instance_info));
+            }
+            alert.appendChild(document.createElement('br'));
+            alert.appendChild(document.createTextNode(itemLabel + ': ' + countText));
+            resultDiv.replaceChildren(alert);
         } else {
             let errorMsg = data.message || '';
             if (!errorMsg && data.detail) {
                 errorMsg = Array.isArray(data.detail) ? data.detail.map(e => e.msg || e).join('; ') : data.detail;
             }
-            resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${escapeHtml(errorMsg || 'Unknown error')}</div>`;
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger';
+            alert.textContent = 'Connection failed: ' + (errorMsg || 'Unknown error');
+            resultDiv.replaceChildren(alert);
         }
     } catch (error) {
-        resultDiv.innerHTML = `<div class="alert alert-danger">Connection failed: ${escapeHtml(error.message)}</div>`;
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-danger';
+        alert.textContent = 'Connection failed: ' + error.message;
+        resultDiv.replaceChildren(alert);
     }
 });
 
@@ -305,12 +325,18 @@ document.getElementById('addInstanceForm').addEventListener('submit', async func
                 const data = JSON.parse(text);
                 errorMsg = data.detail || data.error || errorMsg;
             } catch { errorMsg = text || errorMsg; }
-            document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${escapeHtml(errorMsg)}</div>`;
+            const addAlert = document.createElement('div');
+            addAlert.className = 'alert alert-danger';
+            addAlert.textContent = errorMsg;
+            document.getElementById('addTestResult').replaceChildren(addAlert);
             btn.disabled = false;
             btn.setAttribute('aria-busy', 'false');
         }
     } catch (error) {
-        document.getElementById('addTestResult').innerHTML = `<div class="alert alert-danger">${escapeHtml(error.message)}</div>`;
+        const addAlert = document.createElement('div');
+        addAlert.className = 'alert alert-danger';
+        addAlert.textContent = error.message;
+        document.getElementById('addTestResult').replaceChildren(addAlert);
         btn.disabled = false;
         btn.setAttribute('aria-busy', 'false');
     }
