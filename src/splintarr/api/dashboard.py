@@ -357,7 +357,7 @@ async def setup_admin_create(
 
         # Record first login
         client_ip = request.client.host if request.client else "unknown"
-        user.record_login(client_ip)
+        user.record_successful_login(client_ip)
         db.commit()
 
         # Create auth tokens and set cookies
