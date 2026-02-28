@@ -87,6 +87,63 @@ Pydantic Settings in `config.py`. Secrets can come from environment variables or
 - **Async**: httpx for external HTTP calls, APScheduler for background jobs. DB operations are synchronous (SQLAlchemy sync session)
 - **Tests**: pytest-asyncio with `asyncio_mode = "auto"`. Fixtures scope: `test_settings` is session-scoped, `db_engine`/`db_session`/`client` are function-scoped
 
+## Logging Standard
+
+All code MUST follow this logging standard. When writing or modifying any Python code, include appropriate structured logging using structlog.
+
+### Setup
+Every module that logs must have `logger = structlog.get_logger()` at module level. Never use `print()` in production code.
+
+### Log Levels
+| Level | When to use | Examples |
+|-------|-------------|---------|
+| **INFO** | Operation start/complete, significant state changes, user actions | `search_queue_execution_started`, `library_sync_completed`, `user_logged_in` |
+| **DEBUG** | Per-item details, query results, intermediate steps, filter/sort params | `item_in_cooldown`, `library_page_rendered`, `episode_search_triggered` |
+| **WARNING** | Non-fatal issues that degrade functionality | `rate_limit_reached`, `library_sync_cleanup_skipped_empty`, `poster_download_failed` |
+| **ERROR** | Failures requiring attention, operation failures | `search_queue_execution_failed`, `library_sync_instance_failed` |
+
+### Event Naming
+- Use `snake_case` for all event names
+- Prefix with the domain: `library_sync_*`, `search_queue_*`, `sonarr_*`, `radarr_*`
+- Use past tense for completed actions: `_started`, `_completed`, `_failed`, `_triggered`
+
+### Required Context Fields
+Always include relevant correlation fields:
+- `instance_id` for any instance-scoped operation
+- `user_id` for any user-scoped operation
+- `queue_id` for search queue operations
+- `error=str(e)` for all error/warning logs
+- `item_type`, `item_id` for per-item operations
+
+### Checklist for New Code
+When writing or reviewing code, verify:
+- [ ] Every API route handler has at least DEBUG logging
+- [ ] Every service method logs operation start (INFO) and completion (INFO)
+- [ ] Every `except` block has a corresponding log statement
+- [ ] Background tasks log start and completion at INFO level
+- [ ] Per-item loops have DEBUG logging for key actions (search, skip, error)
+- [ ] Rate limit hits are logged at WARNING level
+
+## Security Audit Policy
+
+After merging changes that touch any of the following areas, automatically run a security review:
+- Authentication or authorization (`core/auth.py`, `api/auth.py`, cookie handling)
+- Cryptography (`core/security.py`, database encryption, API key storage)
+- Input validation (schemas, URL validation, SSRF protection)
+- New API endpoints (any new route handler)
+- Error handling that may leak internal details
+- Dependencies (new packages or version updates)
+
+The security review should check:
+1. Auth enforcement on all new routes (cookie/token dependencies)
+2. Input validation (Pydantic schemas, query param bounds)
+3. Error responses don't leak internal details (no `str(e)` in response bodies)
+4. Template rendering is XSS-safe (no `|safe`, no innerHTML with API data)
+5. Rate limiting applied to sensitive endpoints
+6. Ownership isolation (user-scoped queries via Instance join)
+
+Document findings in the PR description. If issues are found, fix them before merging.
+
 ## Documentation Screenshots
 
 Screenshots live in `docs/images/` and are referenced from `README.md` and `docs/tutorials/getting-started.md`. When the UI changes, regenerate them:

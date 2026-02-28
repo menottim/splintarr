@@ -37,7 +37,11 @@ def rate_limit_key_func(request: Request) -> str:
     if settings.environment == "production":
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
-            # Take the first IP (client IP set by the reverse proxy)
-            return forwarded.split(",")[0].strip()
+            client_ip = forwarded.split(",")[0].strip()
+            logger.debug("rate_limit_key_from_proxy", client_ip=client_ip)
+            return client_ip
 
-    return request.client.host if request.client else "unknown"
+    client_ip = request.client.host if request.client else "unknown"
+    if client_ip == "unknown":
+        logger.warning("rate_limit_key_unknown_client")
+    return client_ip
