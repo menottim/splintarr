@@ -104,11 +104,20 @@ async function testConnection() {
     const apiKey = document.getElementById('api_key').value;
 
     if (!instanceType || !url || !apiKey) {
-        testResult.innerHTML = '<div class="alert alert-danger" style="margin-top: 1rem;">Please fill in all fields</div>';
+        const valAlert = document.createElement('div');
+        valAlert.className = 'alert alert-danger';
+        valAlert.style.marginTop = '1rem';
+        valAlert.textContent = 'Please fill in all fields';
+        testResult.replaceChildren(valAlert);
         return;
     }
 
-    testResult.innerHTML = '<div class="alert alert-info" style="margin-top: 1rem;"><progress></progress> Testing connection...</div>';
+    const loadAlert = document.createElement('div');
+    loadAlert.className = 'alert alert-info';
+    loadAlert.style.marginTop = '1rem';
+    loadAlert.appendChild(document.createElement('progress'));
+    loadAlert.appendChild(document.createTextNode(' Testing connection...'));
+    testResult.replaceChildren(loadAlert);
 
     try {
         const response = await fetch('/api/instances/test', {
@@ -127,20 +136,28 @@ async function testConnection() {
 
         if (response.ok && data.success) {
             const itemLabel = instanceType === 'sonarr' ? 'Series' : 'Movies';
-            let countLine;
-            if (data.items_count != null) {
-                countLine = `${escapeHtml(itemLabel)}: ${escapeHtml(data.items_count)}`;
-            } else {
-                countLine = `${escapeHtml(itemLabel)} count: unavailable <small>(library count could not be retrieved, but the connection is working)</small>`;
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-success';
+            alert.style.marginTop = '1rem';
+            const strong = document.createElement('strong');
+            strong.textContent = '\u2713 Connection successful!';
+            alert.appendChild(strong);
+            alert.appendChild(document.createElement('br'));
+            alert.appendChild(document.createTextNode('Version: ' + (data.version || 'Unknown')));
+            if (data.instance_info) {
+                alert.appendChild(document.createElement('br'));
+                alert.appendChild(document.createTextNode('Instance: ' + data.instance_info));
             }
-            const infoLine = data.instance_info ? `<br>Instance: ${escapeHtml(data.instance_info)}` : '';
-            testResult.innerHTML = `
-                <div class="alert alert-success" style="margin-top: 1rem;">
-                    <strong>✓ Connection successful!</strong><br>
-                    Version: ${escapeHtml(data.version || 'Unknown')}${infoLine}<br>
-                    ${countLine}
-                </div>
-            `;
+            alert.appendChild(document.createElement('br'));
+            if (data.items_count != null) {
+                alert.appendChild(document.createTextNode(itemLabel + ': ' + data.items_count));
+            } else {
+                alert.appendChild(document.createTextNode(itemLabel + ' count: unavailable '));
+                const small = document.createElement('small');
+                small.textContent = '(library count could not be retrieved, but the connection is working)';
+                alert.appendChild(small);
+            }
+            testResult.replaceChildren(alert);
         } else {
             let errorMsg = data.message || '';
             if (!errorMsg && data.detail) {
@@ -151,20 +168,32 @@ async function testConnection() {
                 }
             }
             errorMsg = errorMsg || 'Unknown error';
-            testResult.innerHTML = `
-                <div class="alert alert-danger" style="margin-top: 1rem;">
-                    <strong>✗ Connection failed:</strong> ${escapeHtml(errorMsg)}<br>
-                    <small>Check the <strong>Docker Networking Tip</strong> under the URL field if you're running inside Docker</small>
-                </div>
-            `;
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger';
+            alert.style.marginTop = '1rem';
+            const strong = document.createElement('strong');
+            strong.textContent = '\u2717 Connection failed:';
+            alert.appendChild(strong);
+            alert.appendChild(document.createTextNode(' ' + errorMsg));
+            alert.appendChild(document.createElement('br'));
+            const hint = document.createElement('small');
+            hint.textContent = 'Check the Docker Networking Tip under the URL field if you\'re running inside Docker';
+            alert.appendChild(hint);
+            testResult.replaceChildren(alert);
         }
     } catch (error) {
-        testResult.innerHTML = `
-            <div class="alert alert-danger" style="margin-top: 1rem;">
-                <strong>✗ Connection failed:</strong> ${escapeHtml(error.message)}<br>
-                <small>See the <strong>Docker Networking Tip</strong> above if you're running inside Docker</small>
-            </div>
-        `;
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-danger';
+        alert.style.marginTop = '1rem';
+        const strong = document.createElement('strong');
+        strong.textContent = '\u2717 Connection failed:';
+        alert.appendChild(strong);
+        alert.appendChild(document.createTextNode(' ' + error.message));
+        alert.appendChild(document.createElement('br'));
+        const hint = document.createElement('small');
+        hint.textContent = 'See the Docker Networking Tip above if you\'re running inside Docker';
+        alert.appendChild(hint);
+        testResult.replaceChildren(alert);
     }
 }
 
