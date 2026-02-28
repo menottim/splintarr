@@ -619,7 +619,7 @@ async def test_instance_pre_creation(
             )
             return InstanceTestResult(
                 success=False,
-                message=f"Connection failed: {str(e)}",
+                message="Connection failed: unable to reach instance",
                 version=None,
                 items_count=None,
             )
@@ -632,7 +632,7 @@ async def test_instance_pre_creation(
         )
         return InstanceTestResult(
             success=False,
-            message=f"Failed to test connection: {str(e)}",
+            message="Failed to test connection",
             version=None,
             items_count=None,
         )

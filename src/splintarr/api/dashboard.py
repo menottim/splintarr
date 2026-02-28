@@ -620,9 +620,14 @@ async def dashboard_add_instance(
     try:
         validate_instance_url(url, allow_local=settings.allow_local_instances)
     except (SSRFError, ValueError) as e:
+        logger.warning(
+            "instance_url_validation_failed",
+            user_id=current_user.id,
+            error=str(e),
+        )
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": str(e)},
+            content={"detail": "Invalid instance URL"},
         )
 
     try:
