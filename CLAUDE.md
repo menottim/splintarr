@@ -163,6 +163,8 @@ Screenshots live in `docs/images/` and are referenced from `README.md` and `docs
    - Open Add Instance modal on Instances page, capture `docs/images/instances.png`
    - Open Create Queue modal on Search Queues page, capture `docs/images/search-queues.png`
    - Capture Settings page (full page), `docs/images/settings.png`
+   - Capture Library page, `docs/images/library.png`
+   - Capture Exclusions page, `docs/images/exclusions.png`
    - Clear cookies, capture Login page, `docs/images/login.png`
 5. Tear down: `docker-compose down`
 
@@ -176,5 +178,7 @@ Screenshots live in `docs/images/` and are referenced from `README.md` and `docs
 | `dashboard.png` | README.md, getting-started.md | Main dashboard |
 | `instances.png` | README.md | Add Instance modal |
 | `search-queues.png` | README.md, getting-started.md | Create Queue modal |
-| `settings.png` | README.md | Settings page |
+| `settings.png` | README.md | Settings with notifications |
+| `library.png` | README.md | Library overview |
+| `exclusions.png` | README.md | Content exclusions |
 | `login.png` | README.md | Login form |

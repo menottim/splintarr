@@ -121,8 +121,10 @@ Documentation is organized following the [Diataxis](https://diataxis.fr/) framew
 | Dashboard | Instance Management |
 |:-:|:-:|
 | ![Dashboard](docs/images/dashboard.png) | ![Instances](docs/images/instances.png) |
-| **Search Queues** | **Settings** |
+| **Search Queues** | **Settings & Notifications** |
 | ![Search Queues](docs/images/search-queues.png) | ![Settings](docs/images/settings.png) |
+| **Library** | **Exclusions** |
+| ![Library](docs/images/library.png) | ![Exclusions](docs/images/exclusions.png) |
 
 ---
 
