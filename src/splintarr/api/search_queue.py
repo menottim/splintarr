@@ -50,6 +50,8 @@ def _queue_to_response(queue: SearchQueue) -> SearchQueueResponse:
         cooldown_mode=queue.cooldown_mode or "adaptive",
         cooldown_hours=queue.cooldown_hours,
         max_items_per_run=queue.max_items_per_run or 50,
+        season_pack_enabled=queue.season_pack_enabled or False,
+        season_pack_threshold=queue.season_pack_threshold or 3,
         created_at=queue.created_at,
     )
 
@@ -134,6 +136,8 @@ async def create_search_queue(
             cooldown_mode=queue_data.cooldown_mode,
             cooldown_hours=queue_data.cooldown_hours,
             max_items_per_run=queue_data.max_items_per_run,
+            season_pack_enabled=queue_data.season_pack_enabled,
+            season_pack_threshold=queue_data.season_pack_threshold,
             status="pending",
             is_active=True,
         )
@@ -300,6 +304,12 @@ async def update_search_queue(
 
         if queue_data.max_items_per_run is not None:
             queue.max_items_per_run = queue_data.max_items_per_run
+
+        if queue_data.season_pack_enabled is not None:
+            queue.season_pack_enabled = queue_data.season_pack_enabled
+
+        if queue_data.season_pack_threshold is not None:
+            queue.season_pack_threshold = queue_data.season_pack_threshold
 
         db.commit()
         db.refresh(queue)
@@ -576,6 +586,8 @@ async def clone_search_queue(
             cooldown_mode=source.cooldown_mode or "adaptive",
             cooldown_hours=source.cooldown_hours,
             max_items_per_run=source.max_items_per_run or 50,
+            season_pack_enabled=source.season_pack_enabled or False,
+            season_pack_threshold=source.season_pack_threshold or 3,
             status="pending",
             is_active=True,
         )
