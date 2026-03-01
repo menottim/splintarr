@@ -44,30 +44,14 @@ ALLOWED_JWT_ALGORITHMS = ["HS256"]
 _access_token_blacklist: dict[str, datetime] = {}
 
 
-def blacklist_access_token(token: str) -> None:
-    """Add an access token's JTI to the blacklist (called on logout)."""
-    try:
-        payload = jwt.decode(token, settings.get_secret_key(), algorithms=ALLOWED_JWT_ALGORITHMS)
-        jti = payload.get("jti")
-        if jti:
-            exp = payload.get("exp")
-            expiry = (
-                datetime.utcfromtimestamp(exp)
-                if exp
-                else datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
-            )
-            _access_token_blacklist[jti] = expiry
-            logger.debug("access_token_blacklisted", jti=jti)
-    except Exception as e:
-        logger.warning("failed_to_blacklist_access_token", error=str(e))
+def _blacklist_token(
+    token: str, default_expiry_minutes: int, success_event: str, failure_event: str
+) -> None:
+    """Add a token's JTI to the blacklist for immediate revocation.
 
-
-def blacklist_2fa_pending_token(token: str) -> None:
-    """Add a 2FA pending token's JTI to the blacklist (called after successful 2FA login).
-
-    Prevents replay of the 2FA pending token within its 5-minute lifetime.
-    Reuses the same in-memory blacklist as access tokens since the JTI
-    namespace is globally unique (UUIDs) and cleanup logic is shared.
+    Shared implementation for access tokens (on logout) and 2FA pending tokens
+    (after successful 2FA login). Reuses the same in-memory blacklist since JTIs
+    are globally unique UUIDs and cleanup logic is shared.
     """
     try:
         payload = jwt.decode(token, settings.get_secret_key(), algorithms=ALLOWED_JWT_ALGORITHMS)
@@ -77,12 +61,29 @@ def blacklist_2fa_pending_token(token: str) -> None:
             expiry = (
                 datetime.utcfromtimestamp(exp)
                 if exp
-                else datetime.utcnow() + timedelta(minutes=5)
+                else datetime.utcnow() + timedelta(minutes=default_expiry_minutes)
             )
             _access_token_blacklist[jti] = expiry
-            logger.debug("2fa_pending_token_blacklisted", jti=jti)
+            logger.debug(success_event, jti=jti)
     except Exception as e:
-        logger.warning("failed_to_blacklist_2fa_pending_token", error=str(e))
+        logger.warning(failure_event, error=str(e))
+
+
+def blacklist_access_token(token: str) -> None:
+    """Add an access token's JTI to the blacklist (called on logout)."""
+    _blacklist_token(
+        token,
+        settings.access_token_expire_minutes,
+        "access_token_blacklisted",
+        "failed_to_blacklist_access_token",
+    )
+
+
+def blacklist_2fa_pending_token(token: str) -> None:
+    """Add a 2FA pending token's JTI to the blacklist (called after successful 2FA login)."""
+    _blacklist_token(
+        token, 5, "2fa_pending_token_blacklisted", "failed_to_blacklist_2fa_pending_token"
+    )
 
 
 def _cleanup_blacklist() -> None:
@@ -101,12 +102,6 @@ class AuthenticationError(Exception):
 
 class TokenError(Exception):
     """Exception raised when token operations fail."""
-
-    pass
-
-
-class TwoFactorError(Exception):
-    """Exception raised when 2FA operations fail."""
 
     pass
 
@@ -252,6 +247,46 @@ def create_refresh_token(
         raise TokenError(f"Failed to create refresh token: {e}") from e
 
 
+def _decode_and_verify_jwt(token: str, expected_type: str) -> dict[str, Any]:
+    """Decode a JWT, verify its algorithm header, and check the token type.
+
+    Combines signature verification (via algorithm whitelist) with an explicit
+    header algorithm check to prevent algorithm confusion attacks even if
+    jwt.decode is compromised.
+
+    Raises:
+        TokenError: If token is invalid, expired, or wrong type
+        JWTError: If JWT signature verification fails (caller should catch)
+    """
+    payload = jwt.decode(
+        token,
+        settings.get_secret_key(),
+        algorithms=ALLOWED_JWT_ALGORITHMS,
+    )
+
+    # Explicitly verify the algorithm in the token header
+    try:
+        header = jwt.get_unverified_header(token)
+        token_algorithm = header.get("alg")
+        if token_algorithm not in ALLOWED_JWT_ALGORITHMS:
+            raise TokenError(f"Invalid JWT algorithm: {token_algorithm}")
+    except Exception as e:
+        raise TokenError(f"Failed to verify token algorithm: {e}") from e
+
+    if payload.get("type") != expected_type:
+        raise TokenError("Invalid token type")
+
+    return payload
+
+
+def _is_blacklisted(jti: str | None) -> bool:
+    """Check if a token JTI is in the blacklist, cleaning expired entries first."""
+    if not jti or jti not in _access_token_blacklist:
+        return False
+    _cleanup_blacklist()
+    return jti in _access_token_blacklist
+
+
 def verify_access_token(token: str) -> dict[str, Any]:
     """
     Verify and decode a JWT access token.
@@ -269,36 +304,14 @@ def verify_access_token(token: str) -> dict[str, Any]:
         TokenError: If token is invalid, expired, or wrong type
     """
     try:
-        # Decode and verify token with algorithm whitelist
-        payload = jwt.decode(
-            token,
-            settings.get_secret_key(),
-            algorithms=ALLOWED_JWT_ALGORITHMS,  # Hardcoded whitelist
-        )
-
-        # Explicitly verify the algorithm in the token header
-        # This prevents algorithm confusion even if jwt.decode is compromised
-        try:
-            header = jwt.get_unverified_header(token)
-            token_algorithm = header.get("alg")
-            if token_algorithm not in ALLOWED_JWT_ALGORITHMS:
-                raise TokenError(f"Invalid JWT algorithm: {token_algorithm}")
-        except Exception as e:
-            raise TokenError(f"Failed to verify token algorithm: {e}") from e
-
-        # Verify token type
-        if payload.get("type") != "access":
-            raise TokenError("Invalid token type")
+        payload = _decode_and_verify_jwt(token, "access")
 
         # Check if token has been revoked via blacklist (HIGH-02)
         jti = payload.get("jti")
-        if jti and jti in _access_token_blacklist:
-            _cleanup_blacklist()
-            if jti in _access_token_blacklist:
-                logger.warning("access_token_blacklisted_rejected", jti=jti)
-                raise TokenError("Token has been revoked")
+        if _is_blacklisted(jti):
+            logger.warning("access_token_blacklisted_rejected", jti=jti)
+            raise TokenError("Token has been revoked")
 
-        # Token is valid
         logger.debug("access_token_verified", user_id=payload.get("sub"))
         return payload
 
@@ -325,39 +338,18 @@ def verify_refresh_token(db: Session, token: str) -> tuple[dict[str, Any], Refre
         TokenError: If token is invalid, expired, revoked, or wrong type
     """
     try:
-        # Decode and verify token with algorithm whitelist
-        payload = jwt.decode(
-            token,
-            settings.get_secret_key(),
-            algorithms=ALLOWED_JWT_ALGORITHMS,  # Hardcoded whitelist
-        )
+        payload = _decode_and_verify_jwt(token, "refresh")
 
-        # Explicitly verify the algorithm in the token header
-        try:
-            header = jwt.get_unverified_header(token)
-            token_algorithm = header.get("alg")
-            if token_algorithm not in ALLOWED_JWT_ALGORITHMS:
-                raise TokenError(f"Invalid JWT algorithm: {token_algorithm}")
-        except Exception as e:
-            raise TokenError(f"Failed to verify token algorithm: {e}") from e
-
-        # Verify token type
-        if payload.get("type") != "refresh":
-            raise TokenError("Invalid token type")
-
-        # Get JTI from payload
         jti = payload.get("jti")
         if not jti:
             raise TokenError("Missing JTI in token")
 
-        # Look up token in database
         db_token = db.query(RefreshToken).filter(RefreshToken.jti == jti).first()
 
         if not db_token:
             logger.warning("refresh_token_not_found", jti=jti)
             raise TokenError("Token not found in database")
 
-        # Check if token is valid (not revoked and not expired)
         if not db_token.is_valid():
             logger.warning(
                 "refresh_token_invalid",
@@ -751,13 +743,10 @@ def verify_2fa_pending_token(token: str) -> dict[str, Any]:
         if payload.get("type") != "2fa_pending":
             raise TokenError("Invalid token type")
 
-        # Check if token has been blacklisted (replay protection)
         jti = payload.get("jti")
-        if jti and jti in _access_token_blacklist:
-            _cleanup_blacklist()
-            if jti in _access_token_blacklist:
-                logger.warning("2fa_pending_token_replay_rejected", jti=jti)
-                raise TokenError("2FA pending token has already been used")
+        if _is_blacklisted(jti):
+            logger.warning("2fa_pending_token_replay_rejected", jti=jti)
+            raise TokenError("2FA pending token has already been used")
 
         logger.debug("2fa_pending_token_verified", user_id=payload.get("sub"))
         return payload
