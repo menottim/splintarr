@@ -111,8 +111,8 @@
                 <tr>
                     <th>Started</th>
                     <th>Status</th>
-                    <th>Items Searched</th>
-                    <th>Items Found</th>
+                    <th>Searched</th>
+                    <th>Eligible</th>
                     <th>Duration</th>
                 </tr>
             </thead>
@@ -131,7 +131,7 @@
                         {{ entry.status }}
                         {% endif %}
                     </td>
-                    <td>{{ entry.items_searched or 0 }}</td>
+                    <td>{{ entry.searches_triggered or entry.items_searched or 0 }}</td>
                     <td>{{ entry.items_found or 0 }}</td>
                     <td>
                         {% if entry.duration_seconds %}

@@ -1019,6 +1019,7 @@ async def api_dashboard_activity(
             "status": search.status,
             "items_searched": search.items_searched,
             "items_found": search.items_found,
+            "searches_triggered": search.searches_triggered,
             "started_at": (search.started_at.isoformat() if search.started_at else None),
             "completed_at": (search.completed_at.isoformat() if search.completed_at else None),
         }

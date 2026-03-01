@@ -113,9 +113,13 @@
                         {% endif %}
                     </td>
                     <td>
-                        {{ search.items_searched or 0 }} searched
+                        {% if search.searches_triggered %}
+                        {{ search.searches_triggered }} searched
                         {% if search.items_found %}
-                        &middot; {{ search.items_found }} found
+                        of {{ search.items_found }} eligible
+                        {% endif %}
+                        {% else %}
+                        {{ search.items_found or 0 }} eligible
                         {% endif %}
                     </td>
                     <td>
@@ -385,9 +389,14 @@ function updateActivityTable(activities) {
 
         // Items
         var itemsCell = document.createElement('td');
-        var text = (item.items_searched || 0) + ' searched';
-        if (item.items_found) {
-            text += ' \u00b7 ' + item.items_found + ' found';
+        var text = '';
+        if (item.searches_triggered) {
+            text = item.searches_triggered + ' searched';
+            if (item.items_found) {
+                text += ' of ' + item.items_found + ' eligible';
+            }
+        } else {
+            text = (item.items_found || 0) + ' eligible';
         }
         itemsCell.textContent = text;
         row.appendChild(itemsCell);
