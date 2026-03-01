@@ -32,6 +32,7 @@ from slowapi import Limiter
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
+from splintarr.api.onboarding import get_onboarding_state
 from splintarr.core.auth import get_current_user_from_cookie
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db, get_session_factory
@@ -165,6 +166,7 @@ def _render_library_page(
             "selected_instance_id": instance_id,
             "selected_content_type": content_type,
             "excluded_set": excluded_set,
+            "onboarding": get_onboarding_state(db, user.id),
         },
     )
 

@@ -833,6 +833,7 @@ async def dashboard_search_queues(
             "queues": queues,
             "instances": instances,
             "active_page": "queues",
+            "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
 
@@ -929,6 +930,7 @@ async def dashboard_search_history(
             "total_count": total_count,
             "total_pages": total_pages,
             "active_page": "history",
+            "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
 
