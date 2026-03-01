@@ -189,6 +189,7 @@
                 Prowlarr URL
                 <input type="url" id="prowlarr_url" placeholder="http://prowlarr:9696" required>
                 <small>Base URL of your Prowlarr instance. It will be validated for SSRF protection.</small>
+                <small>For Docker: try <code>http://prowlarr:9696</code> (same Docker network) or <code>http://host.docker.internal:9696</code> (host machine)</small>
             </label>
 
             <label for="prowlarr_api_key">
@@ -518,29 +519,79 @@ document.getElementById('notificationForm').addEventListener('submit', async fun
     saveBtn.disabled = false;
 });
 
-// Test notification
+// Test notification (auto-saves config first)
 document.getElementById('testNotificationBtn').addEventListener('click', async function() {
     var btn = this;
     btn.disabled = true;
     btn.setAttribute('aria-busy', 'true');
 
+    var webhookUrl = document.getElementById('webhook_url').value.trim();
+    if (!webhookUrl) {
+        showNotificationStatus('Please enter a Discord webhook URL before testing.', true);
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        return;
+    }
+
+    // Step 1: Save config first
+    showNotificationStatus('Saving...', false);
+
+    var payload = {
+        webhook_url: webhookUrl,
+        events_enabled: {
+            search_triggered: document.getElementById('evt_search_triggered').checked,
+            queue_failed: document.getElementById('evt_queue_failed').checked,
+            instance_health: document.getElementById('evt_instance_health').checked,
+            library_sync: document.getElementById('evt_library_sync').checked
+        },
+        is_active: document.getElementById('notifications_active').checked
+    };
+
     try {
-        var response = await fetch('/api/notifications/test', {
+        var saveResponse = await fetch('/api/notifications/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!saveResponse.ok) {
+            var saveData = await saveResponse.json();
+            showNotificationStatus('Save failed: ' + (saveData.detail || 'Unknown error'), true);
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+            return;
+        }
+
+        // Clear webhook field and update placeholder after successful save
+        document.getElementById('webhook_url').value = '';
+        document.getElementById('webhook_url').placeholder = '\u2022\u2022\u2022\u2022webhook';
+    } catch (error) {
+        showNotificationStatus('Save failed: ' + error.message, true);
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        return;
+    }
+
+    // Step 2: Test notification
+    showNotificationStatus('Testing...', false);
+
+    try {
+        var testResponse = await fetch('/api/notifications/test', {
             method: 'POST'
         });
 
-        var data = await response.json();
-        if (response.ok) {
+        var testData = await testResponse.json();
+        if (testResponse.ok) {
             showNotificationStatus('Test notification sent successfully!', false);
         } else {
-            showNotificationStatus('Test failed: ' + (data.detail || data.message || 'Unknown error'), true);
+            showNotificationStatus('Test failed: ' + (testData.detail || testData.message || 'Unknown error'), true);
         }
     } catch (error) {
         showNotificationStatus('Test failed: ' + error.message, true);
     }
 
     btn.disabled = false;
-    btn.setAttribute('aria-busy', 'false');
+    btn.removeAttribute('aria-busy');
 });
 
 // ---------------------------------------------------------------
@@ -644,22 +695,84 @@ document.getElementById('prowlarrForm').addEventListener('submit', async functio
     saveBtn.disabled = false;
 });
 
-// Test Prowlarr connection
+// Test Prowlarr connection (auto-saves config first)
 document.getElementById('testProwlarrBtn').addEventListener('click', async function() {
     var btn = this;
     btn.disabled = true;
     btn.setAttribute('aria-busy', 'true');
 
+    var url = document.getElementById('prowlarr_url').value.trim();
+    var apiKey = document.getElementById('prowlarr_api_key').value.trim();
+
+    if (!url) {
+        showProwlarrStatus('Please enter a Prowlarr URL before testing.', true);
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        return;
+    }
+
+    if (!apiKey) {
+        showProwlarrStatus('Please enter the API key before testing.', true);
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        return;
+    }
+
+    // Step 1: Save config first
+    showProwlarrStatus('Saving...', false);
+
+    var payload = {
+        url: url,
+        api_key: apiKey,
+        verify_ssl: document.getElementById('prowlarr_verify_ssl').checked,
+        sync_interval_minutes: parseInt(document.getElementById('prowlarr_sync_interval').value, 10) || 60
+    };
+
     try {
-        var response = await fetch('/api/prowlarr/test', {
+        var saveResponse = await fetch('/api/prowlarr/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!saveResponse.ok) {
+            var saveData = await saveResponse.json();
+            showProwlarrStatus('Save failed: ' + (saveData.detail || 'Unknown error'), true);
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+            return;
+        }
+
+        // Update UI after successful save
+        var savedData = await saveResponse.json();
+        document.getElementById('prowlarr_api_key').value = '';
+        document.getElementById('prowlarr_api_key').required = false;
+        document.getElementById('prowlarr_api_key').placeholder = savedData.api_key_masked;
+        document.getElementById('prowlarrDangerZone').style.display = 'block';
+    } catch (error) {
+        showProwlarrStatus('Save failed: ' + error.message, true);
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        return;
+    }
+
+    // Step 2: Test connection
+    showProwlarrStatus('Testing connection...', false);
+
+    try {
+        var testResponse = await fetch('/api/prowlarr/test', {
             method: 'POST'
         });
 
-        var data = await response.json();
-        if (response.ok) {
-            showProwlarrStatus('Connection successful! ' + (data.message || ''), false);
+        var testData = await testResponse.json();
+        if (testResponse.ok) {
+            var details = [];
+            if (testData.version) details.push('v' + testData.version);
+            if (testData.response_time_ms) details.push(testData.response_time_ms + 'ms');
+            var suffix = details.length ? ' (' + details.join(', ') + ')' : '';
+            showProwlarrStatus('Connection successful!' + suffix, false);
         } else {
-            showProwlarrStatus('Test failed: ' + (data.detail || data.message || data.error || 'Unknown error'), true);
+            showProwlarrStatus('Test failed: ' + (testData.detail || testData.message || testData.error || 'Unknown error'), true);
         }
     } catch (error) {
         showProwlarrStatus('Test failed: ' + error.message, true);
