@@ -251,9 +251,7 @@ class BaseArrClient:
         # Re-validate URL against SSRF immediately before each request to prevent
         # DNS rebinding attacks (TOCTOU: DNS may resolve differently than at config time)
         try:
-            validate_instance_url(
-                self.url, allow_local=settings.allow_local_instances
-            )
+            validate_instance_url(self.url, allow_local=settings.allow_local_instances)
         except SSRFError as e:
             logger.error(
                 f"{svc}_ssrf_blocked",
@@ -319,9 +317,7 @@ class BaseArrClient:
                     status_code=response.status_code,
                     error=error_detail,
                 )
-                raise self._error_api(
-                    f"Client error ({response.status_code}): {error_detail}"
-                )
+                raise self._error_api(f"Client error ({response.status_code}): {error_detail}")
 
             # Handle server errors (5xx)
             if response.status_code >= 500:
@@ -332,9 +328,7 @@ class BaseArrClient:
                     status_code=response.status_code,
                     error=error_detail,
                 )
-                raise self._error_api(
-                    f"Server error ({response.status_code}): {error_detail}"
-                )
+                raise self._error_api(f"Server error ({response.status_code}): {error_detail}")
 
             # Raise for other non-success status codes
             response.raise_for_status()
@@ -344,9 +338,7 @@ class BaseArrClient:
 
         except httpx.ConnectError as e:
             logger.error(f"{svc}_connection_failed", url=self.url, error=str(e))
-            raise self._error_connection(
-                f"Failed to connect to {svc.title()}: {e}"
-            ) from e
+            raise self._error_connection(f"Failed to connect to {svc.title()}: {e}") from e
 
         except httpx.TimeoutException as e:
             logger.error(f"{svc}_request_timeout", url=self.url, error=str(e))
@@ -387,9 +379,7 @@ class BaseArrClient:
 
         # SSRF validation (same as _request)
         try:
-            validate_instance_url(
-                self.url, allow_local=settings.allow_local_instances
-            )
+            validate_instance_url(self.url, allow_local=settings.allow_local_instances)
         except SSRFError as e:
             logger.warning(
                 f"{self.service_name}_binary_ssrf_blocked",

@@ -48,6 +48,11 @@
                     One-time
                     {% endif %}
                 </dd>
+
+                {% if queue.instance.instance_type == 'sonarr' and queue.season_pack_enabled %}
+                <dt>Season Packs</dt>
+                <dd>Enabled (threshold: {{ queue.season_pack_threshold }} episodes)</dd>
+                {% endif %}
             </dl>
         </div>
         <div>
@@ -158,7 +163,16 @@
                                     <tbody>
                                         {% for log_entry in log_entries %}
                                         <tr>
-                                            <td>{{ log_entry.item }}</td>
+                                            <td>
+                                                {% if log_entry.season_pack is defined and log_entry.season_pack %}
+                                                <strong>Season Pack</strong> {{ log_entry.item }}
+                                                {% if log_entry.episode_count is defined and log_entry.episode_count %}
+                                                <br><small style="color: var(--muted-color);">{{ log_entry.episode_count }} episodes</small>
+                                                {% endif %}
+                                                {% else %}
+                                                {{ log_entry.item }}
+                                                {% endif %}
+                                            </td>
                                             <td>
                                                 {% if log_entry.score is defined and log_entry.score is not none %}
                                                 <span title="{{ log_entry.score_reason or '' }}">{{ log_entry.score }}</span>

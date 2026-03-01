@@ -34,6 +34,7 @@ from splintarr.api import (
     instances,
     library,
     notifications,
+    prowlarr,
     search_history,
     search_queue,
 )
@@ -274,6 +275,7 @@ app.include_router(search_history.router)
 app.include_router(library.router)
 app.include_router(notifications.router)
 app.include_router(exclusions.router)
+app.include_router(prowlarr.router)
 app.include_router(config.router)
 
 

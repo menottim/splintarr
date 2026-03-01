@@ -51,6 +51,33 @@
     </a>
 </div>
 
+<!-- Indexer Health (only shown if Prowlarr configured) -->
+<div id="indexer-health-section" style="display: none;">
+    <article>
+        <header>
+            <h3>Indexer Health</h3>
+        </header>
+        <div class="overflow-auto">
+            <table id="indexer-health-table" role="grid">
+                <thead>
+                    <tr>
+                        <th>Indexer</th>
+                        <th>Protocol</th>
+                        <th>Queries</th>
+                        <th>Grabs</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="indexer-health-body">
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--muted-color);">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </article>
+</div>
+
 <!-- Recent Activity -->
 <article>
     <header>
@@ -380,5 +407,105 @@ function updateActivityTable(activities) {
 
 setInterval(refreshActivity, 15000);
 refreshActivity();
+
+// Indexer Health — poll every 60s
+async function refreshIndexerHealth() {
+    try {
+        var response = await fetch('/api/dashboard/indexer-health');
+        if (!response.ok) return;
+        var data = await response.json();
+        var section = document.getElementById('indexer-health-section');
+        if (!section) return;
+
+        if (!data.configured) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = '';
+
+        var tbody = document.getElementById('indexer-health-body');
+        if (!tbody) return;
+        tbody.replaceChildren();
+
+        if (data.error) {
+            var errRow = document.createElement('tr');
+            var errCell = document.createElement('td');
+            errCell.colSpan = 5;
+            errCell.style.textAlign = 'center';
+            errCell.style.color = 'var(--del-color)';
+            errCell.textContent = data.error;
+            errRow.appendChild(errCell);
+            tbody.appendChild(errRow);
+            return;
+        }
+
+        if (!data.indexers || data.indexers.length === 0) {
+            var emptyRow = document.createElement('tr');
+            var emptyCell = document.createElement('td');
+            emptyCell.colSpan = 5;
+            emptyCell.style.textAlign = 'center';
+            emptyCell.style.color = 'var(--muted-color)';
+            emptyCell.textContent = 'No enabled indexers found';
+            emptyRow.appendChild(emptyCell);
+            tbody.appendChild(emptyRow);
+            return;
+        }
+
+        data.indexers.forEach(function(idx) {
+            var row = document.createElement('tr');
+
+            // Name
+            var nameCell = document.createElement('td');
+            nameCell.textContent = idx.name;
+            row.appendChild(nameCell);
+
+            // Protocol
+            var protoCell = document.createElement('td');
+            var protoCode = document.createElement('code');
+            protoCode.textContent = idx.protocol;
+            protoCell.appendChild(protoCode);
+            row.appendChild(protoCell);
+
+            // Queries (used / limit)
+            var queryCell = document.createElement('td');
+            if (idx.query_limit) {
+                queryCell.textContent = idx.queries_used + ' / ' + idx.query_limit;
+            } else {
+                queryCell.textContent = String(idx.queries_used);
+            }
+            row.appendChild(queryCell);
+
+            // Grabs (used / limit)
+            var grabCell = document.createElement('td');
+            if (idx.grab_limit) {
+                grabCell.textContent = idx.grabs_used + ' / ' + idx.grab_limit;
+            } else {
+                grabCell.textContent = String(idx.grabs_used);
+            }
+            row.appendChild(grabCell);
+
+            // Status
+            var statusCell = document.createElement('td');
+            var statusSpan = document.createElement('span');
+            if (idx.is_disabled) {
+                statusSpan.style.color = 'var(--del-color)';
+                statusSpan.textContent = 'Disabled';
+            } else {
+                statusSpan.style.color = 'var(--ins-color)';
+                statusSpan.textContent = 'Active';
+            }
+            statusCell.appendChild(statusSpan);
+            row.appendChild(statusCell);
+
+            tbody.appendChild(row);
+        });
+    } catch (e) {
+        // silent fail — widget keeps last known state
+    }
+}
+
+setInterval(refreshIndexerHealth, 60000);
+refreshIndexerHealth();
 </script>
 {% endblock %}

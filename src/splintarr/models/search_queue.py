@@ -167,6 +167,20 @@ class SearchQueue(Base):
         comment="Maximum items to search per queue execution (1-500)",
     )
 
+    # Season pack intelligence (v0.4.0)
+    season_pack_enabled = Column(
+        Boolean,
+        default=False,
+        nullable=False,
+        comment="Enable season pack search for Sonarr instances",
+    )
+    season_pack_threshold = Column(
+        Integer,
+        default=3,
+        nullable=False,
+        comment="Minimum missing episodes per season to trigger season pack search (2-50)",
+    )
+
     # Timestamps
     created_at = Column(
         DateTime,

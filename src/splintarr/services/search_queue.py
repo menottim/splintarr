@@ -15,6 +15,7 @@ across configured instances.
 """
 
 import json
+from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
@@ -58,6 +59,17 @@ def _movie_label(movie: dict[str, Any]) -> str:
     if year:
         return f"{title} ({year})"
     return title
+
+
+def _group_by_season(records: list[dict]) -> dict[tuple[int, int], list[dict]]:
+    """Group Sonarr records by (seriesId, seasonNumber) for season pack detection."""
+    groups: dict[tuple[int, int], list[dict]] = defaultdict(list)
+    for record in records:
+        series_id = record.get("seriesId")
+        season = record.get("seasonNumber")
+        if series_id is not None and season is not None and season > 0:
+            groups[(series_id, season)].append(record)
+    return dict(groups)
 
 
 class SearchQueueError(Exception):
@@ -149,9 +161,66 @@ class SearchQueueManager:
                 instance_id=instance.id,
             )
 
+            # Resolve effective rate limit from Prowlarr (if configured)
+            from splintarr.services.indexer_rate_limit import IndexerRateLimitService
+
+            rate_service = IndexerRateLimitService(db)
+            rate_result = await rate_service.get_effective_limit(
+                instance_id=instance.id,
+                user_id=instance.user_id,
+                instance_rate=instance.rate_limit_per_second or 5.0,
+                instance_url=instance.url,
+            )
+            if rate_result["max_items"] is not None:
+                effective_max = min(queue.max_items_per_run or 50, rate_result["max_items"])
+                if effective_max == 0:
+                    logger.warning(
+                        "search_queue_prowlarr_budget_exhausted",
+                        queue_id=queue_id,
+                        instance_id=instance.id,
+                        prowlarr_budget=rate_result["max_items"],
+                        queue_max=queue.max_items_per_run,
+                    )
+
+                    # Early return: no budget remaining, skip strategy execution
+                    skipped_result = {
+                        "status": "skipped",
+                        "items_searched": 0,
+                        "items_found": 0,
+                        "searches_triggered": 0,
+                        "errors": [],
+                        "search_log": [],
+                    }
+
+                    queue.mark_completed(items_found=0, items_searched=0)
+                    history.mark_completed(
+                        status="skipped",
+                        items_searched=0,
+                        items_found=0,
+                        searches_triggered=0,
+                        errors_encountered=0,
+                        search_metadata=None,
+                    )
+                    db.commit()
+
+                    return skipped_result
+                else:
+                    logger.info(
+                        "search_queue_rate_limit_applied",
+                        queue_id=queue_id,
+                        instance_id=instance.id,
+                        prowlarr_budget=rate_result["max_items"],
+                        queue_max=queue.max_items_per_run,
+                        effective_max=effective_max,
+                    )
+            else:
+                effective_max = queue.max_items_per_run or 50
+
             try:
                 # Execute based on strategy
-                result = await self._execute_strategy(queue, instance, db)
+                result = await self._execute_strategy(
+                    queue, instance, db, effective_max_items=effective_max
+                )
 
                 # Update queue and history with results
                 queue.mark_completed(
@@ -258,6 +327,7 @@ class SearchQueueManager:
         queue: SearchQueue,
         instance: Instance,
         db: Session,
+        effective_max_items: int | None = None,
     ) -> dict[str, Any]:
         """
         Execute search based on queue strategy.
@@ -266,18 +336,27 @@ class SearchQueueManager:
             queue: Search queue to execute
             instance: Instance to search on
             db: Database session
+            effective_max_items: Override for max items per run (from Prowlarr budget)
 
         Returns:
             dict: Execution results
         """
         if queue.strategy == "missing":
-            return await self._execute_missing_strategy(queue, instance, db)
+            return await self._execute_missing_strategy(
+                queue, instance, db, effective_max_items=effective_max_items
+            )
         elif queue.strategy == "cutoff_unmet":
-            return await self._execute_cutoff_strategy(queue, instance, db)
+            return await self._execute_cutoff_strategy(
+                queue, instance, db, effective_max_items=effective_max_items
+            )
         elif queue.strategy == "recent":
-            return await self._execute_recent_strategy(queue, instance, db)
+            return await self._execute_recent_strategy(
+                queue, instance, db, effective_max_items=effective_max_items
+            )
         elif queue.strategy == "custom":
-            return await self._execute_custom_strategy(queue, instance, db)
+            return await self._execute_custom_strategy(
+                queue, instance, db, effective_max_items=effective_max_items
+            )
         else:
             raise SearchQueueError(f"Unknown strategy: {queue.strategy}")
 
@@ -358,6 +437,7 @@ class SearchQueueManager:
         strategy_name: str,
         sort_key: str | None = None,
         sort_dir: str | None = None,
+        effective_max_items: int | None = None,
     ) -> dict[str, Any]:
         """Shared search loop for all strategies.
 
@@ -368,7 +448,7 @@ class SearchQueueManager:
         4. Sort by score descending
         5. Filter: remove excluded items
         6. Filter: remove items in cooldown (using DB-backed cooldown)
-        7. Truncate to queue.max_items_per_run
+        7. Truncate to effective_max_items (Prowlarr-aware) or queue.max_items_per_run
         8. Search each remaining item, updating LibraryItem.search_attempts
 
         Args:
@@ -379,6 +459,8 @@ class SearchQueueManager:
             strategy_name: Used for log events (e.g. "missing", "cutoff")
             sort_key: Optional sort key passed to the fetch method
             sort_dir: Optional sort direction passed to the fetch method
+            effective_max_items: Override for max items per run (from Prowlarr budget).
+                If None, falls back to queue.max_items_per_run.
         """
         logger.info(
             "executing_strategy",
@@ -408,7 +490,11 @@ class SearchQueueManager:
         # Queue configuration
         cooldown_mode = getattr(queue, "cooldown_mode", "adaptive") or "adaptive"
         cooldown_hours = getattr(queue, "cooldown_hours", None)
-        max_items = getattr(queue, "max_items_per_run", 50) or 50
+        max_items = (
+            effective_max_items
+            if effective_max_items is not None
+            else (getattr(queue, "max_items_per_run", 50) or 50)
+        )
 
         try:
             api_key = decrypt_api_key(instance.api_key)
@@ -507,9 +593,86 @@ class SearchQueueManager:
                     max_items=max_items,
                 )
 
-                # Step 8: Search each remaining item
+                # Step 7.5: Season pack grouping (Sonarr only)
+                season_pack_handled_ids: set[int] = set()
+                season_pack_enabled = getattr(queue, "season_pack_enabled", False) and is_sonarr
+
+                if season_pack_enabled:
+                    threshold = getattr(queue, "season_pack_threshold", 3) or 3
+                    truncated_records = [rec for rec, _score, _reason in truncated]
+                    season_groups = _group_by_season(truncated_records)
+
+                    for (sid, snum), group_records in season_groups.items():
+                        if len(group_records) >= threshold:
+                            # Step 8a: Issue season pack search
+                            if not await self._check_rate_limit(instance.id):
+                                logger.warning(
+                                    "rate_limit_reached",
+                                    instance_id=instance.id,
+                                )
+                                break
+
+                            try:
+                                cmd_result = await client.season_search(
+                                    series_id=sid, season_number=snum
+                                )
+                                searches_triggered += 1
+                                items_found += 1
+
+                                # Track all episode IDs in this pack as handled
+                                for rec in group_records:
+                                    ep_id = rec.get("id")
+                                    if ep_id is not None:
+                                        season_pack_handled_ids.add(ep_id)
+                                        items_searched += 1
+
+                                # Update LibraryItem search tracking for the series
+                                library_item = library_items.get(sid)
+                                if library_item:
+                                    library_item.record_search()
+
+                                logger.info(
+                                    "season_pack_search_triggered",
+                                    series_id=sid,
+                                    season_number=snum,
+                                    episode_count=len(group_records),
+                                    instance_id=instance.id,
+                                    command_id=cmd_result.get("id"),
+                                )
+
+                                # Log each episode covered by the pack search
+                                for rec in group_records:
+                                    label = label_fn(rec)
+                                    search_log.append(
+                                        {
+                                            "item": label,
+                                            "action": "SeasonSearch",
+                                            "series_id": sid,
+                                            "season_number": snum,
+                                            "item_id": rec.get("id"),
+                                            "command_id": cmd_result.get("id"),
+                                            "result": "sent",
+                                            "season_pack": True,
+                                        }
+                                    )
+                            except Exception as e:
+                                errors.append(f"SeasonSearch series={sid} S{snum:02d}: {e}")
+                                logger.error(
+                                    "season_pack_search_failed",
+                                    series_id=sid,
+                                    season_number=snum,
+                                    error=str(e),
+                                    instance_id=instance.id,
+                                )
+
+                # Step 8: Search each remaining item (skip season-pack-handled)
                 for record, score, reason in truncated:
                     item_id = record.get("id")
+
+                    # Skip items already handled by season pack searches
+                    if item_id in season_pack_handled_ids:
+                        continue
+
                     label = label_fn(record)
 
                     # Determine external IDs for log and library item lookup
@@ -625,6 +788,7 @@ class SearchQueueManager:
         queue: SearchQueue,
         instance: Instance,
         db: Session,
+        effective_max_items: int | None = None,
     ) -> dict[str, Any]:
         """Execute missing items strategy -- searches all missing episodes/movies."""
         return await self._search_paginated_records(
@@ -633,6 +797,7 @@ class SearchQueueManager:
             db=db,
             fetch_method="get_wanted_missing",
             strategy_name="missing",
+            effective_max_items=effective_max_items,
         )
 
     async def _execute_cutoff_strategy(
@@ -640,6 +805,7 @@ class SearchQueueManager:
         queue: SearchQueue,
         instance: Instance,
         db: Session,
+        effective_max_items: int | None = None,
     ) -> dict[str, Any]:
         """Execute cutoff unmet strategy -- searches items below quality cutoff."""
         return await self._search_paginated_records(
@@ -648,6 +814,7 @@ class SearchQueueManager:
             db=db,
             fetch_method="get_wanted_cutoff",
             strategy_name="cutoff",
+            effective_max_items=effective_max_items,
         )
 
     async def _execute_recent_strategy(
@@ -655,6 +822,7 @@ class SearchQueueManager:
         queue: SearchQueue,
         instance: Instance,
         db: Session,
+        effective_max_items: int | None = None,
     ) -> dict[str, Any]:
         """Execute recent additions strategy -- newest missing items first."""
         if instance.instance_type == "sonarr":
@@ -670,6 +838,7 @@ class SearchQueueManager:
             strategy_name="recent",
             sort_key=sort_key,
             sort_dir=sort_dir,
+            effective_max_items=effective_max_items,
         )
 
     async def _execute_custom_strategy(
@@ -677,6 +846,7 @@ class SearchQueueManager:
         queue: SearchQueue,
         instance: Instance,
         db: Session,
+        effective_max_items: int | None = None,
     ) -> dict[str, Any]:
         """
         Execute custom strategy with user-defined filters.
@@ -685,6 +855,7 @@ class SearchQueueManager:
             queue: Search queue
             instance: Instance to search on
             db: Database session
+            effective_max_items: Override for max items per run (from Prowlarr budget)
 
         Returns:
             dict: Execution results
@@ -703,7 +874,9 @@ class SearchQueueManager:
         # In a real implementation, you would apply the custom filters
         logger.warning("custom_strategy_using_missing_fallback", filters=filters)
 
-        return await self._execute_missing_strategy(queue, instance, db)
+        return await self._execute_missing_strategy(
+            queue, instance, db, effective_max_items=effective_max_items
+        )
 
     async def _check_rate_limit(self, instance_id: int, tokens_per_second: float = 5.0) -> bool:
         """

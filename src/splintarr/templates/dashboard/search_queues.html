@@ -173,6 +173,21 @@
                 <input type="number" id="max_items_per_run" name="max_items_per_run" min="1" max="500" value="50">
             </label>
 
+            <div id="seasonPackRow" style="display: none;">
+                <label>
+                    <input type="checkbox" id="season_pack_enabled" name="season_pack_enabled">
+                    Enable Season Pack Search
+                    <small>When 3+ episodes from the same season are missing, search for the whole season at once (Sonarr only)</small>
+                </label>
+            </div>
+            <div id="seasonPackThresholdRow" style="display: none;">
+                <label>
+                    Season Pack Threshold
+                    <input type="number" id="season_pack_threshold" name="season_pack_threshold" min="2" max="50" value="3">
+                    <small>Minimum missing episodes per season to trigger a season pack search</small>
+                </label>
+            </div>
+
             <label for="name">
                 Queue Name
                 <input type="text" id="name" name="name" required placeholder="Auto-generated from selections above">
@@ -193,11 +208,39 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+var INSTANCE_TYPES = {
+    {% for instance in instances %}
+    {{ instance.id }}: "{{ instance.instance_type }}"{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
 document.getElementById('recurring').addEventListener('change', toggleRecurring);
 document.getElementById('cooldown_mode').addEventListener('change', function() {
     document.getElementById('flatCooldownRow').style.display =
         this.value === 'flat' ? '' : 'none';
 });
+document.getElementById('instance_id').addEventListener('change', toggleSeasonPack);
+document.getElementById('season_pack_enabled').addEventListener('change', toggleSeasonPackThreshold);
+
+function toggleSeasonPack() {
+    var instanceId = document.getElementById('instance_id').value;
+    var isSonarr = instanceId && INSTANCE_TYPES[instanceId] === 'sonarr';
+    document.getElementById('seasonPackRow').style.display = isSonarr ? '' : 'none';
+    if (!isSonarr) {
+        document.getElementById('season_pack_enabled').checked = false;
+        document.getElementById('seasonPackThresholdRow').style.display = 'none';
+    }
+    toggleSeasonPackThreshold();
+}
+
+function toggleSeasonPackThreshold() {
+    var enabled = document.getElementById('season_pack_enabled').checked;
+    var instanceId = document.getElementById('instance_id').value;
+    var isSonarr = instanceId && INSTANCE_TYPES[instanceId] === 'sonarr';
+    document.getElementById('seasonPackThresholdRow').style.display =
+        (isSonarr && enabled) ? '' : 'none';
+}
+
 document.addEventListener('click', function(e) {
     var target = e.target.closest('[data-action]');
     if (!target) return;
@@ -256,6 +299,7 @@ document.getElementById('strategy').addEventListener('change', updateSuggestedNa
 
 function getFormData() {
     var cooldownMode = document.getElementById('cooldown_mode').value;
+    var seasonPackEnabled = document.getElementById('season_pack_enabled').checked;
     return {
         instance_id: parseInt(document.getElementById('instance_id').value),
         name: document.getElementById('name').value,
@@ -269,6 +313,10 @@ function getFormData() {
             ? parseInt(document.getElementById('cooldown_hours').value)
             : null,
         max_items_per_run: parseInt(document.getElementById('max_items_per_run').value) || 50,
+        season_pack_enabled: seasonPackEnabled,
+        season_pack_threshold: seasonPackEnabled
+            ? parseInt(document.getElementById('season_pack_threshold').value) || 3
+            : 3,
     };
 }
 
@@ -418,6 +466,16 @@ async function cloneQueue(queueId) {
         document.getElementById('max_items_per_run').value = queue.max_items_per_run;
     }
 
+    // Season pack fields
+    toggleSeasonPack();
+    if (queue.season_pack_enabled) {
+        document.getElementById('season_pack_enabled').checked = true;
+        toggleSeasonPackThreshold();
+    }
+    if (queue.season_pack_threshold) {
+        document.getElementById('season_pack_threshold').value = queue.season_pack_threshold;
+    }
+
     document.getElementById('name').value = queue.name + ' (copy)';
     nameManuallyEdited = true;
 
@@ -425,9 +483,9 @@ async function cloneQueue(queueId) {
 }
 
 var PRESETS = {
-    'aggressive-missing': { strategy: 'missing', recurring: true, interval_hours: 1, cooldown_mode: 'adaptive', max_items_per_run: 50, nameSuffix: 'Aggressive Missing' },
-    'weekly-cutoff': { strategy: 'cutoff_unmet', recurring: true, interval_hours: 168, cooldown_mode: 'adaptive', max_items_per_run: 50, nameSuffix: 'Weekly Cutoff Unmet' },
-    'new-releases': { strategy: 'recent', recurring: true, interval_hours: 4, cooldown_mode: 'adaptive', max_items_per_run: 50, nameSuffix: 'New Releases' }
+    'aggressive-missing': { strategy: 'missing', recurring: true, interval_hours: 1, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, nameSuffix: 'Aggressive Missing' },
+    'weekly-cutoff': { strategy: 'cutoff_unmet', recurring: true, interval_hours: 168, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, nameSuffix: 'Weekly Cutoff Unmet' },
+    'new-releases': { strategy: 'recent', recurring: true, interval_hours: 4, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, nameSuffix: 'New Releases' }
 };
 
 function applyPreset(presetKey) {
@@ -449,6 +507,10 @@ function applyPreset(presetKey) {
     document.getElementById('flatCooldownRow').style.display =
         (preset.cooldown_mode === 'flat') ? '' : 'none';
     document.getElementById('max_items_per_run').value = preset.max_items_per_run || 50;
+
+    document.getElementById('season_pack_enabled').checked = preset.season_pack_enabled || false;
+    document.getElementById('season_pack_threshold').value = 3;
+    toggleSeasonPack();
 
     nameManuallyEdited = false;
     updateSuggestedName();

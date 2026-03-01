@@ -23,6 +23,7 @@ import structlog
 from fastapi import APIRouter, Cookie, Depends, Form, Query, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from slowapi import Limiter
 from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -36,15 +37,18 @@ from splintarr.core.auth import (
     get_current_user_from_cookie,
     get_current_user_id_from_token,
 )
-from splintarr.core.security import encrypt_field, hash_password
+from splintarr.core.rate_limit import rate_limit_key_func
+from splintarr.core.security import decrypt_field, encrypt_field, hash_password
 from splintarr.core.ssrf_protection import SSRFError, validate_instance_url
 from splintarr.database import get_db
 from splintarr.models.instance import Instance
 from splintarr.models.library import LibraryItem
+from splintarr.models.prowlarr import ProwlarrConfig
 from splintarr.models.search_history import SearchHistory
 from splintarr.models.search_queue import SearchQueue
 from splintarr.models.user import User
 from splintarr.schemas.user import common_passwords
+from splintarr.services.prowlarr import ProwlarrClient, ProwlarrError
 from splintarr.services.radarr import RadarrClient, RadarrError
 from splintarr.services.sonarr import SonarrClient, SonarrError
 
@@ -52,6 +56,9 @@ logger = structlog.get_logger()
 
 # Create router
 router = APIRouter(tags=["dashboard"])
+
+# Rate limiter
+limiter = Limiter(key_func=rate_limit_key_func)
 
 # Setup Jinja2 templates
 templates = Jinja2Templates(directory="src/splintarr/templates")
@@ -1056,3 +1063,102 @@ async def api_dashboard_system_status(
     ]
 
     return JSONResponse(content={"instances": instance_status})
+
+
+@router.get("/api/dashboard/indexer-health", include_in_schema=False)
+@limiter.limit("30/minute")
+async def api_indexer_health(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """
+    Get Prowlarr indexer health status (JSON API).
+
+    Returns indexer names, protocols, query/grab usage, and disabled status.
+    If Prowlarr is not configured or inactive, returns configured=False.
+    """
+    logger.debug("dashboard_indexer_health_requested", user_id=current_user.id)
+
+    config = (
+        db.query(ProwlarrConfig)
+        .filter(
+            ProwlarrConfig.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not config or not config.is_active:
+        logger.debug(
+            "dashboard_indexer_health_not_configured",
+            user_id=current_user.id,
+        )
+        return JSONResponse(content={"configured": False})
+
+    try:
+        api_key = decrypt_field(config.encrypted_api_key)
+    except Exception as e:
+        logger.error(
+            "dashboard_indexer_health_decrypt_failed",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        return JSONResponse(content={"configured": True, "error": "Unable to reach Prowlarr"})
+
+    try:
+        async with ProwlarrClient(
+            url=config.url,
+            api_key=api_key,
+            verify_ssl=config.verify_ssl,
+        ) as client:
+            indexers = await client.get_indexers()
+            stats = await client.get_indexer_stats()
+            statuses = await client.get_indexer_status()
+    except ProwlarrError as e:
+        logger.warning(
+            "dashboard_indexer_health_prowlarr_unreachable",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        return JSONResponse(content={"configured": True, "error": "Unable to reach Prowlarr"})
+    except Exception as e:
+        logger.error(
+            "dashboard_indexer_health_failed",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        return JSONResponse(content={"configured": True, "error": "Unable to reach Prowlarr"})
+
+    # Build a set of disabled indexer IDs from status endpoint
+    disabled_ids: set[int] = set()
+    for s in statuses:
+        disabled_ids.add(s["indexer_id"])
+
+    # Build response for each enabled indexer
+    indexer_list = []
+    for idx in indexers:
+        if not idx.get("enable", False):
+            continue
+
+        idx_id = idx["id"]
+        idx_stats = stats.get(idx_id, {})
+
+        indexer_list.append(
+            {
+                "name": idx["name"],
+                "protocol": idx.get("protocol", "unknown"),
+                "query_limit": idx.get("query_limit"),
+                "queries_used": idx_stats.get("queries", 0),
+                "grab_limit": idx.get("grab_limit"),
+                "grabs_used": idx_stats.get("grabs", 0),
+                "is_disabled": idx_id in disabled_ids,
+            }
+        )
+
+    logger.debug(
+        "dashboard_indexer_health_completed",
+        user_id=current_user.id,
+        indexer_count=len(indexer_list),
+    )
+
+    return JSONResponse(content={"configured": True, "indexers": indexer_list})

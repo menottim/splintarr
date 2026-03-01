@@ -138,6 +138,13 @@ class User(Base):
         uselist=False,
         lazy="joined",
     )
+    prowlarr_config = relationship(
+        "ProwlarrConfig",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        uselist=False,
+        lazy="joined",
+    )
     search_exclusions = relationship(
         "SearchExclusion",
         back_populates="user",

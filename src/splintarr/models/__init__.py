@@ -9,6 +9,7 @@ from splintarr.models.exclusion import SearchExclusion
 from splintarr.models.instance import Instance
 from splintarr.models.library import LibraryEpisode, LibraryItem
 from splintarr.models.notification import NotificationConfig
+from splintarr.models.prowlarr import ProwlarrConfig
 from splintarr.models.search_history import SearchHistory
 from splintarr.models.search_queue import SearchQueue
 from splintarr.models.user import RefreshToken, User
@@ -24,4 +25,5 @@ __all__ = [
     "LibraryItem",
     "LibraryEpisode",
     "NotificationConfig",
+    "ProwlarrConfig",
 ]

@@ -172,6 +172,57 @@
     </article>
 </details>
 
+<!-- Prowlarr Integration -->
+<details>
+    <summary><strong>Prowlarr Integration</strong></summary>
+    <article>
+        <p>
+            <small>Connect Prowlarr for indexer-aware rate limiting. Splintarr will sync indexer data and respect per-indexer query limits.</small>
+        </p>
+
+        <div id="prowlarr-config">
+            <small id="prowlarrStatus" style="display: none; margin-bottom: 0.5rem;"></small>
+        </div>
+
+        <form id="prowlarrForm">
+            <label for="prowlarr_url">
+                Prowlarr URL
+                <input type="url" id="prowlarr_url" placeholder="http://prowlarr:9696" required>
+                <small>Base URL of your Prowlarr instance. It will be validated for SSRF protection.</small>
+            </label>
+
+            <label for="prowlarr_api_key">
+                API Key
+                <input type="password" id="prowlarr_api_key" placeholder="Enter Prowlarr API key" required minlength="10" autocomplete="off">
+                <small>Found in Prowlarr under Settings &rarr; General &rarr; API Key. Will be encrypted before storage.</small>
+            </label>
+
+            <label>
+                <input type="checkbox" id="prowlarr_verify_ssl" checked>
+                Verify SSL
+            </label>
+
+            <label for="prowlarr_sync_interval">
+                Sync Interval (minutes)
+                <input type="number" id="prowlarr_sync_interval" min="5" max="1440" value="60">
+                <small>How often to refresh indexer data from Prowlarr (5 min to 24 hours).</small>
+            </label>
+
+            <div class="grid">
+                <button type="submit" id="saveProwlarrBtn">Save</button>
+                <button type="button" id="testProwlarrBtn" class="secondary">Test Connection</button>
+            </div>
+        </form>
+
+        <div id="prowlarrDangerZone" style="display: none; margin-top: 1rem;">
+            <hr>
+            <button type="button" id="deleteProwlarrBtn" class="secondary outline" style="color: var(--del-color);">Remove Prowlarr Configuration</button>
+        </div>
+
+        <small id="prowlarrActionStatus" style="display: none; margin-top: 0.5rem;"></small>
+    </article>
+</details>
+
 <!-- System -->
 <details>
     <summary><strong>System</strong></summary>
@@ -490,6 +541,169 @@ document.getElementById('testNotificationBtn').addEventListener('click', async f
 
     btn.disabled = false;
     btn.setAttribute('aria-busy', 'false');
+});
+
+// ---------------------------------------------------------------
+// Prowlarr Integration
+// ---------------------------------------------------------------
+
+function showProwlarrStatus(message, isError) {
+    var el = document.getElementById('prowlarrActionStatus');
+    el.textContent = message;
+    el.style.display = 'block';
+    el.style.color = isError ? 'var(--del-color)' : 'var(--ins-color)';
+}
+
+// Load existing Prowlarr config on page load
+(async function loadProwlarrConfig() {
+    try {
+        var response = await fetch('/api/prowlarr/config');
+        if (response.ok) {
+            var data = await response.json();
+            document.getElementById('prowlarr_url').value = data.url;
+            document.getElementById('prowlarr_api_key').placeholder = data.api_key_masked;
+            document.getElementById('prowlarr_api_key').required = false;
+            document.getElementById('prowlarr_verify_ssl').checked = data.verify_ssl;
+            document.getElementById('prowlarr_sync_interval').value = data.sync_interval_minutes;
+            document.getElementById('prowlarrDangerZone').style.display = 'block';
+
+            var statusEl = document.getElementById('prowlarrStatus');
+            statusEl.style.display = 'block';
+            statusEl.style.color = data.is_active ? 'var(--ins-color)' : 'var(--muted-color)';
+            var statusText = data.is_active ? 'Connected' : 'Inactive';
+            if (data.last_sync_at) {
+                statusText += ' \u2014 Last sync: ' + new Date(data.last_sync_at).toLocaleString();
+            }
+            statusEl.textContent = statusText;
+        }
+        // 404 is fine — means no config yet
+    } catch (error) {
+        // Ignore load errors — user may not have config yet
+    }
+})();
+
+// Save Prowlarr config
+document.getElementById('prowlarrForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    var url = document.getElementById('prowlarr_url').value.trim();
+    var apiKey = document.getElementById('prowlarr_api_key').value.trim();
+
+    if (!url) {
+        Splintarr.showNotification('Please enter a Prowlarr URL');
+        return;
+    }
+
+    // API key is required on first save, optional on update (placeholder shows masked key)
+    if (!apiKey && document.getElementById('prowlarr_api_key').required) {
+        Splintarr.showNotification('Please enter a Prowlarr API key');
+        return;
+    }
+
+    // If no new API key provided on update, we need to tell the user
+    if (!apiKey) {
+        Splintarr.showNotification('Please enter the API key again to update the configuration');
+        return;
+    }
+
+    var saveBtn = document.getElementById('saveProwlarrBtn');
+    saveBtn.setAttribute('aria-busy', 'true');
+    saveBtn.disabled = true;
+
+    var payload = {
+        url: url,
+        api_key: apiKey,
+        verify_ssl: document.getElementById('prowlarr_verify_ssl').checked,
+        sync_interval_minutes: parseInt(document.getElementById('prowlarr_sync_interval').value, 10) || 60
+    };
+
+    try {
+        var response = await fetch('/api/prowlarr/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            showProwlarrStatus('Prowlarr configuration saved.', false);
+            document.getElementById('prowlarr_api_key').value = '';
+            document.getElementById('prowlarr_api_key').required = false;
+            document.getElementById('prowlarrDangerZone').style.display = 'block';
+            // Reload config to show masked key in placeholder
+            var data = await response.json();
+            document.getElementById('prowlarr_api_key').placeholder = data.api_key_masked;
+        } else {
+            var data = await response.json();
+            showProwlarrStatus('Failed to save: ' + (data.detail || 'Unknown error'), true);
+        }
+    } catch (error) {
+        showProwlarrStatus('Failed to save: ' + error.message, true);
+    }
+
+    saveBtn.removeAttribute('aria-busy');
+    saveBtn.disabled = false;
+});
+
+// Test Prowlarr connection
+document.getElementById('testProwlarrBtn').addEventListener('click', async function() {
+    var btn = this;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    try {
+        var response = await fetch('/api/prowlarr/test', {
+            method: 'POST'
+        });
+
+        var data = await response.json();
+        if (response.ok) {
+            showProwlarrStatus('Connection successful! ' + (data.message || ''), false);
+        } else {
+            showProwlarrStatus('Test failed: ' + (data.detail || data.message || data.error || 'Unknown error'), true);
+        }
+    } catch (error) {
+        showProwlarrStatus('Test failed: ' + error.message, true);
+    }
+
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+});
+
+// Delete Prowlarr config
+document.getElementById('deleteProwlarrBtn').addEventListener('click', async function() {
+    if (!confirm('Are you sure you want to remove the Prowlarr configuration?\n\nIndexer-aware rate limiting will be disabled.')) {
+        return;
+    }
+
+    var btn = this;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    try {
+        var response = await fetch('/api/prowlarr/config', {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showProwlarrStatus('Prowlarr configuration removed.', false);
+            document.getElementById('prowlarr_url').value = '';
+            document.getElementById('prowlarr_api_key').value = '';
+            document.getElementById('prowlarr_api_key').placeholder = 'Enter Prowlarr API key';
+            document.getElementById('prowlarr_api_key').required = true;
+            document.getElementById('prowlarr_verify_ssl').checked = true;
+            document.getElementById('prowlarr_sync_interval').value = '60';
+            document.getElementById('prowlarrDangerZone').style.display = 'none';
+            document.getElementById('prowlarrStatus').style.display = 'none';
+        } else {
+            var data = await response.json();
+            showProwlarrStatus('Failed to remove: ' + (data.detail || 'Unknown error'), true);
+        }
+    } catch (error) {
+        showProwlarrStatus('Failed to remove: ' + error.message, true);
+    }
+
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
 });
 
 // ---------------------------------------------------------------
