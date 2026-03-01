@@ -4,12 +4,12 @@ Unit tests for Search Queue Manager.
 Tests queue execution, strategies, rate limiting, and cooldown logic.
 """
 
-import pytest
-from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from splintarr.models import SearchQueue, SearchHistory, Instance
-from splintarr.services.search_queue import SearchQueueManager, SearchQueueError
+import pytest
+
+from splintarr.models import Instance, SearchQueue
+from splintarr.services.search_queue import SearchQueueError, SearchQueueManager
 
 
 @pytest.fixture
@@ -344,36 +344,21 @@ class TestRateLimiting:
         assert any(results)  # At least some should be allowed
 
 
-class TestCooldownPeriod:
-    """Test cooldown period tracking."""
+class TestCooldownIntegration:
+    """Test that cooldown is now DB-backed via the cooldown service.
 
-    def test_is_in_cooldown_new_item(self, queue_manager):
-        """Test that new items are not in cooldown."""
-        assert queue_manager._is_in_cooldown("test_item") is False
+    The in-memory _is_in_cooldown/_set_cooldown methods have been replaced
+    by splintarr.services.cooldown.is_in_cooldown which uses LibraryItem
+    last_searched_at from the database.
+    """
 
-    def test_is_in_cooldown_recent_item(self, queue_manager):
-        """Test that recently searched items are in cooldown."""
-        item_key = "test_item"
+    def test_no_in_memory_cooldown_dict(self, queue_manager):
+        """Verify the old in-memory cooldown dict has been removed."""
+        assert not hasattr(queue_manager, "_search_cooldowns")
 
-        # Set cooldown
-        queue_manager._set_cooldown(item_key)
-
-        # Check cooldown
-        assert queue_manager._is_in_cooldown(item_key) is True
-
-    def test_cooldown_expires(self, queue_manager):
-        """Test that cooldown expires after specified time."""
-        item_key = "test_item"
-
-        # Set cooldown
-        queue_manager._set_cooldown(item_key)
-
-        # Check with short cooldown period (should still be in cooldown)
-        assert queue_manager._is_in_cooldown(item_key, cooldown_hours=24) is True
-
-        # Check with very short cooldown (should be expired)
-        # Note: This test assumes the cooldown was set very recently
-        # In a real test, you'd mock datetime
+    def test_rate_limit_tokens_still_exist(self, queue_manager):
+        """Rate limiting is still in-memory (by design)."""
+        assert hasattr(queue_manager, "_rate_limit_tokens")
 
 
 class TestErrorHandling:
