@@ -37,9 +37,7 @@ def get_onboarding_state(db: Session, user_id: int) -> dict:
     logger.debug("onboarding_state_requested", user_id=user_id)
 
     # 1. Count instances owned by the user
-    instance_count: int = (
-        db.query(Instance).filter(Instance.user_id == user_id).count()
-    )
+    instance_count: int = db.query(Instance).filter(Instance.user_id == user_id).count()
 
     # 2. Count library items (join through Instance for user scoping)
     library_count: int = (
@@ -67,18 +65,12 @@ def get_onboarding_state(db: Session, user_id: int) -> dict:
 
     # 5. Check for notification config
     has_notifications: bool = (
-        db.query(NotificationConfig)
-        .filter(NotificationConfig.user_id == user_id)
-        .count()
-        > 0
+        db.query(NotificationConfig).filter(NotificationConfig.user_id == user_id).count() > 0
     )
 
     # 6. Check for Prowlarr config
     has_prowlarr: bool = (
-        db.query(ProwlarrConfig)
-        .filter(ProwlarrConfig.user_id == user_id)
-        .count()
-        > 0
+        db.query(ProwlarrConfig).filter(ProwlarrConfig.user_id == user_id).count() > 0
     )
 
     # Derive boolean flags
@@ -101,41 +93,25 @@ def get_onboarding_state(db: Session, user_id: int) -> dict:
     steps = [
         {
             "name": "Add Instance",
-            "status": (
-                "done"
-                if has_instances
-                else "current" if current_step == 1 else "future"
-            ),
+            "status": ("done" if has_instances else "current" if current_step == 1 else "future"),
             "url": "/dashboard/instances",
             "action": "Add now",
         },
         {
             "name": "Sync Library",
-            "status": (
-                "done"
-                if has_library
-                else "current" if current_step == 2 else "future"
-            ),
+            "status": ("done" if has_library else "current" if current_step == 2 else "future"),
             "url": "/dashboard/library",
             "action": "Sync now",
         },
         {
             "name": "Create Queue",
-            "status": (
-                "done"
-                if has_queues
-                else "current" if current_step == 3 else "future"
-            ),
+            "status": ("done" if has_queues else "current" if current_step == 3 else "future"),
             "url": "/dashboard/search-queues",
             "action": "Create now",
         },
         {
             "name": "Run Searches",
-            "status": (
-                "done"
-                if has_searches
-                else "current" if current_step == 4 else "future"
-            ),
+            "status": ("done" if has_searches else "current" if current_step == 4 else "future"),
             "url": "/dashboard/search-queues",
             "action": "Run a search",
         },

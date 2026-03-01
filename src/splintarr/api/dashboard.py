@@ -914,9 +914,7 @@ async def dashboard_search_history(
     offset = (page - 1) * per_page
 
     # Build base query with user ownership filter
-    base_query = db.query(SearchHistory).join(Instance).filter(
-        Instance.user_id == current_user.id
-    )
+    base_query = db.query(SearchHistory).join(Instance).filter(Instance.user_id == current_user.id)
 
     # Apply optional filters
     if instance_id is not None:
@@ -937,10 +935,7 @@ async def dashboard_search_history(
 
     # Get paginated history (filtered)
     history = (
-        base_query.order_by(SearchHistory.started_at.desc())
-        .offset(offset)
-        .limit(per_page)
-        .all()
+        base_query.order_by(SearchHistory.started_at.desc()).offset(offset).limit(per_page).all()
     )
 
     # Calculate pagination
@@ -948,10 +943,7 @@ async def dashboard_search_history(
 
     # Get user's instances for the filter dropdown
     instances = (
-        db.query(Instance)
-        .filter(Instance.user_id == current_user.id)
-        .order_by(Instance.name)
-        .all()
+        db.query(Instance).filter(Instance.user_id == current_user.id).order_by(Instance.name).all()
     )
 
     return templates.TemplateResponse(

@@ -26,6 +26,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from splintarr import __version__
 from splintarr.api import (
     auth,
     config,
@@ -38,7 +39,6 @@ from splintarr.api import (
     search_history,
     search_queue,
 )
-from splintarr import __version__
 from splintarr.config import settings
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import (
