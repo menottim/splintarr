@@ -71,10 +71,7 @@ class ExclusionService:
                     SearchExclusion.user_id == user_id,
                     SearchExclusion.instance_id == instance_id,
                 )
-                .filter(
-                    (SearchExclusion.expires_at.is_(None))
-                    | (SearchExclusion.expires_at > now)
-                )
+                .filter((SearchExclusion.expires_at.is_(None)) | (SearchExclusion.expires_at > now))
                 .all()
             )
 
@@ -136,8 +133,7 @@ class ExclusionService:
         """
         if duration not in DURATION_MAP:
             raise ValueError(
-                f"Invalid duration '{duration}'. "
-                f"Must be one of: {', '.join(DURATION_MAP.keys())}"
+                f"Invalid duration '{duration}'. Must be one of: {', '.join(DURATION_MAP.keys())}"
             )
 
         db: Session = self.db_session_factory()
@@ -153,10 +149,7 @@ class ExclusionService:
                     SearchExclusion.external_id == external_id,
                     SearchExclusion.content_type == content_type,
                 )
-                .filter(
-                    (SearchExclusion.expires_at.is_(None))
-                    | (SearchExclusion.expires_at > now)
-                )
+                .filter((SearchExclusion.expires_at.is_(None)) | (SearchExclusion.expires_at > now))
                 .first()
             )
 
@@ -302,8 +295,7 @@ class ExclusionService:
             if not include_expired:
                 now = datetime.utcnow()
                 query = query.filter(
-                    (SearchExclusion.expires_at.is_(None))
-                    | (SearchExclusion.expires_at > now)
+                    (SearchExclusion.expires_at.is_(None)) | (SearchExclusion.expires_at > now)
                 )
 
             exclusions = query.order_by(SearchExclusion.created_at.desc()).all()

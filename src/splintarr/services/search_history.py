@@ -49,6 +49,31 @@ class SearchHistoryService:
         self.db_session_factory = db_session_factory
         logger.info("search_history_service_initialized")
 
+    def _apply_history_filters(
+        self,
+        query: Any,
+        instance_id: int | None = None,
+        queue_id: int | None = None,
+        strategy: str | None = None,
+        status: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> Any:
+        """Apply common filters to a SearchHistory query."""
+        if instance_id is not None:
+            query = query.filter(SearchHistory.instance_id == instance_id)
+        if queue_id is not None:
+            query = query.filter(SearchHistory.search_queue_id == queue_id)
+        if strategy is not None:
+            query = query.filter(SearchHistory.strategy == strategy)
+        if status is not None:
+            query = query.filter(SearchHistory.status == status)
+        if start_date is not None:
+            query = query.filter(SearchHistory.started_at >= start_date)
+        if end_date is not None:
+            query = query.filter(SearchHistory.started_at <= end_date)
+        return query
+
     def get_history(
         self,
         instance_id: int | None = None,
@@ -79,31 +104,17 @@ class SearchHistoryService:
         db = self.db_session_factory()
 
         try:
-            query = db.query(SearchHistory)
+            query = self._apply_history_filters(
+                db.query(SearchHistory),
+                instance_id,
+                queue_id,
+                strategy,
+                status,
+                start_date,
+                end_date,
+            )
 
-            # Apply filters
-            if instance_id is not None:
-                query = query.filter(SearchHistory.instance_id == instance_id)
-
-            if queue_id is not None:
-                query = query.filter(SearchHistory.search_queue_id == queue_id)
-
-            if strategy is not None:
-                query = query.filter(SearchHistory.strategy == strategy)
-
-            if status is not None:
-                query = query.filter(SearchHistory.status == status)
-
-            if start_date is not None:
-                query = query.filter(SearchHistory.started_at >= start_date)
-
-            if end_date is not None:
-                query = query.filter(SearchHistory.started_at <= end_date)
-
-            # Order by most recent first
             query = query.order_by(SearchHistory.started_at.desc())
-
-            # Apply pagination
             query = query.limit(min(limit, 1000)).offset(offset)
 
             return query.all()
@@ -137,26 +148,15 @@ class SearchHistoryService:
         db = self.db_session_factory()
 
         try:
-            query = db.query(func.count(SearchHistory.id))
-
-            # Apply filters
-            if instance_id is not None:
-                query = query.filter(SearchHistory.instance_id == instance_id)
-
-            if queue_id is not None:
-                query = query.filter(SearchHistory.search_queue_id == queue_id)
-
-            if strategy is not None:
-                query = query.filter(SearchHistory.strategy == strategy)
-
-            if status is not None:
-                query = query.filter(SearchHistory.status == status)
-
-            if start_date is not None:
-                query = query.filter(SearchHistory.started_at >= start_date)
-
-            if end_date is not None:
-                query = query.filter(SearchHistory.started_at <= end_date)
+            query = self._apply_history_filters(
+                db.query(func.count(SearchHistory.id)),
+                instance_id,
+                queue_id,
+                strategy,
+                status,
+                start_date,
+                end_date,
+            )
 
             return query.scalar() or 0
 
@@ -210,29 +210,22 @@ class SearchHistoryService:
                 base_query = base_query.filter(SearchHistory.search_queue_id == queue_id)
 
             # Aggregate stats in SQL (single query instead of loading all rows)
-            agg = (
-                base_query.with_entities(
-                    func.count(SearchHistory.id).label("total"),
-                    func.sum(
-                        case(
-                            (SearchHistory.status.in_(["success", "partial_success"]), 1),
-                            else_=0,
-                        )
-                    ).label("successful"),
-                    func.sum(
-                        case((SearchHistory.status == "failed", 1), else_=0)
-                    ).label("failed"),
-                    func.coalesce(func.sum(SearchHistory.items_searched), 0).label(
-                        "items_searched"
-                    ),
-                    func.coalesce(func.sum(SearchHistory.items_found), 0).label("items_found"),
-                    func.coalesce(func.sum(SearchHistory.searches_triggered), 0).label(
-                        "searches_triggered"
-                    ),
-                    func.avg(SearchHistory.duration_seconds).label("avg_duration"),
-                )
-                .one()
-            )
+            agg = base_query.with_entities(
+                func.count(SearchHistory.id).label("total"),
+                func.sum(
+                    case(
+                        (SearchHistory.status.in_(["success", "partial_success"]), 1),
+                        else_=0,
+                    )
+                ).label("successful"),
+                func.sum(case((SearchHistory.status == "failed", 1), else_=0)).label("failed"),
+                func.coalesce(func.sum(SearchHistory.items_searched), 0).label("items_searched"),
+                func.coalesce(func.sum(SearchHistory.items_found), 0).label("items_found"),
+                func.coalesce(func.sum(SearchHistory.searches_triggered), 0).label(
+                    "searches_triggered"
+                ),
+                func.avg(SearchHistory.duration_seconds).label("avg_duration"),
+            ).one()
 
             total_searches = agg.total or 0
             successful_searches = int(agg.successful or 0)
@@ -265,9 +258,7 @@ class SearchHistoryService:
                             else_=0,
                         )
                     ).label("successful"),
-                    func.sum(
-                        case((SearchHistory.status == "failed", 1), else_=0)
-                    ).label("failed"),
+                    func.sum(case((SearchHistory.status == "failed", 1), else_=0)).label("failed"),
                 )
                 .group_by(func.date(SearchHistory.started_at))
                 .order_by(func.date(SearchHistory.started_at))
@@ -329,9 +320,7 @@ class SearchHistoryService:
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-            query = db.query(SearchHistory).filter(
-                SearchHistory.started_at < cutoff_date
-            )
+            query = db.query(SearchHistory).filter(SearchHistory.started_at < cutoff_date)
 
             # Scope to user's instances when user_id is provided
             if user_id is not None:

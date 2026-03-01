@@ -205,9 +205,7 @@ class SonarrClient(BaseArrClient):
         Raises:
             SonarrError: If request fails
         """
-        result = await self._request(
-            "GET", "/api/v3/episode", params={"seriesId": series_id}
-        )
+        result = await self._request("GET", "/api/v3/episode", params={"seriesId": series_id})
         episodes = result if isinstance(result, list) else []
         logger.debug(
             "sonarr_episodes_retrieved",
@@ -227,6 +225,4 @@ class SonarrClient(BaseArrClient):
         Returns:
             bytes | None: JPEG poster data, or None if unavailable
         """
-        return await self._request_bytes(
-            f"/api/v3/mediacover/{series_id}/poster.jpg"
-        )
+        return await self._request_bytes(f"/api/v3/mediacover/{series_id}/poster.jpg")
