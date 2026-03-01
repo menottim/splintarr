@@ -150,6 +150,7 @@
                                     <thead>
                                         <tr>
                                             <th>Item</th>
+                                            <th>Score</th>
                                             <th>Command</th>
                                             <th>Result</th>
                                         </tr>
@@ -158,6 +159,16 @@
                                         {% for log_entry in log_entries %}
                                         <tr>
                                             <td>{{ log_entry.item }}</td>
+                                            <td>
+                                                {% if log_entry.score is defined and log_entry.score is not none %}
+                                                <span title="{{ log_entry.score_reason or '' }}">{{ log_entry.score }}</span>
+                                                {% if log_entry.score_reason %}
+                                                <br><small style="color: var(--muted-color);">{{ log_entry.score_reason }}</small>
+                                                {% endif %}
+                                                {% else %}
+                                                <span style="color: var(--muted-color);">-</span>
+                                                {% endif %}
+                                            </td>
                                             <td><code>{{ log_entry.action }}</code></td>
                                             <td>
                                                 {% if log_entry.result == 'sent' %}
@@ -168,6 +179,14 @@
                                                 <span style="color: var(--muted-color);">{{ log_entry.reason }}</span>
                                                 {% else %}
                                                 {{ log_entry.get('result', log_entry.get('reason', '-')) }}
+                                                {% endif %}
+                                                {% if log_entry.grab_confirmed is defined and log_entry.grab_confirmed is not none %}
+                                                <br>
+                                                {% if log_entry.grab_confirmed %}
+                                                <small style="color: var(--ins-color);">&#10003; Grabbed</small>
+                                                {% else %}
+                                                <small style="color: var(--muted-color);">&#9675; No grab</small>
+                                                {% endif %}
                                                 {% endif %}
                                             </td>
                                         </tr>

@@ -85,7 +85,11 @@ def _timeago(dt: datetime) -> str:
 
 
 def _parse_search_log(value: str | None) -> list[dict[str, Any]]:
-    """Parse JSON search_metadata into a list of log entries for template rendering."""
+    """Parse JSON search_metadata into a list of log entries for template rendering.
+
+    Each entry may contain: item, action, result, reason, error,
+    score, score_reason, grab_confirmed.
+    """
     if not value:
         return []
     try:
