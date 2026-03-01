@@ -20,10 +20,10 @@ import structlog
 logger = structlog.get_logger()
 
 # Discord embed colour constants (decimal)
-COLOR_GREEN = 0x2ECC71   # success / recovered
+COLOR_GREEN = 0x2ECC71  # success / recovered
 COLOR_ORANGE = 0xE67E22  # partial success / warning
-COLOR_RED = 0xE74C3C     # failure / error
-COLOR_BLUE = 0x3498DB    # informational
+COLOR_RED = 0xE74C3C  # failure / error
+COLOR_BLUE = 0x3498DB  # informational
 
 # Discord returns 204 No Content on successful webhook POST
 DISCORD_SUCCESS_STATUS = 204
@@ -83,9 +83,7 @@ class DiscordNotificationService:
             color = COLOR_GREEN
 
         duration_display = (
-            f"{duration_seconds:.1f}s"
-            if duration_seconds < 60
-            else f"{duration_seconds / 60:.1f}m"
+            f"{duration_seconds:.1f}s" if duration_seconds < 60 else f"{duration_seconds / 60:.1f}m"
         )
 
         embed: dict = {
@@ -253,21 +251,10 @@ class DiscordNotificationService:
             )
             return False
 
-        except httpx.TimeoutException as e:
-            logger.warning(
-                "discord_webhook_timeout",
-                error=str(e),
-            )
-            return False
-        except httpx.HTTPError as e:
-            logger.warning(
-                "discord_webhook_http_error",
-                error=str(e),
-            )
-            return False
         except Exception as e:
             logger.warning(
-                "discord_webhook_unexpected_error",
+                "discord_webhook_failed",
                 error=str(e),
+                error_type=type(e).__name__,
             )
             return False

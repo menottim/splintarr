@@ -173,6 +173,4 @@ class RadarrClient(BaseArrClient):
         Returns:
             bytes | None: JPEG poster data, or None if unavailable
         """
-        return await self._request_bytes(
-            f"/api/v3/mediacover/{movie_id}/poster.jpg"
-        )
+        return await self._request_bytes(f"/api/v3/mediacover/{movie_id}/poster.jpg")

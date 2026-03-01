@@ -245,9 +245,7 @@ class FeedbackCheckService:
             return False
 
         movie = await client.get_movies(item_id)
-        if isinstance(movie, dict) and movie.get("hasFile") is True:
-            return True
-        return False
+        return isinstance(movie, dict) and movie.get("hasFile") is True
 
     def _record_grab_on_library_item(
         self,

@@ -273,7 +273,7 @@ class SearchScheduler:
             db = self.db_session_factory()
             try:
                 # Get all active queues
-                queues = db.query(SearchQueue).filter(SearchQueue.is_active == True).all()
+                queues = db.query(SearchQueue).filter(SearchQueue.is_active.is_(True)).all()
 
                 logger.info("loading_existing_queues", count=len(queues))
 
@@ -483,7 +483,7 @@ class SearchScheduler:
             config = (
                 db.query(NotificationConfig)
                 .filter(
-                    NotificationConfig.is_active == True,  # noqa: E712
+                    NotificationConfig.is_active.is_(True),
                 )
                 .first()
             )
