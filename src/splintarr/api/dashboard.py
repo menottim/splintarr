@@ -596,6 +596,44 @@ async def setup_notifications_skip(
     )
 
 
+@router.get("/setup/prowlarr", response_class=HTMLResponse, include_in_schema=False)
+async def setup_prowlarr_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+) -> Response:
+    """
+    Setup wizard - Prowlarr configuration page.
+    """
+    logger.debug("setup_prowlarr_page_rendered", user_id=current_user.id)
+    return templates.TemplateResponse(
+        "setup/prowlarr.html",
+        {
+            "request": request,
+            "app_name": settings.app_name,
+            "user": current_user,
+            "no_sidebar": True,
+        },
+    )
+
+
+@router.get("/setup/prowlarr/skip", response_class=HTMLResponse, include_in_schema=False)
+async def setup_prowlarr_skip(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+) -> Response:
+    """
+    Skip Prowlarr configuration during setup.
+
+    Allows user to complete setup without connecting Prowlarr.
+    They can configure Prowlarr later from the Settings page.
+    """
+    logger.info("setup_prowlarr_skipped", user_id=current_user.id)
+    return RedirectResponse(
+        url="/setup/complete",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
 @router.get("/setup/complete", response_class=HTMLResponse, include_in_schema=False)
 async def setup_complete(
     request: Request,
