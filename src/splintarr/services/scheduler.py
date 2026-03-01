@@ -73,9 +73,7 @@ class SearchScheduler:
         # In-memory job store — avoids serialization issues with SQLCipher's
         # creator() closure. Jobs are re-scheduled from the database on startup
         # via _load_existing_queues(), so persistence is not needed.
-        jobstores = {
-            "default": MemoryJobStore()
-        }
+        jobstores = {"default": MemoryJobStore()}
 
         # Executor configuration
         executors = {
