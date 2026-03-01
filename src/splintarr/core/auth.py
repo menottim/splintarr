@@ -44,7 +44,9 @@ ALLOWED_JWT_ALGORITHMS = ["HS256"]
 _access_token_blacklist: dict[str, datetime] = {}
 
 
-def _blacklist_token(token: str, default_expiry_minutes: int, event_name: str) -> None:
+def _blacklist_token(
+    token: str, default_expiry_minutes: int, success_event: str, failure_event: str
+) -> None:
     """Add a token's JTI to the blacklist for immediate revocation.
 
     Shared implementation for access tokens (on logout) and 2FA pending tokens
@@ -62,19 +64,26 @@ def _blacklist_token(token: str, default_expiry_minutes: int, event_name: str) -
                 else datetime.utcnow() + timedelta(minutes=default_expiry_minutes)
             )
             _access_token_blacklist[jti] = expiry
-            logger.debug(event_name, jti=jti)
+            logger.debug(success_event, jti=jti)
     except Exception as e:
-        logger.warning(f"failed_to_{event_name}", error=str(e))
+        logger.warning(failure_event, error=str(e))
 
 
 def blacklist_access_token(token: str) -> None:
     """Add an access token's JTI to the blacklist (called on logout)."""
-    _blacklist_token(token, settings.access_token_expire_minutes, "access_token_blacklisted")
+    _blacklist_token(
+        token,
+        settings.access_token_expire_minutes,
+        "access_token_blacklisted",
+        "failed_to_blacklist_access_token",
+    )
 
 
 def blacklist_2fa_pending_token(token: str) -> None:
     """Add a 2FA pending token's JTI to the blacklist (called after successful 2FA login)."""
-    _blacklist_token(token, 5, "2fa_pending_token_blacklisted")
+    _blacklist_token(
+        token, 5, "2fa_pending_token_blacklisted", "failed_to_blacklist_2fa_pending_token"
+    )
 
 
 def _cleanup_blacklist() -> None:
