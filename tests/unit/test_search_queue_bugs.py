@@ -5,10 +5,9 @@ Tests for:
 - Bug 1: Pagination off-by-one that skipped the last page
 - Bug 2: Radarr "recent" strategy sorting by title instead of recency
 - Bug 3: rate_limit_per_second column storing floats in Integer column
-- Bug 4: Unbounded cooldown dict memory leak
+- Bug 4: Unbounded cooldown dict memory leak (now resolved via DB-backed cooldown)
 """
 
-from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -17,10 +16,18 @@ from splintarr.models import Instance
 from splintarr.services.search_queue import SearchQueueManager
 
 
+def _make_db_mock():
+    """Create a db session mock with library item query returning empty list."""
+    db = MagicMock()
+    db.query.return_value.filter.return_value.all.return_value = []
+    db.commit.return_value = None
+    return db
+
+
 @pytest.fixture
 def mock_session_factory():
     """Mock session factory."""
-    session = MagicMock()
+    session = _make_db_mock()
     return lambda: session
 
 
@@ -35,6 +42,7 @@ def mock_instance_sonarr():
     """Create a mock Sonarr instance."""
     instance = MagicMock(spec=Instance)
     instance.id = 1
+    instance.user_id = 1
     instance.instance_type = "sonarr"
     instance.url = "https://sonarr.example.com"
     instance.api_key = "encrypted_key"
@@ -48,6 +56,7 @@ def mock_instance_radarr():
     """Create a mock Radarr instance."""
     instance = MagicMock(spec=Instance)
     instance.id = 2
+    instance.user_id = 1
     instance.instance_type = "radarr"
     instance.url = "https://radarr.example.com"
     instance.api_key = "encrypted_key"
@@ -66,6 +75,9 @@ def mock_queue():
     queue.strategy = "missing"
     queue.is_active = True
     queue.filters = None
+    queue.cooldown_mode = "adaptive"
+    queue.cooldown_hours = None
+    queue.max_items_per_run = 500  # High limit for pagination tests
     return queue
 
 
@@ -77,16 +89,18 @@ class TestPaginationOffByOne:
     page 2 (the last page) would be skipped because 2 >= 100/50.
 
     The fix removes the redundant page comparison entirely, relying on the
-    `if not records: break` guard.
+    totalRecords comparison in _fetch_all_records.
     """
 
     @pytest.mark.asyncio
+    @patch("splintarr.services.search_queue.ExclusionService")
     @patch("splintarr.services.search_queue.decrypt_api_key")
     @patch("splintarr.services.search_queue.SonarrClient")
     async def test_missing_strategy_sonarr_processes_all_pages(
         self,
         mock_sonarr_client,
         mock_decrypt,
+        mock_exclusion_cls,
         queue_manager,
         mock_queue,
         mock_instance_sonarr,
@@ -97,10 +111,9 @@ class TestPaginationOffByOne:
         page 2 was skipped due to the off-by-one.
         """
         mock_decrypt.return_value = "test_api_key"
-        # Bypass rate limiter so all items are processed
+        mock_exclusion_cls.return_value.get_active_exclusion_keys.return_value = set()
         queue_manager._check_rate_limit = AsyncMock(return_value=True)
 
-        # Build mock client that returns 2 pages then empty
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
@@ -111,33 +124,33 @@ class TestPaginationOffByOne:
         mock_client.get_wanted_missing.side_effect = [
             {"records": page1_records, "totalRecords": 100},
             {"records": page2_records, "totalRecords": 100},
-            {"records": [], "totalRecords": 100},
         ]
         mock_client.search_episodes.return_value = {"id": 123}
         mock_sonarr_client.return_value = mock_client
 
-        db = MagicMock()
-        result = await queue_manager._execute_missing_strategy(
-            mock_queue, mock_instance_sonarr, db
-        )
+        db = _make_db_mock()
+        result = await queue_manager._execute_missing_strategy(mock_queue, mock_instance_sonarr, db)
 
         # All 100 items should be searched (both pages processed)
         assert result["items_searched"] == 100
         assert result["items_found"] == 100
 
     @pytest.mark.asyncio
+    @patch("splintarr.services.search_queue.ExclusionService")
     @patch("splintarr.services.search_queue.decrypt_api_key")
     @patch("splintarr.services.search_queue.RadarrClient")
     async def test_missing_strategy_radarr_processes_all_pages(
         self,
         mock_radarr_client,
         mock_decrypt,
+        mock_exclusion_cls,
         queue_manager,
         mock_queue,
         mock_instance_radarr,
     ):
         """Test that missing strategy processes all pages for Radarr."""
         mock_decrypt.return_value = "test_api_key"
+        mock_exclusion_cls.return_value.get_active_exclusion_keys.return_value = set()
         queue_manager._check_rate_limit = AsyncMock(return_value=True)
 
         mock_client = AsyncMock()
@@ -150,32 +163,32 @@ class TestPaginationOffByOne:
         mock_client.get_wanted_missing.side_effect = [
             {"records": page1_records, "totalRecords": 100},
             {"records": page2_records, "totalRecords": 100},
-            {"records": [], "totalRecords": 100},
         ]
         mock_client.search_movies.return_value = {"id": 123}
         mock_radarr_client.return_value = mock_client
 
-        db = MagicMock()
-        result = await queue_manager._execute_missing_strategy(
-            mock_queue, mock_instance_radarr, db
-        )
+        db = _make_db_mock()
+        result = await queue_manager._execute_missing_strategy(mock_queue, mock_instance_radarr, db)
 
         assert result["items_searched"] == 100
         assert result["items_found"] == 100
 
     @pytest.mark.asyncio
+    @patch("splintarr.services.search_queue.ExclusionService")
     @patch("splintarr.services.search_queue.decrypt_api_key")
     @patch("splintarr.services.search_queue.SonarrClient")
     async def test_cutoff_strategy_sonarr_processes_all_pages(
         self,
         mock_sonarr_client,
         mock_decrypt,
+        mock_exclusion_cls,
         queue_manager,
         mock_queue,
         mock_instance_sonarr,
     ):
         """Test that cutoff strategy processes all pages for Sonarr."""
         mock_decrypt.return_value = "test_api_key"
+        mock_exclusion_cls.return_value.get_active_exclusion_keys.return_value = set()
         queue_manager._check_rate_limit = AsyncMock(return_value=True)
         mock_queue.strategy = "cutoff_unmet"
 
@@ -189,32 +202,32 @@ class TestPaginationOffByOne:
         mock_client.get_wanted_cutoff.side_effect = [
             {"records": page1_records, "totalRecords": 100},
             {"records": page2_records, "totalRecords": 100},
-            {"records": [], "totalRecords": 100},
         ]
         mock_client.search_episodes.return_value = {"id": 123}
         mock_sonarr_client.return_value = mock_client
 
-        db = MagicMock()
-        result = await queue_manager._execute_cutoff_strategy(
-            mock_queue, mock_instance_sonarr, db
-        )
+        db = _make_db_mock()
+        result = await queue_manager._execute_cutoff_strategy(mock_queue, mock_instance_sonarr, db)
 
         assert result["items_searched"] == 100
         assert result["items_found"] == 100
 
     @pytest.mark.asyncio
+    @patch("splintarr.services.search_queue.ExclusionService")
     @patch("splintarr.services.search_queue.decrypt_api_key")
     @patch("splintarr.services.search_queue.RadarrClient")
     async def test_cutoff_strategy_radarr_processes_all_pages(
         self,
         mock_radarr_client,
         mock_decrypt,
+        mock_exclusion_cls,
         queue_manager,
         mock_queue,
         mock_instance_radarr,
     ):
         """Test that cutoff strategy processes all pages for Radarr."""
         mock_decrypt.return_value = "test_api_key"
+        mock_exclusion_cls.return_value.get_active_exclusion_keys.return_value = set()
         queue_manager._check_rate_limit = AsyncMock(return_value=True)
         mock_queue.strategy = "cutoff_unmet"
 
@@ -228,54 +241,52 @@ class TestPaginationOffByOne:
         mock_client.get_wanted_cutoff.side_effect = [
             {"records": page1_records, "totalRecords": 100},
             {"records": page2_records, "totalRecords": 100},
-            {"records": [], "totalRecords": 100},
         ]
         mock_client.search_movies.return_value = {"id": 123}
         mock_radarr_client.return_value = mock_client
 
-        db = MagicMock()
-        result = await queue_manager._execute_cutoff_strategy(
-            mock_queue, mock_instance_radarr, db
-        )
+        db = _make_db_mock()
+        result = await queue_manager._execute_cutoff_strategy(mock_queue, mock_instance_radarr, db)
 
         assert result["items_searched"] == 100
         assert result["items_found"] == 100
 
     @pytest.mark.asyncio
+    @patch("splintarr.services.search_queue.ExclusionService")
     @patch("splintarr.services.search_queue.decrypt_api_key")
     @patch("splintarr.services.search_queue.SonarrClient")
-    async def test_pagination_stops_on_empty_records(
+    async def test_pagination_stops_on_total_records(
         self,
         mock_sonarr_client,
         mock_decrypt,
+        mock_exclusion_cls,
         queue_manager,
         mock_queue,
         mock_instance_sonarr,
     ):
-        """Test that pagination terminates when empty records are returned."""
+        """Test that pagination terminates when totalRecords is reached."""
         mock_decrypt.return_value = "test_api_key"
+        mock_exclusion_cls.return_value.get_active_exclusion_keys.return_value = set()
         queue_manager._check_rate_limit = AsyncMock(return_value=True)
 
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
 
-        # Single page of 10 records, then empty
-        mock_client.get_wanted_missing.side_effect = [
-            {"records": [{"id": i} for i in range(1, 11)], "totalRecords": 10},
-            {"records": [], "totalRecords": 10},
-        ]
+        # Single page of 10 records with totalRecords=10
+        mock_client.get_wanted_missing.return_value = {
+            "records": [{"id": i} for i in range(1, 11)],
+            "totalRecords": 10,
+        }
         mock_client.search_episodes.return_value = {"id": 123}
         mock_sonarr_client.return_value = mock_client
 
-        db = MagicMock()
-        result = await queue_manager._execute_missing_strategy(
-            mock_queue, mock_instance_sonarr, db
-        )
+        db = _make_db_mock()
+        result = await queue_manager._execute_missing_strategy(mock_queue, mock_instance_sonarr, db)
 
         assert result["items_searched"] == 10
-        # Should have called get_wanted_missing exactly twice (page 1 + empty page 2)
-        assert mock_client.get_wanted_missing.call_count == 2
+        # Only one call needed since totalRecords (10) == len(records) (10)
+        assert mock_client.get_wanted_missing.call_count == 1
 
 
 class TestRadarrRecentStrategySortOrder:
@@ -287,18 +298,21 @@ class TestRadarrRecentStrategySortOrder:
     """
 
     @pytest.mark.asyncio
+    @patch("splintarr.services.search_queue.ExclusionService")
     @patch("splintarr.services.search_queue.decrypt_api_key")
     @patch("splintarr.services.search_queue.RadarrClient")
     async def test_radarr_recent_strategy_uses_added_sort(
         self,
         mock_radarr_client,
         mock_decrypt,
+        mock_exclusion_cls,
         queue_manager,
         mock_queue,
         mock_instance_radarr,
     ):
         """Test that Radarr recent strategy sorts by 'added' descending."""
         mock_decrypt.return_value = "test_api_key"
+        mock_exclusion_cls.return_value.get_active_exclusion_keys.return_value = set()
         mock_queue.strategy = "recent"
 
         mock_client = AsyncMock()
@@ -311,10 +325,8 @@ class TestRadarrRecentStrategySortOrder:
         mock_client.search_movies.return_value = {"id": 123}
         mock_radarr_client.return_value = mock_client
 
-        db = MagicMock()
-        await queue_manager._execute_recent_strategy(
-            mock_queue, mock_instance_radarr, db
-        )
+        db = _make_db_mock()
+        await queue_manager._execute_recent_strategy(mock_queue, mock_instance_radarr, db)
 
         # Verify the call used correct sort parameters
         mock_client.get_wanted_missing.assert_called_once_with(
@@ -325,18 +337,21 @@ class TestRadarrRecentStrategySortOrder:
         )
 
     @pytest.mark.asyncio
+    @patch("splintarr.services.search_queue.ExclusionService")
     @patch("splintarr.services.search_queue.decrypt_api_key")
     @patch("splintarr.services.search_queue.SonarrClient")
     async def test_sonarr_recent_strategy_uses_airdateutc_sort(
         self,
         mock_sonarr_client,
         mock_decrypt,
+        mock_exclusion_cls,
         queue_manager,
         mock_queue,
         mock_instance_sonarr,
     ):
         """Test that Sonarr recent strategy still uses airDateUtc descending."""
         mock_decrypt.return_value = "test_api_key"
+        mock_exclusion_cls.return_value.get_active_exclusion_keys.return_value = set()
         mock_queue.strategy = "recent"
 
         mock_client = AsyncMock()
@@ -349,10 +364,8 @@ class TestRadarrRecentStrategySortOrder:
         mock_client.search_episodes.return_value = {"id": 123}
         mock_sonarr_client.return_value = mock_client
 
-        db = MagicMock()
-        await queue_manager._execute_recent_strategy(
-            mock_queue, mock_instance_sonarr, db
-        )
+        db = _make_db_mock()
+        await queue_manager._execute_recent_strategy(mock_queue, mock_instance_sonarr, db)
 
         # Verify the call used correct sort parameters
         mock_client.get_wanted_missing.assert_called_once_with(
@@ -467,84 +480,22 @@ class TestRateLimitColumnType:
         assert instance.rate_limit_per_second > 0
 
 
-class TestCooldownMemoryLeak:
-    """Test that expired cooldown entries are cleaned up (Bug 4).
+class TestCooldownMemoryLeakResolved:
+    """Verify the old in-memory cooldown dict has been removed (Bug 4 resolution).
 
-    Previously, _search_cooldowns grew without bound because expired entries
-    were never removed. The fix deletes expired entries inside _is_in_cooldown().
+    The in-memory _search_cooldowns dict was replaced by DB-backed cooldown
+    logic in splintarr.services.cooldown. The memory leak is no longer possible
+    since cooldown state is stored in LibraryItem.last_searched_at.
     """
 
-    def test_expired_cooldown_is_removed_from_dict(self, queue_manager):
-        """Test that checking an expired cooldown removes the entry."""
-        item_key = "test_expired_item"
+    def test_no_in_memory_cooldown_dict(self, queue_manager):
+        """The old _search_cooldowns dict should not exist."""
+        assert not hasattr(queue_manager, "_search_cooldowns")
 
-        # Set a cooldown in the past
-        past_time = datetime.utcnow() - timedelta(hours=25)
-        queue_manager._search_cooldowns[item_key] = past_time
+    def test_no_is_in_cooldown_method(self, queue_manager):
+        """The old _is_in_cooldown method should not exist."""
+        assert not hasattr(queue_manager, "_is_in_cooldown")
 
-        # Verify the entry exists
-        assert item_key in queue_manager._search_cooldowns
-
-        # Check cooldown (should return False and clean up)
-        result = queue_manager._is_in_cooldown(item_key, cooldown_hours=24)
-
-        assert result is False
-        assert item_key not in queue_manager._search_cooldowns
-
-    def test_active_cooldown_is_not_removed(self, queue_manager):
-        """Test that an active (non-expired) cooldown entry is kept."""
-        item_key = "test_active_item"
-
-        # Set a recent cooldown
-        queue_manager._set_cooldown(item_key)
-
-        # Check cooldown (should return True and keep the entry)
-        result = queue_manager._is_in_cooldown(item_key, cooldown_hours=24)
-
-        assert result is True
-        assert item_key in queue_manager._search_cooldowns
-
-    def test_multiple_expired_entries_cleaned_on_check(self, queue_manager):
-        """Test that expired entries are cleaned up when individually checked."""
-        past_time = datetime.utcnow() - timedelta(hours=25)
-
-        # Add many expired entries
-        for i in range(100):
-            queue_manager._search_cooldowns[f"expired_{i}"] = past_time
-
-        # Also add an active entry
-        queue_manager._set_cooldown("active_item")
-
-        assert len(queue_manager._search_cooldowns) == 101
-
-        # Check each expired item individually
-        for i in range(100):
-            result = queue_manager._is_in_cooldown(f"expired_{i}", cooldown_hours=24)
-            assert result is False
-
-        # Expired entries should be cleaned up
-        assert len(queue_manager._search_cooldowns) == 1
-        assert "active_item" in queue_manager._search_cooldowns
-
-    def test_cooldown_entry_removed_exactly_at_expiry(self, queue_manager):
-        """Test that an entry exactly at the expiry boundary is removed."""
-        item_key = "test_boundary_item"
-
-        # Set a cooldown exactly 24 hours ago
-        exactly_expired = datetime.utcnow() - timedelta(hours=24)
-        queue_manager._search_cooldowns[item_key] = exactly_expired
-
-        # At exactly the boundary (now >= cooldown_end), should be expired and removed
-        result = queue_manager._is_in_cooldown(item_key, cooldown_hours=24)
-
-        assert result is False
-        assert item_key not in queue_manager._search_cooldowns
-
-    def test_new_item_not_in_cooldown_no_side_effects(self, queue_manager):
-        """Test that checking a non-existent item has no side effects."""
-        assert len(queue_manager._search_cooldowns) == 0
-
-        result = queue_manager._is_in_cooldown("nonexistent_item")
-
-        assert result is False
-        assert len(queue_manager._search_cooldowns) == 0
+    def test_no_set_cooldown_method(self, queue_manager):
+        """The old _set_cooldown method should not exist."""
+        assert not hasattr(queue_manager, "_set_cooldown")

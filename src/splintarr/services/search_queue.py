@@ -4,8 +4,9 @@ Search Queue Management Service for Splintarr.
 This module implements search queue operations and execution:
 - Queue CRUD operations (add, update, delete)
 - Search strategy implementations (missing, cutoff, recent, custom)
-- Priority calculation and item filtering
+- Priority scoring and intelligent item ordering
 - Batch processing with rate limiting
+- DB-backed tiered cooldown enforcement
 - Integration with Sonarr/Radarr clients
 - Search history tracking
 
@@ -15,7 +16,7 @@ across configured instances.
 
 import json
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -23,9 +24,11 @@ from sqlalchemy.orm import Session
 
 from splintarr.core.security import decrypt_api_key, decrypt_field
 from splintarr.models import Instance, NotificationConfig, SearchHistory, SearchQueue
+from splintarr.services.cooldown import is_in_cooldown
 from splintarr.services.discord import DiscordNotificationService
 from splintarr.services.exclusion import ExclusionService
 from splintarr.services.radarr import RadarrClient
+from splintarr.services.scoring import compute_score
 from splintarr.services.sonarr import SonarrClient
 
 logger = structlog.get_logger()
@@ -70,7 +73,8 @@ class SearchQueueManager:
     - Queue lifecycle management
     - Search strategy execution
     - Rate limit enforcement
-    - Cooldown period tracking
+    - DB-backed tiered cooldown via LibraryItem
+    - Priority scoring and batch truncation
     - Search history recording
     - Error handling and recovery
     """
@@ -83,7 +87,6 @@ class SearchQueueManager:
             db_session_factory: Factory function to create database sessions
         """
         self.db_session_factory = db_session_factory
-        self._search_cooldowns: dict[str, datetime] = {}  # item_key -> last_search_time
         self._rate_limit_tokens: dict[int, float] = {}  # instance_id -> tokens
         self._rate_limit_last_update: dict[int, datetime] = {}  # instance_id -> last_update
 
@@ -253,26 +256,102 @@ class SearchQueueManager:
         else:
             raise SearchQueueError(f"Unknown strategy: {queue.strategy}")
 
+    # ------------------------------------------------------------------
+    # Fetch helpers
+    # ------------------------------------------------------------------
+
+    async def _fetch_all_records(
+        self,
+        client: Any,
+        fetch_method: str,
+        sort_key: str | None = None,
+        sort_dir: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Fetch all wanted records across all pages.
+
+        Args:
+            client: Sonarr or Radarr client instance
+            fetch_method: Name of the client method that returns paginated records
+            sort_key: Optional sort key passed to the fetch method
+            sort_dir: Optional sort direction passed to the fetch method
+
+        Returns:
+            list: All records across all pages
+        """
+        all_records: list[dict[str, Any]] = []
+        page = 1
+        fetch_fn = getattr(client, fetch_method)
+
+        while True:
+            fetch_kwargs: dict[str, Any] = {
+                "page": page,
+                "page_size": 50,
+            }
+            if sort_key:
+                fetch_kwargs["sort_key"] = sort_key
+            if sort_dir:
+                fetch_kwargs["sort_dir"] = sort_dir
+
+            result = await fetch_fn(**fetch_kwargs)
+            records = result.get("records", [])
+            if not records:
+                break
+
+            all_records.extend(records)
+            total = result.get("totalRecords", 0)
+            if len(all_records) >= total:
+                break
+            page += 1
+
+        return all_records
+
+    def _load_library_items(self, db: Session, instance_id: int) -> dict[int, Any]:
+        """Load all LibraryItem records for an instance, keyed by external_id.
+
+        Args:
+            db: Database session
+            instance_id: Instance to load library items for
+
+        Returns:
+            dict: Mapping of external_id -> LibraryItem
+        """
+        from splintarr.models.library import LibraryItem
+
+        items = db.query(LibraryItem).filter(LibraryItem.instance_id == instance_id).all()
+        return {item.external_id: item for item in items}
+
+    # ------------------------------------------------------------------
+    # Core search loop
+    # ------------------------------------------------------------------
+
     async def _search_paginated_records(
         self,
+        queue: SearchQueue,
         instance: Instance,
+        db: Session,
         fetch_method: str,
         strategy_name: str,
-        paginate_all: bool = True,
         sort_key: str | None = None,
         sort_dir: str | None = None,
     ) -> dict[str, Any]:
         """Shared search loop for all strategies.
 
-        Creates the appropriate client, fetches records via fetch_method
-        (e.g. "get_wanted_missing"), and triggers per-item searches with
-        cooldown and rate-limit enforcement.
+        New flow:
+        1. Fetch ALL pages into a flat list
+        2. Batch-load LibraryItem data from DB (keyed by external_id)
+        3. Score each item using compute_score()
+        4. Sort by score descending
+        5. Filter: remove excluded items
+        6. Filter: remove items in cooldown (using DB-backed cooldown)
+        7. Truncate to queue.max_items_per_run
+        8. Search each remaining item, updating LibraryItem.search_attempts
 
         Args:
+            queue: Search queue being executed (provides cooldown/batch config)
             instance: Instance to search on
+            db: Database session for library item lookups
             fetch_method: Name of the client method that returns paginated records
             strategy_name: Used for log events (e.g. "missing", "cutoff")
-            paginate_all: If True, iterate all pages; if False, fetch only page 1
             sort_key: Optional sort key passed to the fetch method
             sort_dir: Optional sort direction passed to the fetch method
         """
@@ -282,7 +361,8 @@ class SearchQueueManager:
             instance_type=instance.instance_type,
         )
 
-        items_searched = 0
+        items_evaluated = 0  # total records from API (before filtering)
+        items_searched = 0  # items that passed filtering and were searched
         items_found = 0
         searches_triggered = 0
         errors: list[str] = []
@@ -300,6 +380,11 @@ class SearchQueueManager:
             instance_id=instance.id,
         )
 
+        # Queue configuration
+        cooldown_mode = getattr(queue, "cooldown_mode", "adaptive") or "adaptive"
+        cooldown_hours = getattr(queue, "cooldown_hours", None)
+        max_items = getattr(queue, "max_items_per_run", 50) or 50
+
         try:
             api_key = decrypt_api_key(instance.api_key)
 
@@ -312,133 +397,180 @@ class SearchQueueManager:
             ) as client:
                 search_fn = client.search_episodes if is_sonarr else client.search_movies
                 label_fn = _episode_label if is_sonarr else _movie_label
-                fetch_fn = getattr(client, fetch_method)
 
-                page = 1
-                rate_limited = False
-                while not rate_limited:
-                    fetch_kwargs: dict[str, Any] = {
-                        "page": page,
-                        "page_size": 50,
-                    }
-                    if sort_key:
-                        fetch_kwargs["sort_key"] = sort_key
-                    if sort_dir:
-                        fetch_kwargs["sort_dir"] = sort_dir
+                # Step 1: Fetch all records
+                all_records = await self._fetch_all_records(
+                    client, fetch_method, sort_key=sort_key, sort_dir=sort_dir
+                )
 
-                    result = await fetch_fn(**fetch_kwargs)
-                    records = result.get("records", [])
-                    if not records:
+                items_evaluated = len(all_records)
+                logger.info(
+                    "records_fetched",
+                    strategy=strategy_name,
+                    total_records=items_evaluated,
+                    instance_id=instance.id,
+                )
+
+                # Step 2: Batch-load library items
+                library_items = self._load_library_items(db, instance.id)
+
+                # Step 3-7: Score, sort, filter, truncate
+                scored_records: list[tuple[dict[str, Any], float, str]] = []
+                for record in all_records:
+                    item_id = record.get("id")
+                    if not item_id:
+                        continue
+
+                    # Determine library-level external ID
+                    if is_sonarr:
+                        ext_id = record.get("seriesId") or record.get("series", {}).get("id")
+                    else:
+                        ext_id = item_id
+
+                    # Step 5: Filter excluded items
+                    if ext_id and (ext_id, content_type) in excluded_keys:
+                        label = label_fn(record)
+                        logger.debug(
+                            "item_excluded",
+                            item_type=item_type,
+                            item_id=item_id,
+                            external_id=ext_id,
+                            content_type=content_type,
+                        )
+                        search_log.append(
+                            {
+                                "item": label,
+                                "action": "skipped",
+                                "reason": "excluded",
+                            }
+                        )
+                        continue
+
+                    # Step 6: Filter cooldown items
+                    library_item = library_items.get(ext_id)
+                    if is_in_cooldown(library_item, record, cooldown_mode, cooldown_hours):
+                        label = label_fn(record)
+                        logger.debug(
+                            "item_in_cooldown",
+                            item_type=item_type,
+                            item_id=item_id,
+                        )
+                        search_log.append(
+                            {
+                                "item": label,
+                                "action": "skipped",
+                                "reason": "cooldown",
+                            }
+                        )
+                        continue
+
+                    # Step 3: Score each item
+                    score, reason = compute_score(record, library_item, strategy_name)
+                    scored_records.append((record, score, reason))
+
+                # Step 4: Sort by score descending
+                scored_records.sort(key=lambda x: x[1], reverse=True)
+
+                # Step 7: Truncate to max_items_per_run
+                truncated = scored_records[:max_items]
+
+                logger.info(
+                    "search_batch_prepared",
+                    strategy=strategy_name,
+                    scored_count=len(scored_records),
+                    batch_size=len(truncated),
+                    max_items=max_items,
+                )
+
+                # Step 8: Search each remaining item
+                for record, score, reason in truncated:
+                    item_id = record.get("id")
+                    label = label_fn(record)
+
+                    # Determine external IDs for log and library item lookup
+                    if is_sonarr:
+                        series_id = record.get("seriesId") or record.get("series", {}).get("id")
+                        ext_id = series_id
+                    else:
+                        series_id = None
+                        ext_id = item_id
+
+                    items_searched += 1
+
+                    if not await self._check_rate_limit(instance.id):
+                        logger.warning(
+                            "rate_limit_reached",
+                            instance_id=instance.id,
+                        )
+                        search_log.append(
+                            {
+                                "item": label,
+                                "action": "skipped",
+                                "reason": "rate_limit",
+                                "score": score,
+                                "score_reason": reason,
+                            }
+                        )
                         break
 
-                    for record in records:
-                        item_id = record.get("id")
-                        if not item_id:
-                            continue
+                    try:
+                        cmd_result = await search_fn([item_id])
+                        items_found += 1
+                        searches_triggered += 1
 
-                        items_searched += 1
-                        label = label_fn(record)
+                        # Update LibraryItem search tracking
+                        library_item = library_items.get(ext_id)
+                        if library_item:
+                            library_item.record_search()
 
-                        # Determine the library-level external ID for exclusion check
-                        # Sonarr: seriesId from the episode record
-                        # Radarr: the movie record ID itself
-                        if is_sonarr:
-                            exclusion_ext_id = record.get("seriesId") or record.get(
-                                "series", {}
-                            ).get("id")
-                        else:
-                            exclusion_ext_id = item_id
-
-                        # Check content exclusion list before cooldown
-                        if exclusion_ext_id and (exclusion_ext_id, content_type) in excluded_keys:
-                            logger.debug(
-                                "item_excluded",
-                                item_type=item_type,
-                                item_id=item_id,
-                                external_id=exclusion_ext_id,
-                                content_type=content_type,
-                            )
-                            search_log.append(
-                                {
-                                    "item": label,
-                                    "action": "skipped",
-                                    "reason": "excluded",
-                                }
-                            )
-                            continue
-
-                        cooldown_key = (
-                            f"{instance.instance_type}_{instance.id}_{item_type}_{item_id}"
+                        logger.debug(
+                            "item_search_triggered",
+                            item_type=item_type,
+                            item_id=item_id,
+                            score=score,
+                            score_reason=reason,
+                        )
+                        search_log.append(
+                            {
+                                "item": label,
+                                "action": action_name,
+                                "score": score,
+                                "score_reason": reason,
+                                "item_id": item_id,
+                                "series_id": series_id,
+                                "command_id": cmd_result.get("id"),
+                                "result": "sent",
+                            }
+                        )
+                    except Exception as e:
+                        errors.append(f"{item_type.title()} {item_id}: {e}")
+                        logger.error(
+                            "item_search_failed",
+                            item_type=item_type,
+                            item_id=item_id,
+                            error=str(e),
+                        )
+                        search_log.append(
+                            {
+                                "item": label,
+                                "action": action_name,
+                                "score": score,
+                                "score_reason": reason,
+                                "item_id": item_id,
+                                "series_id": series_id,
+                                "result": "error",
+                                "error": str(e),
+                            }
                         )
 
-                        if self._is_in_cooldown(cooldown_key):
-                            logger.debug(
-                                "item_in_cooldown",
-                                item_type=item_type,
-                                item_id=item_id,
-                            )
-                            search_log.append(
-                                {
-                                    "item": label,
-                                    "action": "skipped",
-                                    "reason": "cooldown",
-                                }
-                            )
-                            continue
-
-                        if not await self._check_rate_limit(instance.id):
-                            logger.warning(
-                                "rate_limit_reached",
-                                instance_id=instance.id,
-                            )
-                            search_log.append(
-                                {
-                                    "item": label,
-                                    "action": "skipped",
-                                    "reason": "rate_limit",
-                                }
-                            )
-                            rate_limited = True
-                            break
-
-                        try:
-                            cmd_result = await search_fn([item_id])
-                            items_found += 1
-                            searches_triggered += 1
-                            self._set_cooldown(cooldown_key)
-                            logger.debug(
-                                "item_search_triggered",
-                                item_type=item_type,
-                                item_id=item_id,
-                            )
-                            search_log.append(
-                                {
-                                    "item": label,
-                                    "action": action_name,
-                                    "command_id": cmd_result.get("id"),
-                                    "result": "sent",
-                                }
-                            )
-                        except Exception as e:
-                            errors.append(f"{item_type.title()} {item_id}: {e}")
-                            logger.error(
-                                "item_search_failed",
-                                item_type=item_type,
-                                item_id=item_id,
-                                error=str(e),
-                            )
-                            search_log.append(
-                                {
-                                    "item": label,
-                                    "action": action_name,
-                                    "result": "error",
-                                    "error": str(e),
-                                }
-                            )
-
-                    if not paginate_all:
-                        break
-                    page += 1
+                # Commit library item search tracking updates
+                try:
+                    db.commit()
+                except Exception as e:
+                    logger.warning(
+                        "library_item_search_tracking_commit_failed",
+                        error=str(e),
+                    )
 
             if errors:
                 result_status = "partial_success" if items_found > 0 else "failed"
@@ -447,6 +579,7 @@ class SearchQueueManager:
 
             return {
                 "status": result_status,
+                "items_evaluated": items_evaluated,
                 "items_searched": items_searched,
                 "items_found": items_found,
                 "searches_triggered": searches_triggered,
@@ -470,7 +603,9 @@ class SearchQueueManager:
     ) -> dict[str, Any]:
         """Execute missing items strategy -- searches all missing episodes/movies."""
         return await self._search_paginated_records(
-            instance,
+            queue=queue,
+            instance=instance,
+            db=db,
             fetch_method="get_wanted_missing",
             strategy_name="missing",
         )
@@ -483,7 +618,9 @@ class SearchQueueManager:
     ) -> dict[str, Any]:
         """Execute cutoff unmet strategy -- searches items below quality cutoff."""
         return await self._search_paginated_records(
-            instance,
+            queue=queue,
+            instance=instance,
+            db=db,
             fetch_method="get_wanted_cutoff",
             strategy_name="cutoff",
         )
@@ -501,10 +638,11 @@ class SearchQueueManager:
             sort_key, sort_dir = "added", "descending"
 
         return await self._search_paginated_records(
-            instance,
+            queue=queue,
+            instance=instance,
+            db=db,
             fetch_method="get_wanted_missing",
             strategy_name="recent",
-            paginate_all=False,
             sort_key=sort_key,
             sort_dir=sort_dir,
         )
@@ -533,47 +671,14 @@ class SearchQueueManager:
         if queue.filters:
             try:
                 filters = json.loads(queue.filters)
-            except json.JSONDecodeError:
-                raise SearchQueueError("Invalid custom filters JSON")
+            except json.JSONDecodeError as err:
+                raise SearchQueueError("Invalid custom filters JSON") from err
 
         # For now, custom strategy defaults to missing strategy
         # In a real implementation, you would apply the custom filters
         logger.warning("custom_strategy_using_missing_fallback", filters=filters)
 
         return await self._execute_missing_strategy(queue, instance, db)
-
-    def _is_in_cooldown(self, item_key: str, cooldown_hours: int = 24) -> bool:
-        """
-        Check if an item is in cooldown period.
-
-        Args:
-            item_key: Unique key for the item
-            cooldown_hours: Cooldown period in hours (default: 24)
-
-        Returns:
-            bool: True if item is in cooldown
-        """
-        if item_key not in self._search_cooldowns:
-            return False
-
-        last_search = self._search_cooldowns[item_key]
-        cooldown_end = last_search + timedelta(hours=cooldown_hours)
-        now = datetime.utcnow()
-
-        if now >= cooldown_end:
-            del self._search_cooldowns[item_key]
-            return False
-
-        return True
-
-    def _set_cooldown(self, item_key: str) -> None:
-        """
-        Set cooldown for an item.
-
-        Args:
-            item_key: Unique key for the item
-        """
-        self._search_cooldowns[item_key] = datetime.utcnow()
 
     async def _check_rate_limit(self, instance_id: int, tokens_per_second: float = 5.0) -> bool:
         """
