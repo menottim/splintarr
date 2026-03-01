@@ -93,20 +93,57 @@ async function syncLibrary() {
     btn.textContent = 'Syncing...';
     try {
         var response = await fetch('/api/library/sync', { method: 'POST' });
-        if (response.ok) {
-            showNotification('Library sync started. This may take a few minutes.', 'success');
-            setTimeout(function() { location.reload(); }, 30000);
-        } else {
+        if (!response.ok) {
             var data = await response.json();
             showNotification('Sync failed: ' + (data.detail || 'Unknown error'));
+            btn.setAttribute('aria-busy', 'false');
+            btn.disabled = false;
+            btn.textContent = 'Refresh Library';
+            return;
         }
     } catch (error) {
         showNotification('Sync failed: ' + error.message);
-    } finally {
         btn.setAttribute('aria-busy', 'false');
         btn.disabled = false;
         btn.textContent = 'Refresh Library';
+        return;
     }
+
+    // Build fullscreen overlay using safe DOM methods
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
+
+    var article = document.createElement('article');
+    article.setAttribute('aria-busy', 'true');
+    article.style.cssText = 'max-width:400px;width:90%;text-align:center;margin:0;';
+
+    var heading = document.createElement('p');
+    heading.textContent = 'Syncing library...';
+    heading.style.cssText = 'font-size:1.25rem;font-weight:600;margin-bottom:0.5rem;';
+
+    var detail = document.createElement('small');
+    detail.textContent = 'This may take a few minutes for large libraries. Please wait.';
+
+    article.appendChild(heading);
+    article.appendChild(detail);
+    overlay.appendChild(article);
+    document.body.appendChild(overlay);
+
+    // Poll sync status every 3 seconds
+    var pollInterval = setInterval(async function() {
+        try {
+            var statusResp = await fetch('/api/library/sync-status');
+            if (statusResp.ok) {
+                var statusData = await statusResp.json();
+                if (!statusData.syncing) {
+                    clearInterval(pollInterval);
+                    location.reload();
+                }
+            }
+        } catch (e) {
+            // Polling error — keep trying
+        }
+    }, 3000);
 }
 </script>
 {% endblock %}

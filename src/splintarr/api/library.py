@@ -8,6 +8,7 @@ HTML page routes (cookie auth):
 
 JSON API routes (cookie auth, rate-limited):
   POST /api/library/sync            - Trigger manual sync (202 Accepted)
+  GET  /api/library/sync-status     - Check if sync is running
   GET  /api/library/stats           - Aggregate statistics
   GET  /api/library/items           - Paginated, filterable item list
 """
@@ -51,9 +52,13 @@ limiter = Limiter(key_func=rate_limit_key_func)
 # HELPERS
 # ============================================================================
 
+_sync_in_progress = False
+
 
 async def _run_sync_all_background() -> None:
     """Background task: sync library data from all active instances."""
+    global _sync_in_progress
+    _sync_in_progress = True
     logger.info("library_sync_background_started")
     try:
         service = get_sync_service()
@@ -70,6 +75,8 @@ async def _run_sync_all_background() -> None:
             error=str(e),
             error_type=type(e).__name__,
         )
+    finally:
+        _sync_in_progress = False
 
 
 def _base_library_query(db: Session, user: User):  # type: ignore[return]
@@ -383,6 +390,15 @@ async def api_library_sync(
         status_code=status.HTTP_202_ACCEPTED,
         content={"detail": "Library sync started"},
     )
+
+
+@router.get("/api/library/sync-status", include_in_schema=False)
+async def api_library_sync_status(
+    current_user: User = Depends(get_current_user_from_cookie),
+) -> JSONResponse:
+    """Check whether a library sync is currently running."""
+    logger.debug("library_sync_status_checked", user_id=current_user.id, syncing=_sync_in_progress)
+    return JSONResponse(content={"syncing": _sync_in_progress})
 
 
 @router.get("/api/library/stats", include_in_schema=False)
