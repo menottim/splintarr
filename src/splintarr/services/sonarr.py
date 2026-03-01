@@ -134,6 +134,38 @@ class SonarrClient(BaseArrClient):
 
         return result
 
+    async def season_search(self, series_id: int, season_number: int) -> dict[str, Any]:
+        """
+        Issue a SeasonSearch command for a specific series + season.
+
+        Args:
+            series_id: Series ID to search
+            season_number: Season number to search
+
+        Returns:
+            dict: Command response with status and ID
+
+        Raises:
+            SonarrError: If request fails
+        """
+        command = {
+            "name": "SeasonSearch",
+            "seriesId": series_id,
+            "seasonNumber": season_number,
+        }
+
+        result = await self._request("POST", "/api/v3/command", json=command)
+
+        logger.info(
+            "sonarr_season_search_triggered",
+            url=self.url,
+            series_id=series_id,
+            season_number=season_number,
+            command_id=result.get("id"),
+        )
+
+        return result
+
     async def search_series(self, series_id: int) -> dict[str, Any]:
         """
         Trigger search for all missing episodes in a series.

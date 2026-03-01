@@ -87,6 +87,16 @@ class SearchQueueCreate(BaseModel):
         le=500,
         description="Maximum items to search per queue execution (1-500)",
     )
+    season_pack_enabled: bool = Field(
+        default=False,
+        description="Enable season pack search for Sonarr instances",
+    )
+    season_pack_threshold: int = Field(
+        default=3,
+        ge=2,
+        le=50,
+        description="Minimum missing episodes per season to trigger season pack search (2-50)",
+    )
 
     @field_validator("name")
     @classmethod
@@ -192,6 +202,16 @@ class SearchQueueUpdate(BaseModel):
         le=500,
         description="Maximum items to search per queue execution",
     )
+    season_pack_enabled: bool | None = Field(
+        default=None,
+        description="Enable season pack search for Sonarr instances",
+    )
+    season_pack_threshold: int | None = Field(
+        default=None,
+        ge=2,
+        le=50,
+        description="Minimum missing episodes per season to trigger season pack search (2-50)",
+    )
 
     @field_validator("name")
     @classmethod
@@ -235,6 +255,10 @@ class SearchQueueResponse(BaseModel):
     cooldown_mode: str = Field(default="adaptive", description="Cooldown mode")
     cooldown_hours: int | None = Field(default=None, description="Fixed cooldown hours")
     max_items_per_run: int = Field(default=50, description="Max items per search run")
+    season_pack_enabled: bool = Field(default=False, description="Season pack search enabled")
+    season_pack_threshold: int = Field(
+        default=3, description="Min missing episodes per season for season pack search"
+    )
     created_at: datetime = Field(..., description="Queue item creation timestamp (ISO 8601)")
 
     model_config = {
