@@ -681,6 +681,114 @@ async def resume_search_queue(
         )
 
 
+@router.post(
+    "/{queue_id}/clone",
+    response_model=SearchQueueResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Clone search queue",
+    description="Create a copy of an existing search queue with the same settings",
+)
+@limiter.limit("10/minute")
+async def clone_search_queue(
+    request: Request,
+    queue_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """
+    Clone a search queue.
+
+    Creates a new queue with the same settings as the source queue.
+    The new queue name will have " (copy)" appended.
+    """
+    try:
+        # Get source queue
+        source = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
+
+        if not source:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Search queue {queue_id} not found",
+            )
+
+        # Verify instance belongs to user
+        instance = (
+            db.query(Instance)
+            .filter(
+                Instance.id == source.instance_id,
+                Instance.user_id == current_user.id,
+            )
+            .first()
+        )
+
+        if not instance:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied to this search queue",
+            )
+
+        # Create cloned queue
+        clone = SearchQueue(
+            instance_id=source.instance_id,
+            name=source.name + " (copy)",
+            strategy=source.strategy,
+            is_recurring=source.is_recurring,
+            interval_hours=source.interval_hours,
+            filters=source.filters,
+            status="pending",
+            is_active=True,
+        )
+
+        # Schedule first run
+        if clone.is_recurring and clone.interval_hours:
+            clone.schedule_next_run()
+        else:
+            clone.schedule_next_run(delay_hours=0)
+
+        db.add(clone)
+        db.commit()
+        db.refresh(clone)
+
+        logger.info(
+            "search_queue_cloned",
+            source_queue_id=queue_id,
+            new_queue_id=clone.id,
+            queue_name=clone.name,
+            user_id=current_user.id,
+        )
+
+        # Schedule in scheduler if recurring
+        try:
+            scheduler = get_scheduler(get_session_factory())
+            await scheduler.schedule_queue(clone.id)
+        except Exception as e:
+            logger.error("failed_to_schedule_cloned_queue", queue_id=clone.id, error=str(e))
+
+        return SearchQueueResponse(
+            id=clone.id,
+            instance_id=clone.instance_id,
+            name=clone.name,
+            strategy=clone.strategy,
+            recurring=clone.is_recurring,
+            interval_hours=clone.interval_hours,
+            is_active=clone.is_active,
+            status=clone.status,
+            next_run=clone.next_run,
+            last_run=clone.last_run,
+            consecutive_failures=clone.consecutive_failures,
+            created_at=clone.created_at,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("clone_search_queue_failed", error=str(e), queue_id=queue_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to clone search queue",
+        )
+
+
 @router.get(
     "/{queue_id}/status",
     response_model=dict[str, Any],
