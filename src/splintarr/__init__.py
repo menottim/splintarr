@@ -1,5 +1,11 @@
 """Splintarr - Intelligent backlog search automation for Sonarr and Radarr."""
 
-__version__ = "0.1.0"
-__author__ = "Your Name"
+from importlib.metadata import version, PackageNotFoundError
+
+try:
+    __version__ = version("splintarr")
+except PackageNotFoundError:
+    __version__ = "dev"
+
+__author__ = "menottim"
 __license__ = "MIT"

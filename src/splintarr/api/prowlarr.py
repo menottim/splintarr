@@ -122,15 +122,12 @@ async def get_prowlarr_config(
     Get the current Prowlarr config for the authenticated user.
 
     Returns masked API key and connection settings.
-    Returns 404 if no config exists yet.
+    Returns 200 with configured=false if no config exists yet.
     """
     config = db.query(ProwlarrConfig).filter(ProwlarrConfig.user_id == current_user.id).first()
 
     if not config:
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": "No Prowlarr config found"},
-        )
+        return JSONResponse(content={"configured": False})
 
     logger.debug(
         "prowlarr_config_retrieved",

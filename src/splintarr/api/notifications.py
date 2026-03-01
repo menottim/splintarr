@@ -86,17 +86,14 @@ async def get_notification_config(
     Get the current notification config for the authenticated user.
 
     Returns masked webhook URL and event settings.
-    Returns 404 if no config exists yet.
+    Returns 200 with configured=false if no config exists yet.
     """
     config = (
         db.query(NotificationConfig).filter(NotificationConfig.user_id == current_user.id).first()
     )
 
     if not config:
-        return JSONResponse(
-            status_code=status.HTTP_404_NOT_FOUND,
-            content={"detail": "No notification config found"},
-        )
+        return JSONResponse(content={"configured": False})
 
     logger.debug(
         "notification_config_retrieved",

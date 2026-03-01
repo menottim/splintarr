@@ -38,6 +38,7 @@ from splintarr.api import (
     search_history,
     search_queue,
 )
+from splintarr import __version__
 from splintarr.config import settings
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import (
@@ -208,6 +209,7 @@ async def add_security_headers(request: Request, call_next):
     # Templates access this via {{ request.state.csp_nonce }}
     nonce = secrets.token_urlsafe(16)
     request.state.csp_nonce = nonce
+    request.state.app_version = __version__
 
     try:
         response = await call_next(request)

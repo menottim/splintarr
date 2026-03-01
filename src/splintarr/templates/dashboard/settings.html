@@ -456,8 +456,8 @@ function showNotificationStatus(message, isError) {
 (async function loadNotificationConfig() {
     try {
         var response = await fetch('/api/notifications/config');
-        if (response.ok) {
-            var data = await response.json();
+        var data = await response.json();
+        if (response.ok && data.configured !== false) {
             document.getElementById('webhook_url').placeholder = data.webhook_url_masked;
             document.getElementById('evt_search_triggered').checked = data.events_enabled.search_triggered || false;
             document.getElementById('evt_queue_failed').checked = data.events_enabled.queue_failed || false;
@@ -609,8 +609,8 @@ function showProwlarrStatus(message, isError) {
 (async function loadProwlarrConfig() {
     try {
         var response = await fetch('/api/prowlarr/config');
-        if (response.ok) {
-            var data = await response.json();
+        var data = await response.json();
+        if (response.ok && data.configured !== false) {
             document.getElementById('prowlarr_url').value = data.url;
             document.getElementById('prowlarr_api_key').placeholder = data.api_key_masked;
             document.getElementById('prowlarr_api_key').required = false;
