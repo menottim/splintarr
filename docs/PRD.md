@@ -2,7 +2,7 @@
 
 > **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. This is the sole source of truth; versioned PRDs have been retired.
 
-**Last updated:** 2026-03-01 (v0.3.1)
+**Last updated:** 2026-03-01 (v0.4.0)
 
 ---
 
@@ -87,11 +87,11 @@ Huntarr was the most popular tool in this space until critical security vulnerab
 | 10 | [Adaptive Search Prioritization](#10-adaptive-search-prioritization) | **Done** | v0.3.0 | PR #78 |
 | 11 | [Search Cooldown Intelligence](#11-search-cooldown-intelligence) | **Done** | v0.3.0 | PR #79 |
 | 12 | [Search Result Feedback Loop](#12-search-result-feedback-loop) | **Done** | v0.3.0 | PR #80 |
-| 8 | [Prowlarr Integration](#8-prowlarr-integration) | Planned | v0.3.1 | Indexer-aware rate limiting |
-| 9 | [Season Pack Intelligence](#9-season-pack-intelligence) | Planned | v0.3.1 | Sonarr only |
-| 13 | [Search Analytics Dashboard](#13-search-analytics-dashboard) | Deferred | v0.4.0+ | |
-| 14 | [Config Import](#14-config-import) | Deferred | v0.4.0+ | Companion to Config Export |
-| 15 | [WebSocket Activity Feed](#15-websocket-real-time-activity-feed) | Deferred | v0.4.0+ | Upgrade from polling |
+| 8 | [Prowlarr Integration](#8-prowlarr-integration) | **Done** | v0.4.0 | PR #89; Indexer-aware rate limiting |
+| 9 | [Season Pack Intelligence](#9-season-pack-intelligence) | **Done** | v0.4.0 | PR #89; Sonarr only |
+| 13 | [Search Analytics Dashboard](#13-search-analytics-dashboard) | Deferred | v0.5.0+ | |
+| 14 | [Config Import](#14-config-import) | Deferred | v0.5.0+ | Companion to Config Export |
+| 15 | [WebSocket Activity Feed](#15-websocket-real-time-activity-feed) | Deferred | v0.5.0+ | Upgrade from polling |
 
 ---
 
@@ -130,6 +130,11 @@ Huntarr was the most popular tool in this space until critical security vulnerab
   - Core (PR #84): Deduplicated JWT blacklisting, decode/verify, blacklist check; removed unused `TwoFactorError` and empty placeholder files
   - Models + Schemas (PR #85): Shared validators for password, instance, search name; removed redundant `TwoFactorVerify` validator; extracted `_finalize()` in SearchHistory; fixed missing common_passwords check in PasswordChange
   - Config (PR #86): Consolidated secret getters/validators, removed redundant field validators, extracted file handler helper
+
+### v0.4.0
+
+- **Prowlarr Integration & Indexer-Aware Rate Limiting** (PR #89) — ProwlarrConfig model, ProwlarrClient (indexer/app/stats API), IndexerRateLimitService (tag-based app matching, per-indexer budget calculation with hourly/daily awareness, circuit-breaker exclusion), search execution rate limit integration, Settings UI, dashboard indexer health widget. [Spec →](#8-prowlarr-integration)
+- **Season Pack Intelligence** (PR #89) — Per-queue season_pack_enabled + threshold, `_group_by_season` grouping, `SonarrClient.season_search()` for SeasonSearch commands, queue modal UI (Sonarr-only toggle), search log display. [Spec →](#9-season-pack-intelligence)
 
 ---
 
@@ -320,11 +325,11 @@ The core differentiator: making searches smarter, not just scheduled.
 
 ---
 
-## v0.3.1 — Search Intelligence: External Integrations
+## v0.4.0 — Shipped
 
 ### 8. Prowlarr Integration & Indexer-Aware Rate Limiting
 
-**Priority:** High | **Effort:** Medium | **Status:** Planned
+**Priority:** High | **Effort:** Medium | **Status: Done** (PR #89, 2026-03-01)
 
 **Problem:** Blanket per-instance rate limit doesn't account for individual indexer API limits. Being too aggressive gets you banned; too conservative means missing content.
 
@@ -345,7 +350,7 @@ The core differentiator: making searches smarter, not just scheduled.
 
 ### 9. Season Pack Intelligence (Sonarr Only)
 
-**Priority:** High | **Effort:** Medium | **Status:** Planned
+**Priority:** High | **Effort:** Medium | **Status: Done** (PR #89, 2026-03-01)
 
 **Problem:** Individual episode searches fail for older content where only season packs exist. Wastes API calls. [Most requested Sonarr feature](https://github.com/Sonarr/Sonarr/issues/4229).
 
@@ -362,7 +367,7 @@ The core differentiator: making searches smarter, not just scheduled.
 
 ---
 
-## v0.4.0+ — Deferred
+## v0.5.0+ — Deferred
 
 ### 13. Search Analytics Dashboard
 
@@ -445,3 +450,4 @@ Upgrade the v0.2.1 enhanced polling (15s interval) to true WebSocket push at `/w
 | 2026-02-28 | v0.2.1 shipped: Health Monitoring (#74), Clone/Presets (#75), Config Export (#76), Activity Polling (#77) |
 | 2026-03-01 | v0.3.0 shipped: Scoring (#78), Tiered Cooldowns (#79), Feedback Loop (#80), Intelligence UI (#81) |
 | 2026-03-01 | v0.3.1 shipped: Codebase simplification across all layers (PRs #82-86) |
+| 2026-03-01 | v0.4.0 shipped: Prowlarr Integration (#89) + Season Pack Intelligence (#89) |
