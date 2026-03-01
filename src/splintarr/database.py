@@ -83,6 +83,9 @@ def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
     cursor = dbapi_conn.cursor()
 
     try:
+        # Wait up to 5 seconds for database locks to clear
+        cursor.execute("PRAGMA busy_timeout = 5000")
+
         # Enable foreign key constraints (referential integrity)
         cursor.execute("PRAGMA foreign_keys = ON")
 
@@ -170,6 +173,7 @@ def create_database_engine() -> Engine:
                 cursor.execute(f"PRAGMA key = '{safe_key}'")
                 cursor.execute(f"PRAGMA cipher = '{safe_cipher}'")
                 cursor.execute(f"PRAGMA kdf_iter = {kdf_iter}")
+                cursor.execute("PRAGMA busy_timeout = 5000")
                 logger.debug("sqlcipher_pragmas_set", db_path=db_path)
             finally:
                 cursor.close()
