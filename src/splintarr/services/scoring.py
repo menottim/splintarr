@@ -72,6 +72,9 @@ def _recency_score(record: dict[str, Any]) -> int:
     now = datetime.utcnow()
     age = now - dt
 
+    if age < timedelta(0):
+        return 5  # Future air date — not yet available on indexers
+
     if age < timedelta(hours=24):
         return 40
     if age < timedelta(days=7):

@@ -131,6 +131,9 @@ async def create_search_queue(
             is_recurring=queue_data.recurring,
             interval_hours=queue_data.interval_hours,
             filters=queue_data.filters,
+            cooldown_mode=queue_data.cooldown_mode,
+            cooldown_hours=queue_data.cooldown_hours,
+            max_items_per_run=queue_data.max_items_per_run,
             status="pending",
             is_active=True,
         )
@@ -288,6 +291,15 @@ async def update_search_queue(
 
         if queue_data.filters is not None:
             queue.filters = queue_data.filters
+
+        if queue_data.cooldown_mode is not None:
+            queue.cooldown_mode = queue_data.cooldown_mode
+
+        if queue_data.cooldown_hours is not None:
+            queue.cooldown_hours = queue_data.cooldown_hours
+
+        if queue_data.max_items_per_run is not None:
+            queue.max_items_per_run = queue_data.max_items_per_run
 
         db.commit()
         db.refresh(queue)
