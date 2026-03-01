@@ -33,6 +33,56 @@ limiter = Limiter(key_func=rate_limit_key_func)
 router = APIRouter(prefix="/api/search-queues", tags=["search-queues"])
 
 
+def _queue_to_response(queue: SearchQueue) -> SearchQueueResponse:
+    """Convert a SearchQueue model to a SearchQueueResponse schema."""
+    return SearchQueueResponse(
+        id=queue.id,
+        instance_id=queue.instance_id,
+        name=queue.name,
+        strategy=queue.strategy,
+        recurring=queue.is_recurring,
+        interval_hours=queue.interval_hours,
+        is_active=queue.is_active,
+        status=queue.status,
+        next_run=queue.next_run,
+        last_run=queue.last_run,
+        consecutive_failures=queue.consecutive_failures,
+        created_at=queue.created_at,
+    )
+
+
+def _get_user_queue(db: Session, queue_id: int, user_id: int) -> SearchQueue:
+    """
+    Fetch a search queue and verify it belongs to the user.
+
+    Raises HTTPException 404 if queue not found, 403 if not owned by user.
+    """
+    queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
+
+    if not queue:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Search queue {queue_id} not found",
+        )
+
+    instance = (
+        db.query(Instance)
+        .filter(
+            Instance.id == queue.instance_id,
+            Instance.user_id == user_id,
+        )
+        .first()
+    )
+
+    if not instance:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this search queue",
+        )
+
+    return queue
+
+
 @router.post(
     "",
     response_model=SearchQueueResponse,
@@ -77,7 +127,7 @@ async def create_search_queue(
             strategy=queue_data.strategy,
             is_recurring=queue_data.recurring,
             interval_hours=queue_data.interval_hours,
-            filters=queue_data.filters if queue_data.filters else None,
+            filters=queue_data.filters,
             status="pending",
             is_active=True,
         )
@@ -86,7 +136,6 @@ async def create_search_queue(
         if queue.is_recurring and queue.interval_hours:
             queue.schedule_next_run()
         else:
-            # One-time search, schedule for immediate execution
             queue.schedule_next_run(delay_hours=0)
 
         db.add(queue)
@@ -107,22 +156,8 @@ async def create_search_queue(
             await scheduler.schedule_queue(queue.id)
         except Exception as e:
             logger.error("failed_to_schedule_queue", queue_id=queue.id, error=str(e))
-            # Don't fail the request, queue is created but not scheduled
 
-        return SearchQueueResponse(
-            id=queue.id,
-            instance_id=queue.instance_id,
-            name=queue.name,
-            strategy=queue.strategy,
-            recurring=queue.is_recurring,
-            interval_hours=queue.interval_hours,
-            is_active=queue.is_active,
-            status=queue.status,
-            next_run=queue.next_run,
-            last_run=queue.last_run,
-            consecutive_failures=queue.consecutive_failures,
-            created_at=queue.created_at,
-        )
+        return _queue_to_response(queue)
 
     except HTTPException:
         raise
@@ -165,23 +200,7 @@ async def list_search_queues(
             .all()
         )
 
-        return [
-            SearchQueueResponse(
-                id=q.id,
-                instance_id=q.instance_id,
-                name=q.name,
-                strategy=q.strategy,
-                recurring=q.is_recurring,
-                interval_hours=q.interval_hours,
-                is_active=q.is_active,
-                status=q.status,
-                next_run=q.next_run,
-                last_run=q.last_run,
-                consecutive_failures=q.consecutive_failures,
-                created_at=q.created_at,
-            )
-            for q in queues
-        ]
+        return [_queue_to_response(q) for q in queues]
 
     except Exception as e:
         logger.error("list_search_queues_failed", error=str(e), user_id=current_user.id)
@@ -210,45 +229,8 @@ async def get_search_queue(
     Returns queue information if it belongs to user's instance.
     """
     try:
-        # Get queue and verify ownership
-        queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
-
-        if not queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Search queue {queue_id} not found",
-            )
-
-        # Verify instance belongs to user
-        instance = (
-            db.query(Instance)
-            .filter(
-                Instance.id == queue.instance_id,
-                Instance.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this search queue",
-            )
-
-        return SearchQueueResponse(
-            id=queue.id,
-            instance_id=queue.instance_id,
-            name=queue.name,
-            strategy=queue.strategy,
-            recurring=queue.is_recurring,
-            interval_hours=queue.interval_hours,
-            is_active=queue.is_active,
-            status=queue.status,
-            next_run=queue.next_run,
-            last_run=queue.last_run,
-            consecutive_failures=queue.consecutive_failures,
-            created_at=queue.created_at,
-        )
+        queue = _get_user_queue(db, queue_id, current_user.id)
+        return _queue_to_response(queue)
 
     except HTTPException:
         raise
@@ -280,30 +262,7 @@ async def update_search_queue(
     Only provided fields will be updated. Requires queue to belong to user's instance.
     """
     try:
-        # Get queue and verify ownership
-        queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
-
-        if not queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Search queue {queue_id} not found",
-            )
-
-        # Verify instance belongs to user
-        instance = (
-            db.query(Instance)
-            .filter(
-                Instance.id == queue.instance_id,
-                Instance.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this search queue",
-            )
+        queue = _get_user_queue(db, queue_id, current_user.id)
 
         # Update fields
         if queue_data.name is not None:
@@ -344,20 +303,7 @@ async def update_search_queue(
             except Exception as e:
                 logger.error("failed_to_reschedule_queue", queue_id=queue.id, error=str(e))
 
-        return SearchQueueResponse(
-            id=queue.id,
-            instance_id=queue.instance_id,
-            name=queue.name,
-            strategy=queue.strategy,
-            recurring=queue.is_recurring,
-            interval_hours=queue.interval_hours,
-            is_active=queue.is_active,
-            status=queue.status,
-            next_run=queue.next_run,
-            last_run=queue.last_run,
-            consecutive_failures=queue.consecutive_failures,
-            created_at=queue.created_at,
-        )
+        return _queue_to_response(queue)
 
     except HTTPException:
         raise
@@ -388,30 +334,7 @@ async def delete_search_queue(
     Permanently removes queue and unschedules it from scheduler.
     """
     try:
-        # Get queue and verify ownership
-        queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
-
-        if not queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Search queue {queue_id} not found",
-            )
-
-        # Verify instance belongs to user
-        instance = (
-            db.query(Instance)
-            .filter(
-                Instance.id == queue.instance_id,
-                Instance.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this search queue",
-            )
+        queue = _get_user_queue(db, queue_id, current_user.id)
 
         # Unschedule from scheduler
         try:
@@ -420,7 +343,6 @@ async def delete_search_queue(
         except Exception as e:
             logger.warning("failed_to_unschedule_queue", queue_id=queue_id, error=str(e))
 
-        # Delete queue
         db.delete(queue)
         db.commit()
 
@@ -479,42 +401,17 @@ async def start_search_queue(
     The queue status can be polled via GET /{queue_id}/status.
     """
     try:
-        queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
+        queue = _get_user_queue(db, queue_id, current_user.id)
 
-        if not queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Search queue {queue_id} not found",
-            )
-
-        # Prevent starting a search that's already in progress
         if queue.status == "in_progress":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Search queue is already running",
             )
 
-        # Verify instance belongs to user
-        instance = (
-            db.query(Instance)
-            .filter(
-                Instance.id == queue.instance_id,
-                Instance.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this search queue",
-            )
-
-        # Mark as in_progress immediately so the UI reflects the state
         queue.mark_in_progress()
         db.commit()
 
-        # Run the search in the background
         background_tasks.add_task(_run_search_queue_background, queue_id)
 
         logger.info(
@@ -554,36 +451,11 @@ async def pause_search_queue(
     Deactivates queue to prevent future automatic executions.
     """
     try:
-        # Get queue and verify ownership
-        queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
+        queue = _get_user_queue(db, queue_id, current_user.id)
 
-        if not queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Search queue {queue_id} not found",
-            )
-
-        # Verify instance belongs to user
-        instance = (
-            db.query(Instance)
-            .filter(
-                Instance.id == queue.instance_id,
-                Instance.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this search queue",
-            )
-
-        # Deactivate queue
         queue.deactivate()
         db.commit()
 
-        # Unschedule from scheduler
         try:
             scheduler = get_scheduler(get_session_factory())
             await scheduler.unschedule_queue(queue_id)
@@ -627,36 +499,11 @@ async def resume_search_queue(
     Reactivates paused queue and reschedules it.
     """
     try:
-        # Get queue and verify ownership
-        queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
+        queue = _get_user_queue(db, queue_id, current_user.id)
 
-        if not queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Search queue {queue_id} not found",
-            )
-
-        # Verify instance belongs to user
-        instance = (
-            db.query(Instance)
-            .filter(
-                Instance.id == queue.instance_id,
-                Instance.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this search queue",
-            )
-
-        # Activate queue
         queue.activate()
         db.commit()
 
-        # Reschedule in scheduler
         try:
             scheduler = get_scheduler(get_session_factory())
             await scheduler.schedule_queue(queue_id, reschedule=True)
@@ -702,32 +549,8 @@ async def clone_search_queue(
     The new queue name will have " (copy)" appended.
     """
     try:
-        # Get source queue
-        source = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
+        source = _get_user_queue(db, queue_id, current_user.id)
 
-        if not source:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Search queue {queue_id} not found",
-            )
-
-        # Verify instance belongs to user
-        instance = (
-            db.query(Instance)
-            .filter(
-                Instance.id == source.instance_id,
-                Instance.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this search queue",
-            )
-
-        # Create cloned queue
         clone = SearchQueue(
             instance_id=source.instance_id,
             name=source.name + " (copy)",
@@ -739,7 +562,6 @@ async def clone_search_queue(
             is_active=True,
         )
 
-        # Schedule first run
         if clone.is_recurring and clone.interval_hours:
             clone.schedule_next_run()
         else:
@@ -757,32 +579,23 @@ async def clone_search_queue(
             user_id=current_user.id,
         )
 
-        # Schedule in scheduler if recurring
         try:
             scheduler = get_scheduler(get_session_factory())
             await scheduler.schedule_queue(clone.id)
         except Exception as e:
             logger.error("failed_to_schedule_cloned_queue", queue_id=clone.id, error=str(e))
 
-        return SearchQueueResponse(
-            id=clone.id,
-            instance_id=clone.instance_id,
-            name=clone.name,
-            strategy=clone.strategy,
-            recurring=clone.is_recurring,
-            interval_hours=clone.interval_hours,
-            is_active=clone.is_active,
-            status=clone.status,
-            next_run=clone.next_run,
-            last_run=clone.last_run,
-            consecutive_failures=clone.consecutive_failures,
-            created_at=clone.created_at,
-        )
+        return _queue_to_response(clone)
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("clone_search_queue_failed", error=str(e), queue_id=queue_id, user_id=current_user.id)
+        logger.error(
+            "clone_search_queue_failed",
+            error=str(e),
+            queue_id=queue_id,
+            user_id=current_user.id,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to clone search queue",
@@ -808,29 +621,7 @@ async def get_queue_status(
     Returns current status and recent performance statistics.
     """
     try:
-        queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
-
-        if not queue:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Search queue {queue_id} not found",
-            )
-
-        # Verify instance belongs to user
-        instance = (
-            db.query(Instance)
-            .filter(
-                Instance.id == queue.instance_id,
-                Instance.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not instance:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this search queue",
-            )
+        queue = _get_user_queue(db, queue_id, current_user.id)
 
         history_service = get_history_service(get_session_factory())
         performance = history_service.get_queue_performance(queue_id, days=30)

@@ -36,8 +36,6 @@ logger = structlog.get_logger()
 class SearchSchedulerError(Exception):
     """Base exception for search scheduler errors."""
 
-    pass
-
 
 class SearchScheduler:
     """
@@ -509,16 +507,15 @@ class SearchScheduler:
                 "jobs": [],
             }
 
-        jobs = []
-        for job in self.scheduler.get_jobs():
-            jobs.append(
-                {
-                    "id": job.id,
-                    "name": job.name,
-                    "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
-                    "trigger": str(job.trigger),
-                }
-            )
+        jobs = [
+            {
+                "id": job.id,
+                "name": job.name,
+                "next_run_time": job.next_run_time.isoformat() if job.next_run_time else None,
+                "trigger": str(job.trigger),
+            }
+            for job in self.scheduler.get_jobs()
+        ]
 
         return {
             "running": self._running,

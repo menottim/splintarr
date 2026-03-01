@@ -68,22 +68,20 @@ def _timeago(dt: datetime) -> str:
     if not dt:
         return ""
 
-    now = datetime.utcnow()
-    diff = now - dt
+    seconds = (datetime.utcnow() - dt).total_seconds()
 
-    if diff.total_seconds() < 60:
+    if seconds < 60:
         return "just now"
-    elif diff.total_seconds() < 3600:
-        minutes = int(diff.total_seconds() / 60)
+    if seconds < 3600:
+        minutes = int(seconds / 60)
         return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-    elif diff.total_seconds() < 86400:
-        hours = int(diff.total_seconds() / 3600)
+    if seconds < 86400:
+        hours = int(seconds / 3600)
         return f"{hours} hour{'s' if hours != 1 else ''} ago"
-    elif diff.total_seconds() < 604800:
-        days = int(diff.total_seconds() / 86400)
+    if seconds < 604800:
+        days = int(seconds / 86400)
         return f"{days} day{'s' if days != 1 else ''} ago"
-    else:
-        return dt.strftime("%Y-%m-%d")
+    return dt.strftime("%Y-%m-%d")
 
 
 def _parse_search_log(value: str | None) -> list[dict[str, Any]]:

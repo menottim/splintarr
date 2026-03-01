@@ -68,11 +68,7 @@ class HealthCheckService:
 
         try:
             api_key = decrypt_api_key(instance.api_key)
-
-            if instance.instance_type == "sonarr":
-                client_class = SonarrClient
-            else:
-                client_class = RadarrClient
+            client_class = SonarrClient if instance.instance_type == "sonarr" else RadarrClient
 
             async with client_class(
                 url=instance.url,

@@ -64,14 +64,15 @@ async def export_config(
 
     # Query search queues via instance ownership
     instance_ids = [inst.id for inst in instances]
-    queues = (
-        db.query(SearchQueue)
-        .filter(SearchQueue.instance_id.in_(instance_ids))
-        .order_by(SearchQueue.id)
-        .all()
-        if instance_ids
-        else []
-    )
+    if instance_ids:
+        queues = (
+            db.query(SearchQueue)
+            .filter(SearchQueue.instance_id.in_(instance_ids))
+            .order_by(SearchQueue.id)
+            .all()
+        )
+    else:
+        queues = []
     queues_data = [
         {
             "id": q.id,
@@ -182,5 +183,8 @@ async def integrity_check(
         )
         return JSONResponse(
             status_code=500,
-            content={"status": "error", "details": ["Database integrity check could not be completed"]},
+            content={
+                "status": "error",
+                "details": ["Database integrity check could not be completed"],
+            },
         )

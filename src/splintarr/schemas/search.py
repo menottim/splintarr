@@ -117,12 +117,6 @@ class SearchQueueCreate(BaseModel):
 
         return v
 
-    @field_validator("filters")
-    @classmethod
-    def validate_filters(cls, v: dict[str, Any] | None, info) -> dict[str, Any] | None:
-        """Validate optional filters."""
-        return v
-
     model_config = {
         "json_schema_extra": {
             "examples": [
