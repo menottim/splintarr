@@ -184,6 +184,12 @@ class SearchHistory(Base):
         """Mark the search as started."""
         self.started_at = datetime.utcnow()
 
+    def _finalize(self) -> None:
+        """Set completed_at and calculate duration from started_at."""
+        self.completed_at = datetime.utcnow()
+        if self.started_at:
+            self.duration_seconds = int((self.completed_at - self.started_at).total_seconds())
+
     def mark_completed(
         self,
         status: SearchExecutionStatus,
@@ -206,7 +212,7 @@ class SearchHistory(Base):
             error_message: Error message if failed (optional)
             search_metadata: JSON-encoded per-item execution details (optional)
         """
-        self.completed_at = datetime.utcnow()
+        self._finalize()
         self.status = status
         self.items_searched = items_searched
         self.items_found = items_found
@@ -216,11 +222,6 @@ class SearchHistory(Base):
         if search_metadata is not None:
             self.search_metadata = search_metadata
 
-        # Calculate duration
-        if self.started_at:
-            delta = self.completed_at - self.started_at
-            self.duration_seconds = int(delta.total_seconds())
-
     def mark_failed(self, error: str) -> None:
         """
         Mark the search as failed with an error message.
@@ -228,17 +229,10 @@ class SearchHistory(Base):
         Args:
             error: Error message describing the failure
         """
-        self.completed_at = datetime.utcnow()
+        self._finalize()
         self.status = "failed"
         self.error_message = error
-        if self.errors_encountered is None:
-            self.errors_encountered = 0
-        self.errors_encountered += 1
-
-        # Calculate duration
-        if self.started_at:
-            delta = self.completed_at - self.started_at
-            self.duration_seconds = int(delta.total_seconds())
+        self.errors_encountered = (self.errors_encountered or 0) + 1
 
     @staticmethod
     def create_for_search(

@@ -144,6 +144,32 @@ common_passwords = {
 }
 
 
+def _validate_password(v: str) -> str:
+    """Validate password complexity: length, character types, and common password check."""
+    if len(v) < 12:
+        raise ValueError("Password must be at least 12 characters long")
+
+    if len(v) > 128:
+        raise ValueError("Password must not exceed 128 characters")
+
+    if not re.search(r"[a-z]", v):
+        raise ValueError("Password must contain at least one lowercase letter")
+
+    if not re.search(r"[A-Z]", v):
+        raise ValueError("Password must contain at least one uppercase letter")
+
+    if not re.search(r"[0-9]", v):
+        raise ValueError("Password must contain at least one digit")
+
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\/\'`~;]', v):
+        raise ValueError("Password must contain at least one special character")
+
+    if v.lower() in common_passwords:
+        raise ValueError("Password is too common. Please choose a more unique password.")
+
+    return v
+
+
 class UserRegister(BaseModel):
     """
     Schema for user registration.
@@ -194,51 +220,8 @@ class UserRegister(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
-        """
-        Validate password complexity requirements.
-
-        Password must:
-        - Be at least 12 characters long (max 128 to prevent Argon2 DoS)
-        - Contain at least one lowercase letter
-        - Contain at least one uppercase letter
-        - Contain at least one digit
-        - Contain at least one special character
-        - Not be in common password list
-
-        Args:
-            v: Password to validate
-
-        Returns:
-            str: Validated password (case-preserved)
-
-        Raises:
-            ValueError: If password doesn't meet complexity requirements
-        """
-        if len(v) < 12:
-            raise ValueError("Password must be at least 12 characters long")
-
-        if len(v) > 128:
-            raise ValueError("Password must not exceed 128 characters")
-
-        # Check for required character types
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-
-        if not re.search(r"[0-9]", v):
-            raise ValueError("Password must contain at least one digit")
-
-        if not re.search(r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\;/`~]', v):
-            raise ValueError("Password must contain at least one special character")
-
-        # Check against common passwords (case-insensitive comparison)
-        if v.lower() in common_passwords:
-            raise ValueError("Password is too common. Please choose a more unique password.")
-
-        # Return password with original case preserved (never normalize)
-        return v
+        """Validate password complexity requirements."""
+        return _validate_password(v)
 
     model_config = {
         "json_schema_extra": {
@@ -400,29 +383,6 @@ class TwoFactorVerify(BaseModel):
         description="6-digit TOTP code from authenticator app",
     )
 
-    @field_validator("code")
-    @classmethod
-    def validate_code(cls, v: str) -> str:
-        """
-        Validate TOTP code format.
-
-        Args:
-            v: TOTP code to validate
-
-        Returns:
-            str: Validated TOTP code
-
-        Raises:
-            ValueError: If code is not 6 digits
-        """
-        if not v.isdigit():
-            raise ValueError("TOTP code must contain only digits")
-
-        if len(v) != 6:
-            raise ValueError("TOTP code must be exactly 6 digits")
-
-        return v
-
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -553,36 +513,8 @@ class PasswordChange(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_new_password(cls, v: str) -> str:
-        """
-        Validate new password strength.
-
-        Uses same validation as UserRegister.
-
-        Args:
-            v: Password to validate
-
-        Returns:
-            str: Validated password
-
-        Raises:
-            ValueError: If password doesn't meet strength requirements
-        """
-        if len(v) < 12:
-            raise ValueError("Password must be at least 12 characters long")
-
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain at least one digit")
-
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-+=\[\]\\/'`~;]", v):
-            raise ValueError("Password must contain at least one special character")
-
-        return v
+        """Validate new password strength (same rules as registration)."""
+        return _validate_password(v)
 
     model_config = {
         "json_schema_extra": {

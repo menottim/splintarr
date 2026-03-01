@@ -20,6 +20,42 @@ from splintarr.core.ssrf_protection import SSRFError, validate_instance_url
 InstanceType = Literal["sonarr", "radarr"]
 
 
+def _validate_instance_name(v: str) -> str:
+    """Strip and validate an instance/search name (min 3 non-whitespace chars)."""
+    stripped = v.strip()
+    if not stripped:
+        raise ValueError("Instance name cannot be empty or only whitespace")
+    if len(stripped) < 3:
+        raise ValueError("Instance name must be at least 3 characters long")
+    return stripped
+
+
+def _validate_api_key_format(v: str) -> str:
+    """Strip and validate an API key (min 20 chars, no spaces)."""
+    stripped = v.strip()
+    if not stripped:
+        raise ValueError("API key cannot be empty or only whitespace")
+    if len(stripped) < 20:
+        raise ValueError(
+            "API key must be at least 20 characters long. "
+            "Check your Sonarr/Radarr settings for the correct API key."
+        )
+    if " " in stripped:
+        raise ValueError("API key should not contain spaces")
+    return stripped
+
+
+def _validate_url_ssrf(url: HttpUrl) -> HttpUrl:
+    """Validate a URL against SSRF attacks."""
+    try:
+        validate_instance_url(str(url), allow_local=settings.allow_local_instances)
+    except SSRFError as e:
+        raise ValueError(f"URL blocked for security: {e}") from e
+    except Exception as e:
+        raise ValueError(f"Invalid URL: {e}") from e
+    return url
+
+
 class InstanceCreate(BaseModel):
     """
     Schema for creating a new Sonarr/Radarr instance.
@@ -51,23 +87,6 @@ class InstanceCreate(BaseModel):
         default=True,
         description="Whether to verify SSL certificates (recommended: True)",
     )
-
-    @field_validator("url")
-    @classmethod
-    def validate_url_ssrf(cls, v: HttpUrl) -> HttpUrl:
-        """Validate URL against SSRF attacks."""
-        url_str = str(v)
-
-        try:
-            # Check for SSRF (respects allow_local_instances setting)
-            validate_instance_url(url_str, allow_local=settings.allow_local_instances)
-        except SSRFError as e:
-            raise ValueError(f"URL blocked for security: {e}") from e
-        except Exception as e:
-            raise ValueError(f"Invalid URL: {e}") from e
-
-        return v
-
     timeout_seconds: int = Field(
         default=30,
         ge=5,
@@ -81,69 +100,23 @@ class InstanceCreate(BaseModel):
         description="Maximum requests per minute to this instance (10-300)",
     )
 
+    @field_validator("url")
+    @classmethod
+    def validate_url_ssrf(cls, v: HttpUrl) -> HttpUrl:
+        """Validate URL against SSRF attacks."""
+        return _validate_url_ssrf(v)
+
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
-        """
-        Validate instance name format.
-
-        Instance name must:
-        - Be 3-50 characters long
-        - Not be only whitespace
-
-        Args:
-            v: Instance name to validate
-
-        Returns:
-            str: Validated name
-
-        Raises:
-            ValueError: If name format is invalid
-        """
-        stripped = v.strip()
-        if not stripped:
-            raise ValueError("Instance name cannot be empty or only whitespace")
-
-        if len(stripped) < 3:
-            raise ValueError("Instance name must be at least 3 characters long")
-
-        return stripped
+        """Validate instance name format."""
+        return _validate_instance_name(v)
 
     @field_validator("api_key")
     @classmethod
     def validate_api_key(cls, v: str) -> str:
-        """
-        Validate API key format.
-
-        API key must:
-        - Be at least 20 characters long
-        - Not be only whitespace
-        - Not contain obviously invalid characters
-
-        Args:
-            v: API key to validate
-
-        Returns:
-            str: Validated API key
-
-        Raises:
-            ValueError: If API key format is invalid
-        """
-        stripped = v.strip()
-        if not stripped:
-            raise ValueError("API key cannot be empty or only whitespace")
-
-        if len(stripped) < 20:
-            raise ValueError(
-                "API key must be at least 20 characters long. "
-                "Check your Sonarr/Radarr settings for the correct API key."
-            )
-
-        # Check for common mistakes
-        if " " in stripped:
-            raise ValueError("API key should not contain spaces")
-
-        return stripped
+        """Validate API key format."""
+        return _validate_api_key_format(v)
 
     model_config = {
         "json_schema_extra": {
@@ -206,58 +179,19 @@ class InstanceUpdate(BaseModel):
     @classmethod
     def validate_url_ssrf(cls, v: HttpUrl | None) -> HttpUrl | None:
         """Validate URL against SSRF attacks if provided."""
-        if v is None:
-            return v
-
-        url_str = str(v)
-
-        try:
-            # Check for SSRF (respects allow_local_instances setting)
-            validate_instance_url(url_str, allow_local=settings.allow_local_instances)
-        except SSRFError as e:
-            raise ValueError(f"URL blocked for security: {e}") from e
-        except Exception as e:
-            raise ValueError(f"Invalid URL: {e}") from e
-
-        return v
+        return _validate_url_ssrf(v) if v is not None else None
 
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str | None) -> str | None:
         """Validate instance name format if provided."""
-        if v is None:
-            return v
-
-        stripped = v.strip()
-        if not stripped:
-            raise ValueError("Instance name cannot be empty or only whitespace")
-
-        if len(stripped) < 3:
-            raise ValueError("Instance name must be at least 3 characters long")
-
-        return stripped
+        return _validate_instance_name(v) if v is not None else None
 
     @field_validator("api_key")
     @classmethod
     def validate_api_key(cls, v: str | None) -> str | None:
         """Validate API key format if provided."""
-        if v is None:
-            return v
-
-        stripped = v.strip()
-        if not stripped:
-            raise ValueError("API key cannot be empty or only whitespace")
-
-        if len(stripped) < 20:
-            raise ValueError(
-                "API key must be at least 20 characters long. "
-                "Check your Sonarr/Radarr settings for the correct API key."
-            )
-
-        if " " in stripped:
-            raise ValueError("API key should not contain spaces")
-
-        return stripped
+        return _validate_api_key_format(v) if v is not None else None
 
     model_config = {
         "json_schema_extra": {

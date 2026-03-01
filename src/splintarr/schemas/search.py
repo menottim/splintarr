@@ -25,6 +25,16 @@ SearchExecutionStatus = Literal["success", "partial_success", "failed"]
 SearchQueueStatus = Literal["pending", "in_progress", "completed", "failed", "cancelled"]
 
 
+def _validate_search_name(v: str) -> str:
+    """Strip and validate a search queue name (min 3 non-whitespace chars)."""
+    stripped = v.strip()
+    if not stripped:
+        raise ValueError("Search name cannot be empty or only whitespace")
+    if len(stripped) < 3:
+        raise ValueError("Search name must be at least 3 characters long")
+    return stripped
+
+
 class SearchQueueCreate(BaseModel):
     """
     Schema for creating a search queue item.
@@ -81,26 +91,8 @@ class SearchQueueCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def validate_name(cls, v: str) -> str:
-        """
-        Validate search queue name format.
-
-        Args:
-            v: Search name to validate
-
-        Returns:
-            str: Validated name
-
-        Raises:
-            ValueError: If name format is invalid
-        """
-        stripped = v.strip()
-        if not stripped:
-            raise ValueError("Search name cannot be empty or only whitespace")
-
-        if len(stripped) < 3:
-            raise ValueError("Search name must be at least 3 characters long")
-
-        return stripped
+        """Validate search queue name format."""
+        return _validate_search_name(v)
 
     @field_validator("cooldown_hours")
     @classmethod
@@ -114,20 +106,7 @@ class SearchQueueCreate(BaseModel):
     @field_validator("interval_hours")
     @classmethod
     def validate_interval_hours(cls, v: int | None, info) -> int | None:
-        """
-        Validate interval_hours is provided if recurring is True.
-
-        Args:
-            v: Interval hours value
-            info: Validation context with other field values
-
-        Returns:
-            int | None: Validated interval hours
-
-        Raises:
-            ValueError: If recurring is True but interval_hours is not provided
-        """
-        # Check if recurring is True
+        """Validate interval_hours is provided if recurring is True."""
         if hasattr(info, "data") and info.data.get("recurring", False):
             if v is None:
                 raise ValueError(
@@ -136,10 +115,6 @@ class SearchQueueCreate(BaseModel):
                 )
             if v < 1 or v > 168:
                 raise ValueError("interval_hours must be between 1 and 168 hours (7 days)")
-        elif v is not None:
-            # If recurring is False but interval_hours is provided, that's OK but warn
-            pass
-
         return v
 
     model_config = {
@@ -222,17 +197,7 @@ class SearchQueueUpdate(BaseModel):
     @classmethod
     def validate_name(cls, v: str | None) -> str | None:
         """Validate search queue name format if provided."""
-        if v is None:
-            return v
-
-        stripped = v.strip()
-        if not stripped:
-            raise ValueError("Search name cannot be empty or only whitespace")
-
-        if len(stripped) < 3:
-            raise ValueError("Search name must be at least 3 characters long")
-
-        return stripped
+        return _validate_search_name(v) if v is not None else None
 
     model_config = {
         "json_schema_extra": {
