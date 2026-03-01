@@ -277,9 +277,6 @@ app.include_router(exclusions.router)
 app.include_router(config.router)
 
 
-# Root endpoint removed - handled by dashboard.router
-
-
 @app.get("/health", tags=["health"])
 async def health_check():
     """

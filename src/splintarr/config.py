@@ -261,75 +261,45 @@ class Settings(BaseSettings):
         le=10,
     )
 
-    def get_secret_key(self) -> str:
+    def _get_secret(self, name: str, file_path: str | None, env_value: str) -> str:
         """
-        Retrieve secret key from file or environment variable.
+        Retrieve a secret from file or environment variable.
 
         Hierarchy:
-        1. Docker secret file (SECRET_KEY_FILE)
-        2. Environment variable (SECRET_KEY)
+        1. Docker secret file ({name}_FILE)
+        2. Environment variable ({name})
+
+        Args:
+            name: Secret name for error messages (e.g., "SECRET_KEY")
+            file_path: Optional path to secret file (Docker secret)
+            env_value: Value from environment variable
 
         Returns:
-            str: The secret key for JWT signing
+            str: The secret value
 
         Raises:
-            RuntimeError: If secret key is not configured or is too short
+            RuntimeError: If secret is not configured or is too short
         """
-        key = self._read_secret(self.secret_key_file, self.secret_key)
-        if not key:
+        value = self._read_secret(file_path, env_value)
+        if not value:
             raise RuntimeError(
-                "SECRET_KEY not configured. Set SECRET_KEY or SECRET_KEY_FILE environment variable."
+                f"{name} not configured. Set {name} or {name}_FILE environment variable."
             )
-        if len(key) < 32:
-            raise RuntimeError("SECRET_KEY must be at least 32 characters (256 bits)")
-        return key
+        if len(value) < 32:
+            raise RuntimeError(f"{name} must be at least 32 characters (256 bits)")
+        return value
+
+    def get_secret_key(self) -> str:
+        """Retrieve JWT secret key from file or environment variable."""
+        return self._get_secret("SECRET_KEY", self.secret_key_file, self.secret_key)
 
     def get_pepper(self) -> str:
-        """
-        Retrieve pepper from file or environment variable.
-
-        Hierarchy:
-        1. Docker secret file (PEPPER_FILE)
-        2. Environment variable (PEPPER)
-
-        Returns:
-            str: The pepper for password hashing
-
-        Raises:
-            RuntimeError: If pepper is not configured or is too short
-        """
-        pepper = self._read_secret(self.pepper_file, self.pepper)
-        if not pepper:
-            raise RuntimeError(
-                "PEPPER not configured. Set PEPPER or PEPPER_FILE environment variable."
-            )
-        if len(pepper) < 32:
-            raise RuntimeError("PEPPER must be at least 32 characters (256 bits)")
-        return pepper
+        """Retrieve password hashing pepper from file or environment variable."""
+        return self._get_secret("PEPPER", self.pepper_file, self.pepper)
 
     def get_database_key(self) -> str:
-        """
-        Retrieve database encryption key from file or environment variable.
-
-        Hierarchy:
-        1. Docker secret file (DATABASE_KEY_FILE)
-        2. Environment variable (DATABASE_KEY)
-
-        Returns:
-            str: The database encryption key for SQLCipher
-
-        Raises:
-            RuntimeError: If database key is not configured or is too short
-        """
-        key = self._read_secret(self.database_key_file, self.database_key)
-        if not key:
-            raise RuntimeError(
-                "DATABASE_KEY not configured. Set DATABASE_KEY or DATABASE_KEY_FILE "
-                "environment variable."
-            )
-        if len(key) < 32:
-            raise RuntimeError("DATABASE_KEY must be at least 32 characters (256 bits)")
-        return key
+        """Retrieve database encryption key from file or environment variable."""
+        return self._get_secret("DATABASE_KEY", self.database_key_file, self.database_key)
 
     def get_database_url(self) -> str:
         """
@@ -373,12 +343,13 @@ class Settings(BaseSettings):
             str: The secret value
         """
         # Try Docker secret file first
-        if file_path and os.path.exists(file_path):
-            try:
-                secret_file = Path(file_path)
-                return secret_file.read_text().strip()
-            except Exception as e:
-                raise RuntimeError(f"Failed to read secret from {file_path}: {e}") from e
+        if file_path:
+            secret_path = Path(file_path)
+            if secret_path.exists():
+                try:
+                    return secret_path.read_text().strip()
+                except Exception as e:
+                    raise RuntimeError(f"Failed to read secret from {file_path}: {e}") from e
 
         # Fall back to environment variable
         return env_value
@@ -389,15 +360,6 @@ class Settings(BaseSettings):
         """Constrain JWT algorithm to HS256 to prevent algorithm confusion attacks."""
         if v != "HS256":
             raise ValueError(f"Invalid JWT algorithm: {v}. Only 'HS256' is allowed.")
-        return v
-
-    @field_validator("environment")
-    @classmethod
-    def validate_environment(cls, v: str) -> str:
-        """Validate environment setting."""
-        valid_environments = {"development", "production", "test"}
-        if v not in valid_environments:
-            raise ValueError(f"Invalid environment: {v}. Must be one of {valid_environments}")
         return v
 
     @field_validator("reload")
@@ -434,77 +396,45 @@ class Settings(BaseSettings):
             )
         return v
 
-    @field_validator("database_kdf_iter")
-    @classmethod
-    def validate_database_kdf_iter(cls, v: int) -> int:
-        """Validate KDF iterations to prevent SQL injection and DoS."""
-        if not isinstance(v, int):
-            raise ValueError("kdf_iter must be an integer")
-        if v < 64000:
-            raise ValueError("kdf_iter must be at least 64,000 for security")
-        if v > 10000000:
-            raise ValueError("kdf_iter must not exceed 10,000,000 to prevent DoS")
+    @staticmethod
+    def _validate_secret_field(v: str, field_name: str, display_name: str) -> str:
+        """
+        Validate a secret field meets minimum security requirements.
+
+        Allows empty values when the corresponding _FILE env var is set
+        (Docker secrets mode), since the get_* methods read from file at runtime.
+        """
+        if not v:
+            if os.environ.get(f"{field_name}_FILE"):
+                return v
+            raise ValueError(
+                f"{display_name} is required. Set {field_name} environment variable "
+                f"or use {field_name}_FILE for Docker secrets."
+            )
+        if len(v) < 32:
+            raise ValueError(
+                f"{display_name} must be at least 32 bytes (256 bits). "
+                "Generate a secure key with: openssl rand -base64 32"
+            )
         return v
 
     @field_validator("secret_key")
     @classmethod
     def validate_secret_key(cls, v: str) -> str:
         """Validate JWT secret key meets minimum security requirements."""
-        if not v:
-            # Allow empty when SECRET_KEY_FILE is set (Docker secrets mode).
-            # The get_secret_key() method will read from the file at runtime.
-            if os.environ.get("SECRET_KEY_FILE"):
-                return v
-            raise ValueError(
-                "JWT secret key is required. Set SECRET_KEY environment variable "
-                "or use SECRET_KEY_FILE for Docker secrets."
-            )
-        if len(v) < 32:
-            raise ValueError(
-                "JWT secret key must be at least 32 bytes (256 bits). "
-                "Generate a secure key with: openssl rand -base64 32"
-            )
-        return v
+        return cls._validate_secret_field(v, "SECRET_KEY", "JWT secret key")
 
     @field_validator("database_key")
     @classmethod
     def validate_database_key(cls, v: str) -> str:
         """Validate database encryption key meets minimum security requirements."""
-        if not v:
-            # Allow empty when DATABASE_KEY_FILE is set (Docker secrets mode).
-            # The get_database_key() method will read from the file at runtime.
-            if os.environ.get("DATABASE_KEY_FILE"):
-                return v
-            raise ValueError(
-                "Database encryption key is required. Set DATABASE_KEY environment variable "
-                "or use DATABASE_KEY_FILE for Docker secrets."
-            )
-        if len(v) < 32:
-            raise ValueError(
-                "Database encryption key must be at least 32 bytes (256 bits). "
-                "Generate a secure key with: openssl rand -base64 32"
-            )
-        return v
+        return cls._validate_secret_field(v, "DATABASE_KEY", "Database encryption key")
 
     @field_validator("pepper")
     @classmethod
     def validate_pepper(cls, v: str) -> str:
         """Validate password hashing pepper meets minimum security requirements."""
-        if not v:
-            # Allow empty when PEPPER_FILE is set (Docker secrets mode).
-            # The get_pepper() method will read from the file at runtime.
-            if os.environ.get("PEPPER_FILE"):
-                return v
-            raise ValueError(
-                "Password hashing pepper is required. Set PEPPER environment variable "
-                "or use PEPPER_FILE for Docker secrets."
-            )
-        if len(v) < 32:
-            raise ValueError(
-                "Password hashing pepper must be at least 32 bytes (256 bits). "
-                "Generate a secure key with: openssl rand -base64 32"
-            )
-        return v
+        return cls._validate_secret_field(v, "PEPPER", "Password hashing pepper")
 
 
 # Global settings instance

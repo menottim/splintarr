@@ -103,7 +103,7 @@ def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
         # Automatically reclaim free space
         # Note: Skip for in-memory databases as auto_vacuum breaks SQLCipher :memory: databases
         result = cursor.execute("PRAGMA database_list").fetchall()
-        is_memory = any(row[2] == ":memory:" or row[2] == "" for row in result)
+        is_memory = any(row[2] in (":memory:", "") for row in result)
 
         if not is_memory:
             cursor.execute("PRAGMA auto_vacuum = FULL")
