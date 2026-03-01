@@ -28,6 +28,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from splintarr.api import (
     auth,
+    config,
     dashboard,
     exclusions,
     instances,
@@ -273,6 +274,7 @@ app.include_router(search_history.router)
 app.include_router(library.router)
 app.include_router(notifications.router)
 app.include_router(exclusions.router)
+app.include_router(config.router)
 
 
 # Root endpoint removed - handled by dashboard.router
