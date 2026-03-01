@@ -16,12 +16,13 @@ across configured instances.
 
 import json
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
 from sqlalchemy.orm import Session
 
+from splintarr.config import settings
 from splintarr.core.security import decrypt_api_key, decrypt_field
 from splintarr.models import Instance, NotificationConfig, SearchHistory, SearchQueue
 from splintarr.services.cooldown import is_in_cooldown
@@ -193,6 +194,30 @@ class SearchQueueManager:
                         items_found=result["items_found"],
                         duration_seconds=0.0,  # duration not tracked yet
                     )
+
+                # Schedule feedback check to detect grabs after delay
+                if result.get("searches_triggered", 0) > 0:
+                    try:
+                        from splintarr.services.scheduler import get_scheduler
+
+                        scheduler = get_scheduler(self.db_session_factory)
+                        scheduler.scheduler.add_job(
+                            scheduler._execute_feedback_check,
+                            trigger="date",
+                            run_date=datetime.utcnow()
+                            + timedelta(minutes=settings.feedback_check_delay_minutes),
+                            id=f"feedback_check_{history.id}",
+                            args=[history.id, instance.id],
+                            replace_existing=True,
+                        )
+                        logger.info(
+                            "feedback_check_scheduled",
+                            history_id=history.id,
+                            instance_id=instance.id,
+                            delay_minutes=settings.feedback_check_delay_minutes,
+                        )
+                    except Exception as e:
+                        logger.warning("feedback_check_schedule_failed", error=str(e))
 
                 return result
 

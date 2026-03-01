@@ -443,6 +443,20 @@ class SearchScheduler:
             finally:
                 db.close()
 
+    async def _execute_feedback_check(self, history_id: int, instance_id: int) -> None:
+        """Execute feedback check for a completed search run."""
+        db = self.db_session_factory()
+        try:
+            from splintarr.services.feedback import FeedbackCheckService
+
+            service = FeedbackCheckService(db)
+            result = await service.check_search_results(history_id, instance_id)
+            logger.info("feedback_check_execution_completed", history_id=history_id, **result)
+        except Exception as e:
+            logger.error("feedback_check_execution_failed", history_id=history_id, error=str(e))
+        finally:
+            db.close()
+
     async def _execute_health_check(self) -> None:
         """Execute periodic health check for all instances."""
         db = self.db_session_factory()
