@@ -291,6 +291,7 @@ class FeedbackCheckService:
             history.search_metadata = json.dumps(entries)
             self.db.commit()
         except Exception as e:
+            self.db.rollback()
             logger.warning(
                 "feedback_check_metadata_save_failed",
                 history_id=history.id,
