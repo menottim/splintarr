@@ -19,7 +19,7 @@ alembic = "^1.14.0"
 argon2-cffi = "^23.1.0"
 PyJWT = {extras = ["crypto"], version = "^2.10.0"}
 python-multipart = "^0.0.20"
-cryptography = "^44.0.0"
+cryptography = "^46.0.5"
 pyotp = "^2.9.0"
 qrcode = {extras = ["pil"], version = "^8.0"}
 httpx = "^0.27.0"
