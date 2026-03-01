@@ -182,5 +182,5 @@ async def integrity_check(
         )
         return JSONResponse(
             status_code=500,
-            content={"status": "error", "details": [str(e)]},
+            content={"status": "error", "details": ["Database integrity check could not be completed"]},
         )
