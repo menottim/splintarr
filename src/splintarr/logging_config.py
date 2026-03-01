@@ -99,6 +99,20 @@ def rotation_namer(default_name: str) -> str:
     return str(dir_name / new_name)
 
 
+def _create_file_handler(path: Path, level: int, fmt: str) -> logging.handlers.RotatingFileHandler:
+    """Create a rotating file handler with standard rotation settings."""
+    handler = logging.handlers.RotatingFileHandler(
+        path,
+        maxBytes=10 * 1024 * 1024,  # 10 MB
+        backupCount=5,
+        encoding="utf-8",
+    )
+    handler.namer = rotation_namer
+    handler.setLevel(level)
+    handler.setFormatter(logging.Formatter(fmt, datefmt="%Y-%m-%d %H:%M:%S"))
+    return handler
+
+
 def configure_logging() -> None:
     """
     Configure comprehensive application logging.
@@ -149,19 +163,15 @@ def configure_logging() -> None:
     ]
 
     # Setup handlers
-    handlers = []
+    handlers: list[logging.Handler] = []
 
     # 1. Console Handler - Always enabled
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
 
     if is_production:
-        # Production: JSON format for easy parsing
-        console_formatter = logging.Formatter(
-            "%(message)s"  # structlog will handle formatting
-        )
+        console_formatter = logging.Formatter("%(message)s")
     else:
-        # Development: Human-readable format with colors
         console_formatter = logging.Formatter(
             "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
@@ -171,55 +181,35 @@ def configure_logging() -> None:
     handlers.append(console_handler)
 
     # 2. All logs file handler (INFO+ by default, DEBUG+ if debug mode)
-    all_file_handler = logging.handlers.RotatingFileHandler(
-        log_dir / "all.log",
-        maxBytes=10 * 1024 * 1024,  # 10 MB
-        backupCount=5,
-        encoding="utf-8",
+    _standard_fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    handlers.append(
+        _create_file_handler(
+            log_dir / "all.log",
+            logging.DEBUG if is_debug else logging.INFO,
+            _standard_fmt,
+        )
     )
-    all_file_handler.namer = rotation_namer  # Use datetime-based naming
-    all_file_handler.setLevel(logging.DEBUG if is_debug else logging.INFO)
-    all_file_formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    all_file_handler.setFormatter(all_file_formatter)
-    handlers.append(all_file_handler)
 
     # 3. Error file handler (ERROR and CRITICAL only)
-    error_file_handler = logging.handlers.RotatingFileHandler(
-        log_dir / "error.log",
-        maxBytes=10 * 1024 * 1024,  # 10 MB
-        backupCount=5,
-        encoding="utf-8",
+    handlers.append(
+        _create_file_handler(
+            log_dir / "error.log",
+            logging.ERROR,
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s\n"
+            "%(pathname)s:%(lineno)d\n"
+            "%(message)s\n",
+        )
     )
-    error_file_handler.namer = rotation_namer  # Use datetime-based naming
-    error_file_handler.setLevel(logging.ERROR)
-    error_file_formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s\n"
-        "%(pathname)s:%(lineno)d\n"
-        "%(message)s\n",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-    error_file_handler.setFormatter(error_file_formatter)
-    handlers.append(error_file_handler)
 
     # 4. Debug file handler (only in debug mode)
     if is_debug:
-        debug_file_handler = logging.handlers.RotatingFileHandler(
-            log_dir / "debug.log",
-            maxBytes=10 * 1024 * 1024,  # 10 MB
-            backupCount=5,
-            encoding="utf-8",
+        handlers.append(
+            _create_file_handler(
+                log_dir / "debug.log",
+                logging.DEBUG,
+                "%(asctime)s [%(levelname)s] %(name)s:%(funcName)s:%(lineno)d\n%(message)s\n",
+            )
         )
-        debug_file_handler.namer = rotation_namer  # Use datetime-based naming
-        debug_file_handler.setLevel(logging.DEBUG)
-        debug_file_formatter = logging.Formatter(
-            "%(asctime)s [%(levelname)s] %(name)s:%(funcName)s:%(lineno)d\n%(message)s\n",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        debug_file_handler.setFormatter(debug_file_formatter)
-        handlers.append(debug_file_handler)
 
     # Configure root logger
     logging.basicConfig(
