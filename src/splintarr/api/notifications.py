@@ -89,9 +89,7 @@ async def get_notification_config(
     Returns 404 if no config exists yet.
     """
     config = (
-        db.query(NotificationConfig)
-        .filter(NotificationConfig.user_id == current_user.id)
-        .first()
+        db.query(NotificationConfig).filter(NotificationConfig.user_id == current_user.id).first()
     )
 
     if not config:
@@ -127,9 +125,7 @@ async def save_notification_config(
     Encrypts the webhook URL before storing.
     """
     config = (
-        db.query(NotificationConfig)
-        .filter(NotificationConfig.user_id == current_user.id)
-        .first()
+        db.query(NotificationConfig).filter(NotificationConfig.user_id == current_user.id).first()
     )
 
     encrypted_url = encrypt_field(payload.webhook_url)
@@ -180,9 +176,7 @@ async def test_notification(
     Returns success/failure based on Discord's response.
     """
     config = (
-        db.query(NotificationConfig)
-        .filter(NotificationConfig.user_id == current_user.id)
-        .first()
+        db.query(NotificationConfig).filter(NotificationConfig.user_id == current_user.id).first()
     )
 
     if not config:

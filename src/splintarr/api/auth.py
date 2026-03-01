@@ -32,13 +32,15 @@ from splintarr.core.auth import (
     generate_totp_qr_code_base64,
     generate_totp_secret,
     generate_totp_uri,
-    get_current_user_from_cookie as get_current_user,
     get_current_user_id_from_token,
     revoke_all_user_tokens,
     revoke_refresh_token,
     rotate_refresh_token,
     verify_2fa_pending_token,
     verify_totp_code,
+)
+from splintarr.core.auth import (
+    get_current_user_from_cookie as get_current_user,  # noqa: F401 — re-exported for other modules
 )
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.core.security import decrypt_field, encrypt_field, hash_password, verify_password
@@ -66,6 +68,19 @@ router = APIRouter(
     prefix="/api/auth",
     tags=["authentication"],
 )
+
+
+def _user_to_response(user: User) -> UserResponse:
+    """Convert a User model to a UserResponse schema."""
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        is_active=user.is_active,
+        is_superuser=user.is_superuser,
+        totp_enabled=user.totp_enabled,
+        created_at=user.created_at.isoformat(),
+        last_login=user.last_login.isoformat() if user.last_login else None,
+    )
 
 
 def get_client_ip(request: Request) -> str:
@@ -228,16 +243,7 @@ async def register(
             ip=get_client_ip(request),
         )
 
-        # Convert to response model
-        return UserResponse(
-            id=user.id,
-            username=user.username,
-            is_active=user.is_active,
-            is_superuser=user.is_superuser,
-            totp_enabled=user.totp_enabled,
-            created_at=user.created_at.isoformat(),
-            last_login=user.last_login.isoformat() if user.last_login else None,
-        )
+        return _user_to_response(user)
 
     except HTTPException:
         raise
@@ -329,15 +335,7 @@ async def login(
 
             return LoginSuccess(
                 message="2FA verification required",
-                user=UserResponse(
-                    id=user.id,
-                    username=user.username,
-                    is_active=user.is_active,
-                    is_superuser=user.is_superuser,
-                    totp_enabled=user.totp_enabled,
-                    created_at=user.created_at.isoformat(),
-                    last_login=user.last_login.isoformat() if user.last_login else None,
-                ),
+                user=_user_to_response(user),
                 token_type="bearer",
                 requires_2fa=True,
             )
@@ -362,18 +360,9 @@ async def login(
             ip=ip_address,
         )
 
-        # Return user information
         return LoginSuccess(
             message="Login successful",
-            user=UserResponse(
-                id=user.id,
-                username=user.username,
-                is_active=user.is_active,
-                is_superuser=user.is_superuser,
-                totp_enabled=user.totp_enabled,
-                created_at=user.created_at.isoformat(),
-                last_login=user.last_login.isoformat() if user.last_login else None,
-            ),
+            user=_user_to_response(user),
             token_type="bearer",
             requires_2fa=False,
         )
@@ -775,15 +764,7 @@ async def login_verify_2fa(
 
     return LoginSuccess(
         message="Login successful",
-        user=UserResponse(
-            id=user.id,
-            username=user.username,
-            is_active=user.is_active,
-            is_superuser=user.is_superuser,
-            totp_enabled=user.totp_enabled,
-            created_at=user.created_at.isoformat(),
-            last_login=user.last_login.isoformat() if user.last_login else None,
-        ),
+        user=_user_to_response(user),
         token_type="bearer",
         requires_2fa=False,
     )
@@ -947,8 +928,7 @@ async def change_password(
         revoke_all_user_tokens(db, user.id)
 
         # Blacklist current access token for immediate revocation
-        if access_token:
-            blacklist_access_token(access_token)
+        blacklist_access_token(access_token)
 
         logger.info("password_changed", user_id=user.id)
 

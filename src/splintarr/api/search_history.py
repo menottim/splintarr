@@ -19,6 +19,7 @@ from splintarr.api.auth import get_current_user
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db, get_session_factory
 from splintarr.models import Instance, SearchQueue, User
+from splintarr.models.search_history import SearchHistory
 from splintarr.schemas import MessageResponse, SearchHistoryResponse
 from splintarr.services import get_history_service
 
@@ -26,6 +27,42 @@ logger = structlog.get_logger()
 
 limiter = Limiter(key_func=rate_limit_key_func)
 router = APIRouter(prefix="/api/search-history", tags=["search-history"])
+
+
+def _history_to_response(h: SearchHistory) -> SearchHistoryResponse:
+    """Convert a SearchHistory model to a SearchHistoryResponse schema."""
+    return SearchHistoryResponse(
+        id=h.id,
+        instance_id=h.instance_id,
+        search_queue_id=h.search_queue_id,
+        search_name=h.search_name,
+        strategy=h.strategy,
+        started_at=h.started_at,
+        completed_at=h.completed_at,
+        duration_seconds=h.duration_seconds,
+        status=h.status,
+        items_searched=h.items_searched,
+        items_found=h.items_found,
+        searches_triggered=h.searches_triggered,
+        error_message=h.error_message,
+    )
+
+
+def _get_user_instance_ids(db: Session, user_id: int) -> list[int]:
+    """Get all instance IDs belonging to a user."""
+    return [i.id for i in db.query(Instance).filter(Instance.user_id == user_id).all()]
+
+
+def _validate_instance_access(db: Session, instance_id: int | None, user_id: int) -> None:
+    """Verify instance_id belongs to user, if provided. Raises HTTPException on denial."""
+    if instance_id is None:
+        return
+    user_instance_ids = _get_user_instance_ids(db, user_id)
+    if instance_id not in user_instance_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this instance",
+        )
 
 
 @router.get(
@@ -54,25 +91,13 @@ async def list_search_history(
     Returns search execution history for the current user's instances.
     """
     try:
-        # Get user's instance IDs
-        user_instance_ids = [
-            i.id for i in db.query(Instance).filter(Instance.user_id == current_user.id).all()
-        ]
+        _validate_instance_access(db, instance_id, current_user.id)
 
-        # If instance_id filter is provided, verify it belongs to user
-        if instance_id is not None and instance_id not in user_instance_ids:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this instance",
-            )
-
-        # Get history service
         history_service = get_history_service(get_session_factory())
 
         # If no instance_id filter, get history for all user instances
         if instance_id is None:
-            # For multiple instances, we need to query each separately and combine
-            # This is a simplification; in production you'd optimize this
+            user_instance_ids = _get_user_instance_ids(db, current_user.id)
             all_history = []
             for iid in user_instance_ids:
                 history = history_service.get_history(
@@ -87,13 +112,10 @@ async def list_search_history(
                 )
                 all_history.extend(history)
 
-            # Sort by most recent first
+            # Sort by most recent first and apply limit
             all_history.sort(key=lambda h: h.started_at, reverse=True)
-
-            # Apply limit
             all_history = all_history[:limit]
         else:
-            # Single instance query
             all_history = history_service.get_history(
                 instance_id=instance_id,
                 queue_id=queue_id,
@@ -105,24 +127,7 @@ async def list_search_history(
                 offset=offset,
             )
 
-        return [
-            SearchHistoryResponse(
-                id=h.id,
-                instance_id=h.instance_id,
-                search_queue_id=h.search_queue_id,
-                search_name=h.search_name,
-                strategy=h.strategy,
-                started_at=h.started_at,
-                completed_at=h.completed_at,
-                duration_seconds=h.duration_seconds,
-                status=h.status,
-                items_searched=h.items_searched,
-                items_found=h.items_found,
-                searches_triggered=h.searches_triggered,
-                error_message=h.error_message,
-            )
-            for h in all_history
-        ]
+        return [_history_to_response(h) for h in all_history]
 
     except HTTPException:
         raise
@@ -155,22 +160,9 @@ async def get_search_statistics(
     Returns aggregated metrics including success rates, items found, and trends.
     """
     try:
-        # Get user's instance IDs
-        user_instance_ids = [
-            i.id for i in db.query(Instance).filter(Instance.user_id == current_user.id).all()
-        ]
+        _validate_instance_access(db, instance_id, current_user.id)
 
-        # If instance_id filter is provided, verify it belongs to user
-        if instance_id is not None and instance_id not in user_instance_ids:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this instance",
-            )
-
-        # Get history service
         history_service = get_history_service(get_session_factory())
-
-        # Get statistics
         stats = history_service.get_statistics(
             instance_id=instance_id,
             queue_id=queue_id,
@@ -212,9 +204,7 @@ async def cleanup_search_history(
         history_service = get_history_service(get_session_factory())
 
         # Clean up old history scoped to the current user's instances
-        deleted_count = history_service.cleanup_old_history(
-            days=days, user_id=current_user.id
-        )
+        deleted_count = history_service.cleanup_old_history(days=days, user_id=current_user.id)
 
         logger.info(
             "search_history_cleaned_up",
@@ -255,45 +245,15 @@ async def get_recent_failures(
     Returns most recent failed searches for troubleshooting purposes.
     """
     try:
-        # Get user's instance IDs
-        user_instance_ids = [
-            i.id for i in db.query(Instance).filter(Instance.user_id == current_user.id).all()
-        ]
+        _validate_instance_access(db, instance_id, current_user.id)
 
-        # If instance_id filter is provided, verify it belongs to user
-        if instance_id is not None and instance_id not in user_instance_ids:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this instance",
-            )
-
-        # Get history service
         history_service = get_history_service(get_session_factory())
-
-        # Get recent failures
         failures = history_service.get_recent_failures(
             instance_id=instance_id,
             limit=limit,
         )
 
-        return [
-            SearchHistoryResponse(
-                id=h.id,
-                instance_id=h.instance_id,
-                search_queue_id=h.search_queue_id,
-                search_name=h.search_name,
-                strategy=h.strategy,
-                started_at=h.started_at,
-                completed_at=h.completed_at,
-                duration_seconds=h.duration_seconds,
-                status=h.status,
-                items_searched=h.items_searched,
-                items_found=h.items_found,
-                searches_triggered=h.searches_triggered,
-                error_message=h.error_message,
-            )
-            for h in failures
-        ]
+        return [_history_to_response(h) for h in failures]
 
     except HTTPException:
         raise
@@ -350,34 +310,14 @@ async def get_queue_history(
                 detail="Access denied to this search queue",
             )
 
-        # Get history service
         history_service = get_history_service(get_session_factory())
-
-        # Get queue history
         history = history_service.get_history(
             queue_id=queue_id,
             limit=limit,
             offset=offset,
         )
 
-        return [
-            SearchHistoryResponse(
-                id=h.id,
-                instance_id=h.instance_id,
-                search_queue_id=h.search_queue_id,
-                search_name=h.search_name,
-                strategy=h.strategy,
-                started_at=h.started_at,
-                completed_at=h.completed_at,
-                duration_seconds=h.duration_seconds,
-                status=h.status,
-                items_searched=h.items_searched,
-                items_found=h.items_found,
-                searches_triggered=h.searches_triggered,
-                error_message=h.error_message,
-            )
-            for h in history
-        ]
+        return [_history_to_response(h) for h in history]
 
     except HTTPException:
         raise

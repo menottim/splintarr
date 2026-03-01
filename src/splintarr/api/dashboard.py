@@ -946,9 +946,7 @@ async def get_dashboard_stats(db: Session, user: User) -> dict[str, Any]:
         or 0
     )
     grab_rate = (
-        round(total_grabs / total_search_attempts * 100, 1)
-        if total_search_attempts > 0
-        else 0.0
+        round(total_grabs / total_search_attempts * 100, 1) if total_search_attempts > 0 else 0.0
     )
 
     return {

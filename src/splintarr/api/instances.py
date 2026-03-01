@@ -515,9 +515,6 @@ class InstanceTestRequest(BaseModel):
             validate_instance_url(v, allow_local=settings.allow_local_instances)
         except SSRFError as e:
             raise ValueError(str(e)) from e
-        except ValueError:
-            raise
-
         return v
 
 
