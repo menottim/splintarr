@@ -2,7 +2,7 @@
 
 > **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. This is the sole source of truth; versioned PRDs have been retired.
 
-**Last updated:** 2026-02-28
+**Last updated:** 2026-03-01
 
 ---
 
@@ -97,77 +97,30 @@ Huntarr was the most popular tool in this space until critical security vulnerab
 
 ## Implemented Features
 
-### 1. Library Overview
+### v0.1.0
 
-**Status: Done** (PRs #37-40, 2026-02-27)
+- **Library Overview** (PRs #37-40) — Poster grid, missing content view, per-item detail with episode breakdown. Background sync every 6h. Poster cache.
 
-Pulls and caches series/movie data from connected Sonarr/Radarr instances. Poster grid, missing content view, per-item detail with episode breakdown. Background sync every 6 hours (configurable). Poster images cached locally.
+### v0.2.0
 
-### 2. Content Exclusion Lists
+- **Content Exclusion Lists** (PR #63) — Per-item exclusions with expiration (permanent, 7/30/90 days). Exclusion management page, bulk exclude, library badge. [Spec →](#2-content-exclusion-lists)
+- **Discord Notifications** (PR #62) — Fernet-encrypted webhook, per-event toggles, rich embeds, batched summaries, test button. [Spec →](#7-discord-notifications)
+- **Gold/Maroon Rebrand** (PR #69) — New triple-ring logo and color scheme. Screenshots updated (PR #73).
+- **Bug Fixes** (PRs #70, #72) — Setup wizard login timestamp (#67), mobile sidebar (#65), notification 404 (#66).
 
-**Status: Done** (PR #63, 2026-02-28) — see [detailed spec](#2-content-exclusion-lists)
+### v0.2.1
 
-Per-item exclusions with reason field and configurable expiration (permanent, 7/30/90 days). Exclusion management page with instance filter. Bulk exclude from library grid. Excluded items remain visible in library with badge. Exclusions checked before search execution.
+- **Health Monitoring & Auto-Recovery** (PR #74) — Periodic health checks (default 5 min), auto-pause/resume queues, Discord notifications on transitions, dashboard health indicators. [Spec →](#3-health-monitoring--auto-recovery)
+- **Clone Queue & Presets** (PR #75) — Clone button pre-fills Create modal. Three built-in presets (Aggressive Missing, Weekly Cutoff, New Releases). [Spec →](#4-clone-queue--presets)
+- **Enhanced Activity Polling** (PR #77) — Activity table live-updates every 15s, system status poll reduced to 30s, clear filters on Library/Exclusions. [Spec →](#5-enhanced-activity-polling)
+- **Config Export & Integrity Check** (PR #76) — JSON config download (secrets redacted), PRAGMA integrity check, settings accordion, toast notifications. [Spec →](#6-config-export--integrity-check)
 
-### 7. Discord Notifications
+### v0.3.0
 
-**Status: Done** (PR #62, 2026-02-28) — see [detailed spec](#7-discord-notifications)
-
-Discord webhook URL (Fernet-encrypted) with per-event toggles. Rich embeds with poster thumbnails. Batched summaries per search run. Test button in settings. Fires on: search completion, queue failure, instance health changes.
-
-### v0.2.0 Bug Fixes
-
-**Status: Done** (PRs #70, #72, 2026-02-28)
-
-Three bugs from E2E testing resolved: setup wizard login timestamp (#67 fixed), mobile sidebar (#65 verified correct), notification 404 (#66 verified correct).
-
-### Gold/Maroon Rebrand
-
-**Status: Done** (PR #69, 2026-02-28)
-
-New triple-ring logo and gold/maroon color scheme. All documentation screenshots updated (PR #73).
-
-### 3. Health Monitoring & Auto-Recovery
-
-**Status: Done** (PR #74, 2026-02-28) — see [detailed spec](#3-health-monitoring--auto-recovery)
-
-Periodic health checks every 5 minutes (configurable). Auto-pause queues when instance unreachable. Auto-resume after 2 consecutive healthy checks (anti-flapping). Discord notifications on status transitions. Dashboard shows response time, error details, failure count.
-
-### 4. Clone Queue & Presets
-
-**Status: Done** (PR #75, 2026-02-28) — see [detailed spec](#4-clone-queue--presets)
-
-Clone button on queue cards pre-fills Create modal with source queue settings. Three built-in presets (Aggressive Missing, Weekly Cutoff Unmet, New Releases) as client-side JS dropdown.
-
-### 5. Enhanced Activity Polling
-
-**Status: Done** (PR #77, 2026-02-28) — see [detailed spec](#5-enhanced-activity-polling)
-
-Dashboard activity table live-updates every 15s via `/api/dashboard/activity`. System status polling reduced to 30s. Clear filters link on Library and Exclusions pages.
-
-### 6. Config Export & Integrity Check
-
-**Status: Done** (PR #76, 2026-02-28) — see [detailed spec](#6-config-export--integrity-check)
-
-Config export as JSON download (instances, queues, exclusions, notification config — secrets redacted). Database integrity check via PRAGMA. Settings page refactored to accordion layout. UX polish: toast notifications replace browser alerts, loading state on save buttons.
-
-### 10. Adaptive Search Prioritization
-
-**Status: Done** (PR #78, 2026-03-01) — see [detailed spec](#10-adaptive-search-prioritization)
-
-Scoring engine with recency/attempts/staleness factors and strategy-aware weights. Items scored 0-100 before searching, sorted by priority. Score and top factor visible in search logs. Per-queue max_items_per_run (default 50) ensures only highest-priority items are searched.
-
-### 11. Search Cooldown Intelligence
-
-**Status: Done** (PR #79, 2026-03-01) — see [detailed spec](#11-search-cooldown-intelligence)
-
-Replaced 24h in-memory cooldown with persistent DB-backed tiered cooldowns (6h to 7d based on item age). Exponential backoff on repeated failures (capped at 14 days). Per-queue configurable: adaptive (default) or flat mode.
-
-### 12. Search Result Feedback Loop
-
-**Status: Done** (PR #80, 2026-03-01) — see [detailed spec](#12-search-result-feedback-loop)
-
-After search runs, schedules a one-shot job (default 15 min) to poll command statuses and detect grabs. Updates LibraryItem.grabs_confirmed. Dashboard shows grab rate metric. Feedback data feeds into scoring and cooldown calculations.
+- **Adaptive Search Prioritization** (PR #78) — Scoring engine (recency/attempts/staleness, strategy-aware weights), items scored 0-100, sort by priority, max_items_per_run batch limit. [Spec →](#10-adaptive-search-prioritization)
+- **Search Cooldown Intelligence** (PR #79) — DB-backed tiered cooldowns (6h to 7d by item age), exponential backoff (capped at 14 days), per-queue adaptive/flat mode. [Spec →](#11-search-cooldown-intelligence)
+- **Search Result Feedback Loop** (PR #80) — Post-search command polling (15 min delay), grab detection, LibraryItem.grabs_confirmed tracking, dashboard grab rate. [Spec →](#12-search-result-feedback-loop)
+- **Search Intelligence UI** (PR #81) — Score + reason in search logs, search stats on library detail, cooldown/batch config in queue modal, grab rate metric.
 
 ---
 
@@ -428,7 +381,6 @@ Upgrade the v0.2.1 enhanced polling (15s interval) to true WebSocket push at `/w
 |---|----------|---------|
 | 1 | Prowlarr API stability | Less documented than Sonarr/Radarr. Need to verify indexer rate limit fields are available. |
 | 2 | Season pack threshold | Default 3+ missing. Configurable per queue or global? |
-| 3 | Feedback loop delay | 15 min between search and status check — right balance? |
 
 ---
 
@@ -456,6 +408,14 @@ Upgrade the v0.2.1 enhanced polling (15s interval) to true WebSocket push at `/w
 | Bug #66 (notification 404) | Verified correct — browser console error, not a bug | 2026-02-28 |
 | Bug #67 (last login) | Fixed — `record_successful_login()` in setup wizard | 2026-02-28 |
 | PRD-v0.2.md | Deprecated and removed from repo; unified PRD is sole source of truth | 2026-02-28 |
+| Scoring data source | API response enriched with DB history (always search what *arr says is missing) | 2026-03-01 |
+| Scoring architecture | Unified scorer with strategy-aware weights (not separate scorers) | 2026-03-01 |
+| Cooldown persistence | DB-backed (LibraryItem columns), not in-memory | 2026-03-01 |
+| Cooldown granularity | Per-queue (adaptive or flat mode) | 2026-03-01 |
+| Grab detection | Poll command status after configurable delay (default 15 min) | 2026-03-01 |
+| Batch limits | Per-queue max_items_per_run (default 50) | 2026-03-01 |
+| Fetch strategy | Fetch all wanted items from API, accept read cost for accurate scoring | 2026-03-01 |
+| Feedback loop delay | 15 min default, configurable 5-60 min | 2026-03-01 |
 
 ---
 
