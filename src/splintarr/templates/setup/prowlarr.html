@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Prowlarr - Splintarr{% endblock %}
+
+{% block unauthenticated_content %}
+<div class="setup-wizard-container">
+    <!-- Progress indicator -->
+    <div class="setup-progress">
+        <span class="step completed" data-step="✓">Welcome</span>
+        <span class="step completed" data-step="✓">Admin Account</span>
+        <span class="step completed" data-step="✓">Instance</span>
+        <span class="step completed" data-step="✓">Notifications</span>
+        <span class="step active" data-step="5">Prowlarr</span>
+        <span class="step" data-step="6">Complete</span>
+    </div>
+
+    <hgroup>
+        <h1>Connect Prowlarr</h1>
+        <p>Enable indexer-aware rate limiting</p>
+    </hgroup>
+
+    <div class="setup-content">
+        <article>
+            <p>Prowlarr manages your indexers. Connecting it lets Splintarr respect per-indexer API limits, preventing bans and optimizing search budget.</p>
+
+            <div class="form-group">
+                <label for="prowlarr_url">
+                    Prowlarr URL
+                    <input
+                        type="url"
+                        id="prowlarr_url"
+                        placeholder="http://prowlarr:9696"
+                        autocomplete="off">
+                    <small>For Docker: try <code>http://prowlarr:9696</code> (same network) or <code>http://host.docker.internal:9696</code> (host machine)</small>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="prowlarr_api_key">
+                    API Key
+                    <input
+                        type="password"
+                        id="prowlarr_api_key"
+                        placeholder="Enter Prowlarr API key"
+                        autocomplete="off">
+                    <small>Found in Prowlarr under Settings > General > API Key</small>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label for="verify_ssl">
+                    <input
+                        type="checkbox"
+                        id="verify_ssl"
+                        role="switch"
+                        checked>
+                    Verify SSL
+                </label>
+            </div>
+
+            <div id="prowlarrStatus"></div>
+
+            <footer class="setup-actions">
+                <div class="btn-group">
+                    <a href="/setup/prowlarr/skip" role="button" class="secondary">Skip</a>
+                    <button type="button" id="testAndSaveBtn">Test & Save</button>
+                </div>
+            </footer>
+        </article>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.state.csp_nonce }}">
+function showStatus(message, isError) {
+    var el = document.getElementById('prowlarrStatus');
+    el.replaceChildren();
+    var alert = document.createElement('div');
+    alert.className = isError ? 'alert alert-danger' : 'alert alert-info';
+    alert.style.marginTop = '1rem';
+    alert.textContent = message;
+    el.replaceChildren(alert);
+}
+
+function showSuccess(message) {
+    var el = document.getElementById('prowlarrStatus');
+    el.replaceChildren();
+    var alert = document.createElement('div');
+    alert.className = 'alert alert-success';
+    alert.style.marginTop = '1rem';
+    alert.textContent = message;
+    el.replaceChildren(alert);
+}
+
+document.getElementById('testAndSaveBtn').addEventListener('click', async function() {
+    var btn = this;
+    var prowlarrUrl = document.getElementById('prowlarr_url').value.trim();
+    var apiKey = document.getElementById('prowlarr_api_key').value.trim();
+    var verifySsl = document.getElementById('verify_ssl').checked;
+
+    if (!prowlarrUrl) {
+        showStatus('Please enter a Prowlarr URL.', true);
+        return;
+    }
+
+    if (!apiKey) {
+        showStatus('Please enter a Prowlarr API key.', true);
+        return;
+    }
+
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    // Step 1: Save config
+    showStatus('Saving...', false);
+
+    var payload = {
+        url: prowlarrUrl,
+        api_key: apiKey,
+        verify_ssl: verifySsl
+    };
+
+    try {
+        var saveResponse = await fetch('/api/prowlarr/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!saveResponse.ok) {
+            var saveData = await saveResponse.json();
+            showStatus('Save failed: ' + (saveData.detail || 'Unknown error'), true);
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+            return;
+        }
+    } catch (error) {
+        showStatus('Save failed: ' + error.message, true);
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        return;
+    }
+
+    // Step 2: Test connection
+    showStatus('Testing connection...', false);
+
+    try {
+        var testResponse = await fetch('/api/prowlarr/test', {
+            method: 'POST'
+        });
+
+        var testData = await testResponse.json();
+        if (testResponse.ok) {
+            showSuccess('Connected! Redirecting...');
+            setTimeout(function() {
+                window.location.href = '/setup/complete';
+            }, 1500);
+            return;
+        } else {
+            showStatus('Test failed: ' + (testData.detail || testData.message || 'Unknown error'), true);
+        }
+    } catch (error) {
+        showStatus('Test failed: ' + error.message, true);
+    }
+
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+});
+</script>
+{% endblock %}

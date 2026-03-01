@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Notifications - Splintarr{% endblock %}
+
+{% block unauthenticated_content %}
+<div class="setup-wizard-container">
+    <!-- Progress indicator -->
+    <div class="setup-progress">
+        <span class="step completed" data-step="✓">Welcome</span>
+        <span class="step completed" data-step="✓">Admin Account</span>
+        <span class="step completed" data-step="✓">Instance</span>
+        <span class="step active" data-step="4">Notifications</span>
+        <span class="step" data-step="5">Prowlarr</span>
+        <span class="step" data-step="6">Complete</span>
+    </div>
+
+    <hgroup>
+        <h1>Set Up Notifications</h1>
+        <p>Get notified when searches find content</p>
+    </hgroup>
+
+    <div class="setup-content">
+        <article>
+            <div class="form-group">
+                <label for="webhook_url">
+                    Discord Webhook URL
+                    <input
+                        type="url"
+                        id="webhook_url"
+                        placeholder="https://discord.com/api/webhooks/..."
+                        autocomplete="off">
+                    <small>Paste your Discord webhook URL. Found in Discord > Server Settings > Integrations > Webhooks.</small>
+                </label>
+            </div>
+
+            <div id="notificationStatus"></div>
+
+            <footer class="setup-actions">
+                <div class="btn-group">
+                    <a href="/setup/notifications/skip" role="button" class="secondary">Skip</a>
+                    <button type="button" id="testAndSaveBtn">Test & Save</button>
+                </div>
+            </footer>
+        </article>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.state.csp_nonce }}">
+function showStatus(message, isError) {
+    var el = document.getElementById('notificationStatus');
+    el.replaceChildren();
+    var alert = document.createElement('div');
+    alert.className = isError ? 'alert alert-danger' : 'alert alert-info';
+    alert.style.marginTop = '1rem';
+    alert.textContent = message;
+    el.replaceChildren(alert);
+}
+
+function showSuccess(message) {
+    var el = document.getElementById('notificationStatus');
+    el.replaceChildren();
+    var alert = document.createElement('div');
+    alert.className = 'alert alert-success';
+    alert.style.marginTop = '1rem';
+    alert.textContent = message;
+    el.replaceChildren(alert);
+}
+
+document.getElementById('testAndSaveBtn').addEventListener('click', async function() {
+    var btn = this;
+    var webhookUrl = document.getElementById('webhook_url').value.trim();
+
+    if (!webhookUrl) {
+        showStatus('Please enter a Discord webhook URL.', true);
+        return;
+    }
+
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    // Step 1: Save config
+    showStatus('Saving...', false);
+
+    var payload = {
+        webhook_url: webhookUrl,
+        events_enabled: {
+            search_triggered: true,
+            queue_failed: true,
+            instance_health: true,
+            library_sync: true
+        },
+        is_active: true
+    };
+
+    try {
+        var saveResponse = await fetch('/api/notifications/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!saveResponse.ok) {
+            var saveData = await saveResponse.json();
+            showStatus('Save failed: ' + (saveData.detail || 'Unknown error'), true);
+            btn.disabled = false;
+            btn.removeAttribute('aria-busy');
+            return;
+        }
+    } catch (error) {
+        showStatus('Save failed: ' + error.message, true);
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        return;
+    }
+
+    // Step 2: Test notification
+    showStatus('Testing...', false);
+
+    try {
+        var testResponse = await fetch('/api/notifications/test', {
+            method: 'POST'
+        });
+
+        var testData = await testResponse.json();
+        if (testResponse.ok) {
+            showSuccess('Sent! Redirecting...');
+            setTimeout(function() {
+                window.location.href = '/setup/prowlarr';
+            }, 1500);
+            return;
+        } else {
+            showStatus('Test failed: ' + (testData.detail || testData.message || 'Unknown error'), true);
+        }
+    } catch (error) {
+        showStatus('Test failed: ' + error.message, true);
+    }
+
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
+});
+</script>
+{% endblock %}

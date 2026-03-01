@@ -34,6 +34,11 @@
             <button type="submit" id="totpSubmitBtn">Verify</button>
             <a href="/login" role="button" class="secondary outline" style="margin-top: 0.5rem; display: block; text-align: center;">Use a different account</a>
         </form>
+
+        <small style="display: block; text-align: center; margin-top: 1rem; color: var(--muted-color);">
+            Forgot your password? Reset via CLI:<br>
+            <code style="font-size: 0.75rem;">docker exec splintarr splintarr reset-password</code>
+        </small>
     </article>
 </div>
 {% endblock %}

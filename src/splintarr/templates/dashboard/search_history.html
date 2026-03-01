@@ -8,6 +8,39 @@
     <p>View past search operations and their results</p>
 </hgroup>
 
+<!-- Filter bar -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: end;">
+    <label style="margin-bottom: 0;">
+        <small>Instance</small>
+        <select id="filter-instance" onchange="applyHistoryFilters()">
+            <option value="">All Instances</option>
+            {% for inst in instances %}
+            <option value="{{ inst.id }}" {% if filters.instance_id|string == inst.id|string %}selected{% endif %}>{{ inst.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label style="margin-bottom: 0;">
+        <small>Strategy</small>
+        <select id="filter-strategy" onchange="applyHistoryFilters()">
+            <option value="">All</option>
+            <option value="missing" {% if filters.strategy == 'missing' %}selected{% endif %}>Missing</option>
+            <option value="cutoff_unmet" {% if filters.strategy == 'cutoff_unmet' %}selected{% endif %}>Cutoff Unmet</option>
+            <option value="recent" {% if filters.strategy == 'recent' %}selected{% endif %}>Recent</option>
+        </select>
+    </label>
+    <label style="margin-bottom: 0;">
+        <small>Status</small>
+        <select id="filter-status" onchange="applyHistoryFilters()">
+            <option value="">All</option>
+            <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+            <option value="failed" {% if filters.status == 'failed' %}selected{% endif %}>Failed</option>
+        </select>
+    </label>
+    {% if filters.instance_id or filters.strategy or filters.status %}
+    <a href="/dashboard/search-history" style="font-size: 0.875rem;">Clear filters</a>
+    {% endif %}
+</div>
+
 {% if history %}
 <article>
     <figure>
@@ -36,20 +69,22 @@
                     </td>
                     <td><code>{{ item.strategy }}</code></td>
                     <td>
-                        {% if item.status == 'completed' %}
-                        <span style="color: var(--ins-color);">✓ Completed</span>
-                        {% elif item.status == 'running' %}
-                        <span style="color: var(--primary);">⟳ Running</span>
+                        {% if item.status in ('success', 'partial_success') %}
+                        <span style="color: var(--ins-color);">&#10003; Completed</span>
                         {% elif item.status == 'failed' %}
-                        <span style="color: var(--del-color);">✗ Failed</span>
+                        <span style="color: var(--del-color);">&#10007; Failed</span>
                         {% else %}
                         <span style="color: var(--muted-color);">{{ item.status }}</span>
                         {% endif %}
                     </td>
                     <td>
-                        {{ item.items_searched or 0 }} searched
+                        {% if item.searches_triggered %}
+                        {{ item.searches_triggered }} searched
                         {% if item.items_found %}
-                        <br><small>{{ item.items_found }} found</small>
+                        <br><small>of {{ item.items_found }} eligible</small>
+                        {% endif %}
+                        {% else %}
+                        {{ item.items_found or 0 }} eligible
                         {% endif %}
                     </td>
                     <td>
@@ -98,6 +133,7 @@
 </article>
 {% else %}
 <article>
+    {% include "components/onboarding_steps.html" %}
     <p style="text-align: center; color: var(--muted-color); padding: 2rem;">
         No search history yet. Create a search queue to get started!
     </p>
@@ -119,10 +155,23 @@
             <dd>{{ per_page }}</dd>
         </dl>
     </article>
-
-    <article>
-        <h4>Filters</h4>
-        <p><small style="color: var(--muted-color);">Filter by instance, strategy, or date range from the <a href="/api/search-history">API</a>.</small></p>
-    </article>
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script nonce="{{ request.state.csp_nonce }}">
+function applyHistoryFilters() {
+    var params = new URLSearchParams();
+    var inst = document.getElementById('filter-instance').value;
+    var strategy = document.getElementById('filter-strategy').value;
+    var status = document.getElementById('filter-status').value;
+    if (inst) params.set('instance_id', inst);
+    if (strategy) params.set('strategy', strategy);
+    if (status) params.set('status', status);
+    var perPage = new URLSearchParams(window.location.search).get('per_page');
+    if (perPage) params.set('per_page', perPage);
+    var qs = params.toString();
+    window.location.href = '/dashboard/search-history' + (qs ? '?' + qs : '');
+}
+</script>
 {% endblock %}

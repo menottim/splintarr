@@ -59,6 +59,7 @@
 <article>
     <p class="empty-state">
         {% if stats.total_items == 0 %}
+        {% include "components/onboarding_steps.html" %}
         No library data yet. Click <strong>Refresh Library</strong> to sync from your instances, or <a href="/dashboard/instances">add an instance</a> first.
         {% else %}
         No items match the current filters.

@@ -29,6 +29,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from splintarr.api.auth import set_auth_cookies
+from splintarr.api.onboarding import get_onboarding_state
 from splintarr.config import settings
 from splintarr.core.auth import (
     TokenError,
@@ -516,9 +517,9 @@ async def setup_instance_create(
             instance_type=instance_type,
         )
 
-        # Redirect to completion page
+        # Redirect to notifications setup
         return RedirectResponse(
-            url="/setup/complete",
+            url="/setup/notifications",
             status_code=status.HTTP_302_FOUND,
         )
 
@@ -553,6 +554,82 @@ async def setup_instance_skip(
     """
     logger.info("setup_instance_skipped", user_id=current_user.id)
     return RedirectResponse(
+        url="/setup/notifications",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.get("/setup/notifications", response_class=HTMLResponse, include_in_schema=False)
+async def setup_notifications_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+) -> Response:
+    """
+    Setup wizard - notifications configuration page.
+    """
+    logger.debug("setup_notifications_page_rendered", user_id=current_user.id)
+    return templates.TemplateResponse(
+        "setup/notifications.html",
+        {
+            "request": request,
+            "app_name": settings.app_name,
+            "user": current_user,
+            "no_sidebar": True,
+        },
+    )
+
+
+@router.get("/setup/notifications/skip", response_class=HTMLResponse, include_in_schema=False)
+async def setup_notifications_skip(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+) -> Response:
+    """
+    Skip notifications configuration during setup.
+
+    Allows user to complete setup without configuring Discord notifications.
+    They can configure notifications later from the Settings page.
+    """
+    logger.info("setup_notifications_skipped", user_id=current_user.id)
+    return RedirectResponse(
+        url="/setup/prowlarr",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.get("/setup/prowlarr", response_class=HTMLResponse, include_in_schema=False)
+async def setup_prowlarr_page(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+) -> Response:
+    """
+    Setup wizard - Prowlarr configuration page.
+    """
+    logger.debug("setup_prowlarr_page_rendered", user_id=current_user.id)
+    return templates.TemplateResponse(
+        "setup/prowlarr.html",
+        {
+            "request": request,
+            "app_name": settings.app_name,
+            "user": current_user,
+            "no_sidebar": True,
+        },
+    )
+
+
+@router.get("/setup/prowlarr/skip", response_class=HTMLResponse, include_in_schema=False)
+async def setup_prowlarr_skip(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+) -> Response:
+    """
+    Skip Prowlarr configuration during setup.
+
+    Allows user to complete setup without connecting Prowlarr.
+    They can configure Prowlarr later from the Settings page.
+    """
+    logger.info("setup_prowlarr_skipped", user_id=current_user.id)
+    return RedirectResponse(
         url="/setup/complete",
         status_code=status.HTTP_302_FOUND,
     )
@@ -562,10 +639,14 @@ async def setup_instance_skip(
 async def setup_complete(
     request: Request,
     current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
 ) -> Response:
     """
     Setup wizard - completion page.
+
+    Shows a configuration summary of what was set up during the wizard.
     """
+    logger.debug("setup_complete_page_rendered", user_id=current_user.id)
     return templates.TemplateResponse(
         "setup/complete.html",
         {
@@ -573,6 +654,7 @@ async def setup_complete(
             "app_name": settings.app_name,
             "user": current_user,
             "no_sidebar": True,
+            "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
 
@@ -622,6 +704,7 @@ async def dashboard_index(
             "recent_searches": recent_searches,
             "instances": instances,
             "active_page": "dashboard",
+            "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
 
@@ -751,6 +834,7 @@ async def dashboard_search_queues(
             "queues": queues,
             "instances": instances,
             "active_page": "queues",
+            "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
 
@@ -808,33 +892,59 @@ async def dashboard_search_history(
     request: Request,
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=100),
+    instance_id: int | None = Query(default=None),
+    strategy: str | None = Query(default=None),
+    search_status: str | None = Query(default=None, alias="status"),
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
 ) -> Response:
     """
-    Search history page with pagination.
+    Search history page with pagination and filters.
     """
+    logger.debug(
+        "search_history_page_rendered",
+        user_id=current_user.id,
+        instance_id=instance_id,
+        strategy=strategy,
+        status=search_status,
+        page=page,
+    )
+
     # Calculate offset
     offset = (page - 1) * per_page
 
-    # Get total count
-    total_count = (
-        db.query(SearchHistory).join(Instance).filter(Instance.user_id == current_user.id).count()
-    )
+    # Build base query with user ownership filter
+    base_query = db.query(SearchHistory).join(Instance).filter(Instance.user_id == current_user.id)
 
-    # Get paginated history
+    # Apply optional filters
+    if instance_id is not None:
+        base_query = base_query.filter(SearchHistory.instance_id == instance_id)
+    if strategy:
+        base_query = base_query.filter(SearchHistory.strategy == strategy)
+    if search_status:
+        # Map UI status values to DB status values
+        status_map = {
+            "completed": ["success", "partial_success"],
+            "failed": ["failed"],
+        }
+        mapped = status_map.get(search_status, [search_status])
+        base_query = base_query.filter(SearchHistory.status.in_(mapped))
+
+    # Get total count (filtered)
+    total_count = base_query.count()
+
+    # Get paginated history (filtered)
     history = (
-        db.query(SearchHistory)
-        .join(Instance)
-        .filter(Instance.user_id == current_user.id)
-        .order_by(SearchHistory.started_at.desc())
-        .offset(offset)
-        .limit(per_page)
-        .all()
+        base_query.order_by(SearchHistory.started_at.desc()).offset(offset).limit(per_page).all()
     )
 
     # Calculate pagination
     total_pages = (total_count + per_page - 1) // per_page
+
+    # Get user's instances for the filter dropdown
+    instances = (
+        db.query(Instance).filter(Instance.user_id == current_user.id).order_by(Instance.name).all()
+    )
 
     return templates.TemplateResponse(
         "dashboard/search_history.html",
@@ -847,6 +957,13 @@ async def dashboard_search_history(
             "total_count": total_count,
             "total_pages": total_pages,
             "active_page": "history",
+            "instances": instances,
+            "filters": {
+                "instance_id": instance_id,
+                "strategy": strategy,
+                "status": search_status,
+            },
+            "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
 

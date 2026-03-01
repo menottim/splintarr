@@ -1,0 +1,18 @@
+{# Onboarding workflow tracker — include with: {% include "components/onboarding_steps.html" %} #}
+{# Requires: onboarding dict in template context #}
+{% if onboarding and not onboarding.has_searches %}
+<article style="margin-bottom: 1.5rem;">
+    <h4>Getting Started</h4>
+    <ol style="list-style: none; padding-left: 0;">
+        {% for step in onboarding.steps %}
+        <li style="padding: 0.25rem 0; {% if step.status == 'done' %}color: var(--ins-color);{% elif step.status == 'current' %}font-weight: bold;{% else %}color: var(--muted-color);{% endif %}">
+            {% if step.status == 'done' %}&#10003;{% elif step.status == 'current' %}&#10148;{% else %}&#9675;{% endif %}
+            {{ step.name }}
+            {% if step.status == 'current' and step.url %}
+            — <a href="{{ step.url }}">{{ step.action }}</a>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ol>
+</article>
+{% endif %}

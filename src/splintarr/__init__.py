@@ -1,6 +1,6 @@
 """Splintarr - Intelligent backlog search automation for Sonarr and Radarr."""
 
-from importlib.metadata import version, PackageNotFoundError
+from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("splintarr")

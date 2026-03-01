@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from slowapi import Limiter
 from sqlalchemy.orm import Session
 
+from splintarr.api.onboarding import get_onboarding_state
 from splintarr.core.auth import get_current_user_from_cookie
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db, get_session_factory
@@ -110,6 +111,7 @@ async def exclusions_page(
             "exclusions": exclusions,
             "instances": instances,
             "selected_instance_id": instance_id,
+            "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
 

@@ -9,6 +9,8 @@
         <span class="step completed" data-step="✓">Welcome</span>
         <span class="step completed" data-step="✓">Admin Account</span>
         <span class="step completed" data-step="✓">Instance</span>
+        <span class="step completed" data-step="✓">Notifications</span>
+        <span class="step completed" data-step="✓">Prowlarr</span>
         <span class="step active" data-step="✓">Complete</span>
     </div>
 
@@ -23,27 +25,32 @@
                 <strong>✓ Success!</strong> Your setup is complete and Splintarr is ready to use.
             </div>
 
-            <h3>What's Next?</h3>
-            <p>You've successfully configured Splintarr. Here's what you can do now:</p>
+            <h3>Configuration Summary</h3>
+            <dl>
+                <dt>Admin Account</dt>
+                <dd style="color: var(--ins-color);">✓ Created</dd>
 
-            <ol>
-                <li>
-                    <strong>Create Search Queues</strong><br>
-                    <small style="color: var(--muted-color);">Set up automated searches with different strategies (missing, cutoff unmet, recent)</small>
-                </li>
-                <li>
-                    <strong>Add More Instances</strong><br>
-                    <small style="color: var(--muted-color);">Connect additional Sonarr or Radarr instances if you have multiple setups</small>
-                </li>
-                <li>
-                    <strong>Configure Schedules</strong><br>
-                    <small style="color: var(--muted-color);">Set up recurring searches to run automatically at specified intervals</small>
-                </li>
-                <li>
-                    <strong>Monitor Activity</strong><br>
-                    <small style="color: var(--muted-color);">Track search history and statistics from the dashboard</small>
-                </li>
-            </ol>
+                <dt>Instance</dt>
+                {% if onboarding.has_instances %}
+                <dd style="color: var(--ins-color);">✓ {{ onboarding.instance_count }} configured</dd>
+                {% else %}
+                <dd style="color: var(--muted-color);">○ Skipped — <a href="/dashboard/instances">add from Instances page</a></dd>
+                {% endif %}
+
+                <dt>Notifications</dt>
+                {% if onboarding.has_notifications %}
+                <dd style="color: var(--ins-color);">✓ Discord configured</dd>
+                {% else %}
+                <dd style="color: var(--muted-color);">○ Skipped — <a href="/dashboard/settings">add from Settings</a></dd>
+                {% endif %}
+
+                <dt>Prowlarr</dt>
+                {% if onboarding.has_prowlarr %}
+                <dd style="color: var(--ins-color);">✓ Connected</dd>
+                {% else %}
+                <dd style="color: var(--muted-color);">○ Skipped — <a href="/dashboard/settings">add from Settings</a></dd>
+                {% endif %}
+            </dl>
 
             <h3>Tips for Getting Started</h3>
             <ul>
