@@ -148,6 +148,25 @@ class SearchQueue(Base):
         comment="JSON-encoded custom filter configuration",
     )
 
+    # Search intelligence (v0.3.0)
+    cooldown_mode = Column(
+        String(20),
+        default="adaptive",
+        nullable=False,
+        comment="Cooldown mode: 'adaptive' (tiered by age) or 'flat' (fixed hours)",
+    )
+    cooldown_hours = Column(
+        Integer,
+        nullable=True,
+        comment="Fixed cooldown hours when cooldown_mode='flat'",
+    )
+    max_items_per_run = Column(
+        Integer,
+        default=50,
+        nullable=False,
+        comment="Maximum items to search per queue execution (1-500)",
+    )
+
     # Timestamps
     created_at = Column(
         DateTime,

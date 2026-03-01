@@ -61,6 +61,22 @@ class SearchQueueCreate(BaseModel):
         default=None,
         description="JSON filters for custom search strategy",
     )
+    cooldown_mode: Literal["adaptive", "flat"] = Field(
+        default="adaptive",
+        description="Cooldown mode: 'adaptive' (tiered by age) or 'flat' (fixed hours)",
+    )
+    cooldown_hours: int | None = Field(
+        default=None,
+        ge=1,
+        le=336,
+        description="Fixed cooldown hours when cooldown_mode='flat' (1-336, i.e. 14 days max)",
+    )
+    max_items_per_run: int = Field(
+        default=50,
+        ge=1,
+        le=500,
+        description="Maximum items to search per queue execution (1-500)",
+    )
 
     @field_validator("name")
     @classmethod
@@ -85,6 +101,15 @@ class SearchQueueCreate(BaseModel):
             raise ValueError("Search name must be at least 3 characters long")
 
         return stripped
+
+    @field_validator("cooldown_hours")
+    @classmethod
+    def validate_cooldown_hours(cls, v: int | None, info) -> int | None:
+        """Validate cooldown_hours is provided when cooldown_mode is 'flat'."""
+        if hasattr(info, "data") and info.data.get("cooldown_mode") == "flat":
+            if v is None:
+                raise ValueError("cooldown_hours is required when cooldown_mode is 'flat'")
+        return v
 
     @field_validator("interval_hours")
     @classmethod
@@ -176,6 +201,22 @@ class SearchQueueUpdate(BaseModel):
         default=None,
         description="JSON filters for custom search strategy",
     )
+    cooldown_mode: Literal["adaptive", "flat"] | None = Field(
+        default=None,
+        description="Cooldown mode: 'adaptive' or 'flat'",
+    )
+    cooldown_hours: int | None = Field(
+        default=None,
+        ge=1,
+        le=336,
+        description="Fixed cooldown hours when cooldown_mode='flat'",
+    )
+    max_items_per_run: int | None = Field(
+        default=None,
+        ge=1,
+        le=500,
+        description="Maximum items to search per queue execution",
+    )
 
     @field_validator("name")
     @classmethod
@@ -226,6 +267,9 @@ class SearchQueueResponse(BaseModel):
     next_run: datetime | None = Field(None, description="Next scheduled execution time (ISO 8601)")
     last_run: datetime | None = Field(None, description="Last execution time (ISO 8601)")
     consecutive_failures: int = Field(..., description="Number of consecutive failed executions")
+    cooldown_mode: str = Field(default="adaptive", description="Cooldown mode")
+    cooldown_hours: int | None = Field(default=None, description="Fixed cooldown hours")
+    max_items_per_run: int = Field(default=50, description="Max items per search run")
     created_at: datetime = Field(..., description="Queue item creation timestamp (ISO 8601)")
 
     model_config = {

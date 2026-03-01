@@ -47,6 +47,9 @@ def _queue_to_response(queue: SearchQueue) -> SearchQueueResponse:
         next_run=queue.next_run,
         last_run=queue.last_run,
         consecutive_failures=queue.consecutive_failures,
+        cooldown_mode=queue.cooldown_mode or "adaptive",
+        cooldown_hours=queue.cooldown_hours,
+        max_items_per_run=queue.max_items_per_run or 50,
         created_at=queue.created_at,
     )
 
@@ -558,6 +561,9 @@ async def clone_search_queue(
             is_recurring=source.is_recurring,
             interval_hours=source.interval_hours,
             filters=source.filters,
+            cooldown_mode=source.cooldown_mode or "adaptive",
+            cooldown_hours=source.cooldown_hours,
+            max_items_per_run=source.max_items_per_run or 50,
             status="pending",
             is_active=True,
         )
