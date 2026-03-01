@@ -892,26 +892,52 @@ async def dashboard_search_history(
     request: Request,
     page: int = Query(default=1, ge=1),
     per_page: int = Query(default=20, ge=1, le=100),
+    instance_id: int | None = Query(default=None),
+    strategy: str | None = Query(default=None),
+    search_status: str | None = Query(default=None, alias="status"),
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
 ) -> Response:
     """
-    Search history page with pagination.
+    Search history page with pagination and filters.
     """
+    logger.debug(
+        "search_history_page_rendered",
+        user_id=current_user.id,
+        instance_id=instance_id,
+        strategy=strategy,
+        status=search_status,
+        page=page,
+    )
+
     # Calculate offset
     offset = (page - 1) * per_page
 
-    # Get total count
-    total_count = (
-        db.query(SearchHistory).join(Instance).filter(Instance.user_id == current_user.id).count()
+    # Build base query with user ownership filter
+    base_query = db.query(SearchHistory).join(Instance).filter(
+        Instance.user_id == current_user.id
     )
 
-    # Get paginated history
+    # Apply optional filters
+    if instance_id is not None:
+        base_query = base_query.filter(SearchHistory.instance_id == instance_id)
+    if strategy:
+        base_query = base_query.filter(SearchHistory.strategy == strategy)
+    if search_status:
+        # Map UI status values to DB status values
+        status_map = {
+            "completed": ["success", "partial_success"],
+            "failed": ["failed"],
+        }
+        mapped = status_map.get(search_status, [search_status])
+        base_query = base_query.filter(SearchHistory.status.in_(mapped))
+
+    # Get total count (filtered)
+    total_count = base_query.count()
+
+    # Get paginated history (filtered)
     history = (
-        db.query(SearchHistory)
-        .join(Instance)
-        .filter(Instance.user_id == current_user.id)
-        .order_by(SearchHistory.started_at.desc())
+        base_query.order_by(SearchHistory.started_at.desc())
         .offset(offset)
         .limit(per_page)
         .all()
@@ -919,6 +945,14 @@ async def dashboard_search_history(
 
     # Calculate pagination
     total_pages = (total_count + per_page - 1) // per_page
+
+    # Get user's instances for the filter dropdown
+    instances = (
+        db.query(Instance)
+        .filter(Instance.user_id == current_user.id)
+        .order_by(Instance.name)
+        .all()
+    )
 
     return templates.TemplateResponse(
         "dashboard/search_history.html",
@@ -931,6 +965,12 @@ async def dashboard_search_history(
             "total_count": total_count,
             "total_pages": total_pages,
             "active_page": "history",
+            "instances": instances,
+            "filters": {
+                "instance_id": instance_id,
+                "strategy": strategy,
+                "status": search_status,
+            },
             "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
