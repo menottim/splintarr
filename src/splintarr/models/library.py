@@ -6,6 +6,7 @@ instances. Updated on sync; never written by user action.
 """
 
 import json
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -136,6 +137,30 @@ class LibraryItem(Base):
         comment="Date the item was added to the *arr instance (from API)",
     )
 
+    # Search intelligence (v0.3.0)
+    search_attempts = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Total number of search attempts triggered for this item",
+    )
+    last_searched_at = Column(
+        DateTime,
+        nullable=True,
+        comment="UTC timestamp of the most recent search attempt",
+    )
+    grabs_confirmed = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Number of search attempts that resulted in a successful grab",
+    )
+    last_grab_at = Column(
+        DateTime,
+        nullable=True,
+        comment="UTC timestamp of the most recent successful grab",
+    )
+
     # Timestamps
     created_at = Column(
         DateTime,
@@ -203,6 +228,28 @@ class LibraryItem(Base):
                 library_item_id=self.id,
             )
             return {}
+
+    def record_search(self) -> None:
+        """Record that a search was triggered for this item."""
+        self.search_attempts = (self.search_attempts or 0) + 1
+        self.last_searched_at = datetime.utcnow()
+
+    def record_grab(self) -> None:
+        """Record that a search resulted in a successful grab."""
+        self.grabs_confirmed = (self.grabs_confirmed or 0) + 1
+        self.last_grab_at = datetime.utcnow()
+
+    @property
+    def grab_rate(self) -> float:
+        """Ratio of successful grabs to search attempts."""
+        if not self.search_attempts:
+            return 0.0
+        return self.grabs_confirmed / self.search_attempts
+
+    @property
+    def consecutive_failures(self) -> int:
+        """Search attempts since last grab (for cooldown backoff)."""
+        return max(0, (self.search_attempts or 0) - (self.grabs_confirmed or 0))
 
 
 class LibraryEpisode(Base):
