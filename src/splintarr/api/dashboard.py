@@ -29,6 +29,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from splintarr.api.auth import set_auth_cookies
+from splintarr.api.onboarding import get_onboarding_state
 from splintarr.config import settings
 from splintarr.core.auth import (
     TokenError,
@@ -638,10 +639,14 @@ async def setup_prowlarr_skip(
 async def setup_complete(
     request: Request,
     current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
 ) -> Response:
     """
     Setup wizard - completion page.
+
+    Shows a configuration summary of what was set up during the wizard.
     """
+    logger.debug("setup_complete_page_rendered", user_id=current_user.id)
     return templates.TemplateResponse(
         "setup/complete.html",
         {
@@ -649,6 +654,7 @@ async def setup_complete(
             "app_name": settings.app_name,
             "user": current_user,
             "no_sidebar": True,
+            "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
 
