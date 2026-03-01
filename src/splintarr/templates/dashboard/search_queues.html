@@ -155,6 +155,24 @@
                 <small>How often to run this search (1-168 hours)</small>
             </label>
 
+            <label>
+                Cooldown Mode
+                <select id="cooldown_mode" name="cooldown_mode">
+                    <option value="adaptive">Adaptive (recommended)</option>
+                    <option value="flat">Fixed interval</option>
+                </select>
+            </label>
+            <div id="flatCooldownRow" style="display: none;">
+                <label>
+                    Cooldown Hours
+                    <input type="number" id="cooldown_hours" name="cooldown_hours" min="1" max="336" value="24">
+                </label>
+            </div>
+            <label>
+                Max Items Per Run
+                <input type="number" id="max_items_per_run" name="max_items_per_run" min="1" max="500" value="50">
+            </label>
+
             <label for="name">
                 Queue Name
                 <input type="text" id="name" name="name" required placeholder="Auto-generated from selections above">
@@ -176,6 +194,10 @@
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
 document.getElementById('recurring').addEventListener('change', toggleRecurring);
+document.getElementById('cooldown_mode').addEventListener('change', function() {
+    document.getElementById('flatCooldownRow').style.display =
+        this.value === 'flat' ? '' : 'none';
+});
 document.addEventListener('click', function(e) {
     var target = e.target.closest('[data-action]');
     if (!target) return;
@@ -233,6 +255,7 @@ document.getElementById('instance_id').addEventListener('change', updateSuggeste
 document.getElementById('strategy').addEventListener('change', updateSuggestedName);
 
 function getFormData() {
+    var cooldownMode = document.getElementById('cooldown_mode').value;
     return {
         instance_id: parseInt(document.getElementById('instance_id').value),
         name: document.getElementById('name').value,
@@ -241,6 +264,11 @@ function getFormData() {
         interval_hours: document.getElementById('recurring').checked
             ? parseInt(document.getElementById('interval_hours').value)
             : null,
+        cooldown_mode: cooldownMode,
+        cooldown_hours: cooldownMode === 'flat'
+            ? parseInt(document.getElementById('cooldown_hours').value)
+            : null,
+        max_items_per_run: parseInt(document.getElementById('max_items_per_run').value) || 50,
     };
 }
 
@@ -378,6 +406,18 @@ async function cloneQueue(queueId) {
         document.getElementById('interval_hours').value = queue.interval_hours;
     }
 
+    if (queue.cooldown_mode) {
+        document.getElementById('cooldown_mode').value = queue.cooldown_mode;
+        document.getElementById('flatCooldownRow').style.display =
+            queue.cooldown_mode === 'flat' ? '' : 'none';
+    }
+    if (queue.cooldown_hours) {
+        document.getElementById('cooldown_hours').value = queue.cooldown_hours;
+    }
+    if (queue.max_items_per_run) {
+        document.getElementById('max_items_per_run').value = queue.max_items_per_run;
+    }
+
     document.getElementById('name').value = queue.name + ' (copy)';
     nameManuallyEdited = true;
 
@@ -385,9 +425,9 @@ async function cloneQueue(queueId) {
 }
 
 var PRESETS = {
-    'aggressive-missing': { strategy: 'missing', recurring: true, interval_hours: 1, nameSuffix: 'Aggressive Missing' },
-    'weekly-cutoff': { strategy: 'cutoff_unmet', recurring: true, interval_hours: 168, nameSuffix: 'Weekly Cutoff Unmet' },
-    'new-releases': { strategy: 'recent', recurring: true, interval_hours: 4, nameSuffix: 'New Releases' }
+    'aggressive-missing': { strategy: 'missing', recurring: true, interval_hours: 1, cooldown_mode: 'adaptive', max_items_per_run: 50, nameSuffix: 'Aggressive Missing' },
+    'weekly-cutoff': { strategy: 'cutoff_unmet', recurring: true, interval_hours: 168, cooldown_mode: 'adaptive', max_items_per_run: 50, nameSuffix: 'Weekly Cutoff Unmet' },
+    'new-releases': { strategy: 'recent', recurring: true, interval_hours: 4, cooldown_mode: 'adaptive', max_items_per_run: 50, nameSuffix: 'New Releases' }
 };
 
 function applyPreset(presetKey) {
@@ -404,6 +444,11 @@ function applyPreset(presetKey) {
     if (preset.interval_hours) {
         document.getElementById('interval_hours').value = preset.interval_hours;
     }
+
+    document.getElementById('cooldown_mode').value = preset.cooldown_mode || 'adaptive';
+    document.getElementById('flatCooldownRow').style.display =
+        (preset.cooldown_mode === 'flat') ? '' : 'none';
+    document.getElementById('max_items_per_run').value = preset.max_items_per_run || 50;
 
     nameManuallyEdited = false;
     updateSuggestedName();

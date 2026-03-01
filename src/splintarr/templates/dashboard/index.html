@@ -32,6 +32,11 @@
                 <p>Searches Today</p>
             </hgroup>
             <small id="stat-searches-detail">{{ stats.searches.this_week }} this week &middot; {{ stats.searches.success_rate }}% success rate</small>
+            {% if stats.searches.grab_rate and stats.searches.grab_rate > 0 %}
+            <br><small id="stat-grab-rate" style="color: var(--muted-color);">{{ stats.searches.grab_rate }}% grab rate</small>
+            {% else %}
+            <br><small id="stat-grab-rate" style="color: var(--muted-color);"></small>
+            {% endif %}
         </article>
     </a>
 
@@ -186,6 +191,14 @@ setInterval(async () => {
             if (qActive) qActive.textContent = stats.search_queues.active + ' active';
             if (sToday) sToday.textContent = stats.searches.today;
             if (sDetail) sDetail.textContent = stats.searches.this_week + ' this week \u00b7 ' + stats.searches.success_rate + '% success rate';
+            var grDetail = document.getElementById('stat-grab-rate');
+            if (grDetail) {
+                if (stats.searches.grab_rate !== undefined && stats.searches.grab_rate > 0) {
+                    grDetail.textContent = stats.searches.grab_rate + '% grab rate';
+                } else {
+                    grDetail.textContent = '';
+                }
+            }
         }
     } catch (error) {
         console.error('Failed to refresh stats:', error);

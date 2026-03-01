@@ -118,6 +118,27 @@
 </article>
 {% endif %}
 
+<!-- Search Stats -->
+{% if item.search_attempts and item.search_attempts > 0 %}
+<article>
+    <header><h4>Search Stats</h4></header>
+    <dl>
+        <dt>Search Attempts</dt>
+        <dd>{{ item.search_attempts }}</dd>
+        <dt>Grabs Confirmed</dt>
+        <dd>{{ item.grabs_confirmed or 0 }}</dd>
+        {% if item.last_searched_at %}
+        <dt>Last Searched</dt>
+        <dd>{{ item.last_searched_at|timeago }}</dd>
+        {% endif %}
+        {% if item.last_grab_at %}
+        <dt>Last Grab</dt>
+        <dd>{{ item.last_grab_at|timeago }}</dd>
+        {% endif %}
+    </dl>
+</article>
+{% endif %}
+
 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
     <a href="/dashboard/library" role="button" class="secondary">Back to Library</a>
     {% if is_excluded %}
