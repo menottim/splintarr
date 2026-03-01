@@ -704,6 +704,7 @@ async def dashboard_index(
             "recent_searches": recent_searches,
             "instances": instances,
             "active_page": "dashboard",
+            "onboarding": get_onboarding_state(db, current_user.id),
         },
     )
 

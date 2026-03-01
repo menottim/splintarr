@@ -146,10 +146,24 @@
 <div class="grid">
     <article>
         <h4>Quick Actions</h4>
+        {% if not onboarding.has_instances %}
+        <p><strong><a href="/dashboard/instances">Add your first instance</a></strong></p>
+        <p><small style="color: var(--muted-color);">Connect Sonarr or Radarr to get started</small></p>
+        {% elif not onboarding.has_library %}
+        <p><strong><a href="/dashboard/library">Sync your library</a></strong></p>
+        <p><small style="color: var(--muted-color);">Pull series and movie data from your instances</small></p>
+        <p><a href="/dashboard/instances">Manage Instances</a></p>
+        {% elif not onboarding.has_queues %}
+        <p><strong><a href="/dashboard/search-queues">Create your first search queue</a></strong></p>
+        <p><small style="color: var(--muted-color);">Set up automated backlog searching</small></p>
+        <p><a href="/dashboard/library">Browse Library</a></p>
+        <p><a href="/dashboard/instances">Manage Instances</a></p>
+        {% else %}
         <p><a href="/dashboard/library">Browse Library</a></p>
         <p><a href="/dashboard/search-queues">Create Search Queue</a></p>
         <p><a href="/dashboard/instances">Add Instance</a></p>
         <p><a href="/dashboard/search-history">View History</a></p>
+        {% endif %}
     </article>
 
     <article>
