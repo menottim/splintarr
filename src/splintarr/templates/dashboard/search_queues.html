@@ -102,11 +102,10 @@
 
         <form id="createQueueForm">
             <label>
-                Start from preset <small>(optional)</small>
+                Start from preset
                 <select id="presetSelect">
-                    <option value="">-- Custom --</option>
+                    <option value="weekly-cutoff" selected>Weekly Cutoff Unmet</option>
                     <option value="aggressive-missing">Aggressive Missing (hourly)</option>
-                    <option value="weekly-cutoff">Weekly Cutoff Unmet</option>
                     <option value="new-releases">New Releases (every 4h)</option>
                 </select>
             </label>
@@ -161,6 +160,7 @@
                     <option value="adaptive">Adaptive (recommended)</option>
                     <option value="flat">Fixed interval</option>
                 </select>
+                <small>Adaptive searches fresh content every 6 hours, older content less often (up to 7 days). Automatically adjusts based on content age and search history.</small>
             </label>
             <div id="flatCooldownRow" style="display: none;">
                 <label>
@@ -527,6 +527,7 @@ function closeCreateModal() {
 // Open modal from the Create Queue link
 document.querySelector('a[href="#create-queue"]').addEventListener('click', function(e) {
     e.preventDefault();
+    applyPreset('weekly-cutoff');
     document.getElementById('create-queue').showModal();
 });
 </script>
