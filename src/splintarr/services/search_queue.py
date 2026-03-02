@@ -36,10 +36,22 @@ from splintarr.services.sonarr import SonarrClient
 logger = structlog.get_logger()
 
 
-def _episode_label(episode: dict[str, Any]) -> str:
-    """Build a human-readable label from a Sonarr episode record."""
+def _episode_label(
+    episode: dict[str, Any], library_items: dict[int, Any] | None = None
+) -> str:
+    """Build a human-readable label from a Sonarr episode record.
+
+    Falls back to library_items for the series title if the API record
+    doesn't include nested series data.
+    """
     series = episode.get("series", {})
-    series_title = series.get("title", "Unknown Series")
+    series_title = series.get("title") if series else None
+    if not series_title and library_items:
+        ext_id = episode.get("seriesId") or series.get("id") if series else None
+        if ext_id and ext_id in library_items:
+            series_title = getattr(library_items[ext_id], "title", None)
+    if not series_title:
+        series_title = "Unknown Series"
     season = episode.get("seasonNumber", "?")
     ep_num = episode.get("episodeNumber", "?")
     ep_title = episode.get("title", "")
@@ -520,7 +532,6 @@ class SearchQueueManager:
                 rate_limit_per_second=instance.rate_limit_per_second or 5,
             ) as client:
                 search_fn = client.search_episodes if is_sonarr else client.search_movies
-                label_fn = _episode_label if is_sonarr else _movie_label
 
                 # Step 1: Fetch all records
                 all_records = await self._fetch_all_records(
@@ -537,6 +548,13 @@ class SearchQueueManager:
 
                 # Step 2: Batch-load library items
                 library_items = self._load_library_items(db, instance.id)
+
+                # Build label function with library fallback for series titles
+                if is_sonarr:
+                    def label_fn(rec: dict[str, Any]) -> str:
+                        return _episode_label(rec, library_items=library_items)
+                else:
+                    label_fn = _movie_label
 
                 # Load per-episode search tracking (Sonarr only)
                 episode_tracking: dict[tuple[int, int, int], Any] = {}
