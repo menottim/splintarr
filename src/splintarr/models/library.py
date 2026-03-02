@@ -110,6 +110,14 @@ class LibraryItem(Base):
         comment="Downloaded episodes (Sonarr) or 1 if file exists (Radarr)",
     )
 
+    # Cutoff tracking
+    cutoff_unmet_count = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Number of episodes below quality cutoff (from wanted/cutoff API)",
+    )
+
     # Poster
     poster_path = Column(
         String(500),

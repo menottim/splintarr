@@ -258,6 +258,42 @@ class LibrarySyncService:
                 items=count,
             )
 
+            # Fetch cutoff-unmet episodes and update per-series counts
+            self._report_progress(
+                current_instance=instance.name,
+                stage="Checking quality cutoffs...",
+                items_synced=count,
+                items_total=total_series,
+                total_instances=0,
+                instances_done=0,
+            )
+            cutoff_counts = await self._fetch_cutoff_counts(client)
+            for ext_id, cutoff_count in cutoff_counts.items():
+                item = (
+                    db.query(LibraryItem)
+                    .filter(
+                        LibraryItem.instance_id == instance.id,
+                        LibraryItem.content_type == "series",
+                        LibraryItem.external_id == ext_id,
+                    )
+                    .first()
+                )
+                if item:
+                    item.cutoff_unmet_count = cutoff_count
+            # Reset cutoff count for series not in the cutoff list
+            for ext_id in seen_external_ids - set(cutoff_counts.keys()):
+                item = (
+                    db.query(LibraryItem)
+                    .filter(
+                        LibraryItem.instance_id == instance.id,
+                        LibraryItem.content_type == "series",
+                        LibraryItem.external_id == ext_id,
+                    )
+                    .first()
+                )
+                if item:
+                    item.cutoff_unmet_count = 0
+
             self._report_progress(
                 current_instance=instance.name,
                 stage="Downloading posters...",
@@ -373,6 +409,48 @@ class LibrarySyncService:
             stale_removed=stale_count,
         )
         return count
+
+    async def _fetch_cutoff_counts(
+        self,
+        client: SonarrClient | RadarrClient,
+    ) -> dict[int, int]:
+        """Fetch all cutoff-unmet episodes and count per series.
+
+        Returns:
+            dict mapping series external_id to count of cutoff-unmet episodes.
+        """
+        from collections import Counter
+
+        series_counts: Counter[int] = Counter()
+        page = 1
+        page_size = 100
+
+        try:
+            while True:
+                result = await client.get_wanted_cutoff(page=page, page_size=page_size)
+                records = result.get("records", [])
+                for record in records:
+                    series_id = record.get("seriesId")
+                    if series_id:
+                        series_counts[series_id] += 1
+
+                total_records = result.get("totalRecords", 0)
+                if page * page_size >= total_records:
+                    break
+                page += 1
+
+            logger.debug(
+                "library_sync_cutoff_counts_fetched",
+                total_cutoff_episodes=sum(series_counts.values()),
+                series_with_cutoff=len(series_counts),
+            )
+        except Exception as e:
+            logger.warning(
+                "library_sync_cutoff_fetch_failed",
+                error=str(e),
+            )
+
+        return dict(series_counts)
 
     async def _download_posters(
         self,

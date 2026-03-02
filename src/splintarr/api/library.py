@@ -145,6 +145,7 @@ def _apply_filters(
     instance_id: int | None = None,
     content_type: str | None = None,
     missing_only: bool = False,
+    cutoff_unmet_only: bool = False,
 ) -> Any:
     """Apply optional filters to a LibraryItem query."""
     if instance_id is not None:
@@ -153,6 +154,8 @@ def _apply_filters(
         query = query.filter(LibraryItem.content_type == content_type)
     if missing_only:
         query = query.filter(LibraryItem.episode_have < LibraryItem.episode_count)
+    if cutoff_unmet_only:
+        query = query.filter(LibraryItem.cutoff_unmet_count > 0)
     return query
 
 
@@ -164,8 +167,9 @@ def _render_library_page(
     instance_id: int | None,
     content_type: str | None,
     missing_only: bool = False,
+    cutoff_unmet_only: bool = False,
 ) -> Response:
-    """Shared rendering logic for the library overview and missing pages."""
+    """Shared rendering logic for the library overview, missing, and cutoff pages."""
     if content_type not in (None, "series", "movie"):
         content_type = None
 
@@ -175,6 +179,7 @@ def _render_library_page(
             instance_id=instance_id,
             content_type=content_type,
             missing_only=missing_only,
+            cutoff_unmet_only=cutoff_unmet_only,
         )
         .order_by(LibraryItem.title)
         .all()
@@ -338,6 +343,30 @@ async def library_missing(
         instance_id,
         content_type,
         missing_only=True,
+    )
+
+
+@router.get(
+    "/dashboard/library/cutoff",
+    response_class=HTMLResponse,
+    include_in_schema=False,
+)
+async def library_cutoff(
+    request: Request,
+    instance_id: int | None = Query(default=None),
+    content_type: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Cutoff unmet filtered view."""
+    return _render_library_page(
+        request,
+        "dashboard/library_cutoff.html",
+        db,
+        current_user,
+        instance_id,
+        content_type,
+        cutoff_unmet_only=True,
     )
 
 
