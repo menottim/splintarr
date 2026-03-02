@@ -11,6 +11,7 @@ configuration:
 All endpoints require cookie-based authentication and rate limiting.
 """
 
+import httpx
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
@@ -263,6 +264,70 @@ async def test_prowlarr_connection(
 
     try:
         result = await client.test_connection()
+    except httpx.ConnectError as e:
+        logger.warning(
+            "prowlarr_connection_test_connect_error",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        await client.close()
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "status": "failed",
+                "message": "Could not connect to Prowlarr at that URL. "
+                "Check the URL and ensure Prowlarr is running.",
+            },
+        )
+    except httpx.TimeoutException as e:
+        logger.warning(
+            "prowlarr_connection_test_timeout",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        await client.close()
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "status": "failed",
+                "message": "Connection timed out. "
+                "Check if the URL is correct and Prowlarr is accessible.",
+            },
+        )
+    except httpx.HTTPStatusError as e:
+        logger.warning(
+            "prowlarr_connection_test_http_error",
+            user_id=current_user.id,
+            status_code=e.response.status_code,
+            error=str(e),
+        )
+        await client.close()
+        if e.response.status_code == 401:
+            msg = "Authentication failed. Check your Prowlarr API key."
+        else:
+            msg = (
+                f"Prowlarr returned an error (HTTP {e.response.status_code}). "
+                "Check the URL and API key."
+            )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"status": "failed", "message": msg},
+        )
+    except (httpx.RequestError, OSError) as e:
+        logger.warning(
+            "prowlarr_connection_test_request_error",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        await client.close()
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "status": "failed",
+                "message": "Could not connect to Prowlarr. "
+                "Check the URL and ensure Prowlarr is running.",
+            },
+        )
     finally:
         await client.close()
 
