@@ -131,6 +131,14 @@ if [[ ${#EXISTING_SECRETS[@]} -gt 0 ]]; then
     fi
     echo ""
     echo -e "${YELLOW}Proceeding with secret regeneration...${NC}"
+
+    # Delete existing database (keys are being regenerated, old DB is unreadable)
+    DB_PATH="./data/splintarr.db"
+    if [[ -f "$DB_PATH" ]]; then
+        info "Deleting old database (incompatible with new keys)..."
+        rm -f "${DB_PATH}"* 2>/dev/null || true
+        success "Old database deleted"
+    fi
 fi
 
 echo ""
