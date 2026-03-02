@@ -489,7 +489,8 @@ async def api_library_sync_status(
     try:
         db = next(get_db())
         try:
-            user = get_current_user_from_cookie(request=request, db=db)
+            access_token = request.cookies.get("access_token")
+            user = await get_current_user_from_cookie(access_token=access_token, db=db)
             authenticated = True
             logger.debug("library_sync_status_checked", user_id=user.id, syncing=_sync_in_progress)
         except Exception:
