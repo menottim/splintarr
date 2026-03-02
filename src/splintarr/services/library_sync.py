@@ -48,6 +48,8 @@ class LibrarySyncService:
         self.db_session_factory = db_session_factory
         self.poster_dir = poster_dir or POSTER_BASE_DIR
         self._progress_callback: Callable[..., None] | None = None
+        self._current_total_instances: int = 0
+        self._current_instances_done: int = 0
         logger.info("library_sync_service_initialized")
 
     async def sync_all_instances(
@@ -75,7 +77,10 @@ class LibrarySyncService:
 
             logger.info("library_sync_started", instance_count=len(instances))
 
+            self._current_total_instances = len(instances)
+
             for i, instance in enumerate(instances):
+                self._current_instances_done = i
                 self._report_progress(
                     current_instance=instance.name,
                     stage="Starting...",
@@ -189,8 +194,8 @@ class LibrarySyncService:
                 stage="Fetching series list...",
                 items_synced=0,
                 items_total=0,
-                total_instances=0,
-                instances_done=0,
+                total_instances=self._current_total_instances,
+                instances_done=self._current_instances_done,
             )
 
             series_list = await client.get_series()
@@ -264,8 +269,8 @@ class LibrarySyncService:
                 stage="Checking quality cutoffs...",
                 items_synced=count,
                 items_total=total_series,
-                total_instances=0,
-                instances_done=0,
+                total_instances=self._current_total_instances,
+                instances_done=self._current_instances_done,
             )
             cutoff_counts = await self._fetch_cutoff_counts(client)
             for ext_id, cutoff_count in cutoff_counts.items():
@@ -299,10 +304,13 @@ class LibrarySyncService:
                 stage="Downloading posters...",
                 items_synced=count,
                 items_total=total_series,
-                total_instances=0,
-                instances_done=0,
+                total_instances=self._current_total_instances,
+                instances_done=self._current_instances_done,
             )
-            await self._download_posters(client, db, instance.id, "series", series_list)
+            await self._download_posters(
+                client, db, instance.id, "series", series_list,
+                instance_name=instance.name,
+            )
             db.commit()
 
         # Remove items no longer in the instance
@@ -395,7 +403,10 @@ class LibrarySyncService:
                 items=count,
             )
 
-            await self._download_posters(client, db, instance.id, "movie", movie_list)
+            await self._download_posters(
+                client, db, instance.id, "movie", movie_list,
+                instance_name=instance.name,
+            )
             db.commit()
 
         # Remove stale items
@@ -459,8 +470,11 @@ class LibrarySyncService:
         instance_id: int,
         content_type: str,
         items_list: list[dict[str, Any]],
+        instance_name: str | None = None,
     ) -> None:
         """Download and cache poster images for items missing a poster_path."""
+        # Count items that need poster downloads for progress reporting
+        needs_poster: list[tuple[dict[str, Any], LibraryItem]] = []
         for raw_item in items_list:
             ext_id = raw_item.get("id")
             if not ext_id:
@@ -480,18 +494,43 @@ class LibrarySyncService:
             if (self.poster_dir / rel).exists():
                 item.poster_path = rel
             else:
-                poster_data = await client.get_poster_bytes(ext_id)
-                if poster_data:
-                    item.poster_path = self._save_poster(
-                        instance_id, content_type, ext_id, poster_data
-                    )
-                    logger.debug(
-                        "library_sync_poster_saved",
-                        instance_id=instance_id,
-                        content_type=content_type,
-                        external_id=ext_id,
-                        size_bytes=len(poster_data),
-                    )
+                needs_poster.append((raw_item, item))
+
+        if not needs_poster:
+            return
+
+        total_posters = len(needs_poster)
+        logger.debug(
+            "library_sync_posters_to_download",
+            instance_id=instance_id,
+            content_type=content_type,
+            count=total_posters,
+        )
+
+        for idx, (raw_item, item) in enumerate(needs_poster, 1):
+            ext_id = raw_item.get("id")
+            if instance_name:
+                self._report_progress(
+                    current_instance=instance_name,
+                    stage=f"Downloading posters ({idx}/{total_posters})...",
+                    items_synced=idx,
+                    items_total=total_posters,
+                    total_instances=self._current_total_instances,
+                    instances_done=self._current_instances_done,
+                )
+
+            poster_data = await client.get_poster_bytes(ext_id)
+            if poster_data:
+                item.poster_path = self._save_poster(
+                    instance_id, content_type, ext_id, poster_data
+                )
+                logger.debug(
+                    "library_sync_poster_saved",
+                    instance_id=instance_id,
+                    content_type=content_type,
+                    external_id=ext_id,
+                    size_bytes=len(poster_data),
+                )
 
     def _upsert_library_item(
         self,
