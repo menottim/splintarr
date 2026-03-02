@@ -58,6 +58,15 @@ table th {
 }
 
 table td { color: var(--color); }
+
+/* Softer tooltips — override uppercase/spacing inherited from th */
+[data-tooltip]::after {
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+    font-size: 0.75rem;
+    opacity: 0.9;
+}
 table code { font-size: 0.75em; }
 
 /* Modal dialogs */
