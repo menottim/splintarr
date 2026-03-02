@@ -12,6 +12,7 @@ All endpoints require cookie-based authentication.
 
 import json
 
+import httpx
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -191,7 +192,51 @@ async def test_notification(
         ) from e
 
     service = DiscordNotificationService(webhook_url)
-    success = await service.send_test_message()
+
+    try:
+        success = await service.send_test_message()
+    except httpx.ConnectError as e:
+        logger.warning(
+            "notification_test_connect_error",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "status": "failed",
+                "message": "Could not connect to Discord webhook URL. "
+                "Check the URL and try again.",
+            },
+        )
+    except httpx.TimeoutException as e:
+        logger.warning(
+            "notification_test_timeout",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "status": "failed",
+                "message": "Connection to Discord timed out. "
+                "Check the webhook URL and try again.",
+            },
+        )
+    except (httpx.RequestError, OSError) as e:
+        logger.warning(
+            "notification_test_request_error",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "status": "failed",
+                "message": "Could not connect to Discord webhook URL. "
+                "Check the URL and try again.",
+            },
+        )
 
     logger.info(
         "notification_test_sent",
