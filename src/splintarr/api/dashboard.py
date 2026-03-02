@@ -41,9 +41,10 @@ from splintarr.core.auth import (
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.core.security import decrypt_field, encrypt_field, hash_password
 from splintarr.core.ssrf_protection import SSRFError, validate_instance_url
-from splintarr.database import get_db
+from splintarr.database import database_health_check, get_db
 from splintarr.models.instance import Instance
 from splintarr.models.library import LibraryItem
+from splintarr.models.notification import NotificationConfig
 from splintarr.models.prowlarr import ProwlarrConfig
 from splintarr.models.search_history import SearchHistory
 from splintarr.models.search_queue import SearchQueue
@@ -51,6 +52,7 @@ from splintarr.models.user import User
 from splintarr.schemas.user import common_passwords
 from splintarr.services.prowlarr import ProwlarrClient, ProwlarrError
 from splintarr.services.radarr import RadarrClient, RadarrError
+from splintarr.services.scheduler import get_scheduler_status
 from splintarr.services.sonarr import SonarrClient, SonarrError
 
 logger = structlog.get_logger()
@@ -60,6 +62,59 @@ router = APIRouter(tags=["dashboard"])
 
 # Rate limiter
 limiter = Limiter(key_func=rate_limit_key_func)
+
+
+# ============================================================================
+# SYSTEM STATUS HELPERS
+# ============================================================================
+
+
+def _get_integration_status(
+    db: Session, user_id: int, *, include_timestamps: bool = False
+) -> dict[str, Any]:
+    """Get Discord and Prowlarr integration status for the system status panel."""
+    discord_config = (
+        db.query(NotificationConfig)
+        .filter(NotificationConfig.user_id == user_id)
+        .first()
+    )
+    prowlarr_config = (
+        db.query(ProwlarrConfig)
+        .filter(ProwlarrConfig.user_id == user_id)
+        .first()
+    )
+
+    discord: dict[str, Any] = {
+        "configured": discord_config is not None,
+        "active": bool(discord_config and discord_config.is_active),
+    }
+    prowlarr: dict[str, Any] = {
+        "configured": prowlarr_config is not None,
+        "active": bool(prowlarr_config and prowlarr_config.is_active),
+    }
+
+    if include_timestamps:
+        discord["last_sent_at"] = (
+            discord_config.last_sent_at.isoformat()
+            if discord_config and discord_config.last_sent_at
+            else None
+        )
+        prowlarr["last_sync_at"] = (
+            prowlarr_config.last_sync_at.isoformat()
+            if prowlarr_config and prowlarr_config.last_sync_at
+            else None
+        )
+
+    return {"discord": discord, "prowlarr": prowlarr}
+
+
+def _get_service_status() -> dict[str, Any]:
+    """Get database and scheduler health for the system status panel."""
+    db_health = database_health_check()
+    return {
+        "database": {"status": db_health.get("status", "unhealthy")},
+        "scheduler": get_scheduler_status(),
+    }
 
 
 # ============================================================================
@@ -664,6 +719,9 @@ async def dashboard_index(
         .all()
     )
 
+    integrations = _get_integration_status(db, current_user.id)
+    services = _get_service_status()
+
     return templates.TemplateResponse(
         "dashboard/index.html",
         {
@@ -672,6 +730,8 @@ async def dashboard_index(
             "stats": stats,
             "recent_searches": recent_searches,
             "instances": instances,
+            "integrations": integrations,
+            "services": services,
             "active_page": "dashboard",
             "onboarding": get_onboarding_state(db, current_user.id),
         },
@@ -1186,14 +1246,19 @@ async def api_dashboard_activity(
 
 
 @router.get("/api/dashboard/system-status", include_in_schema=False)
+@limiter.limit("30/minute")
 async def api_dashboard_system_status(
+    request: Request,
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """
-    Get instance health status (JSON API).
+    Get system status (JSON API).
 
-    Returns per-instance health info for the system status panel.
+    Returns three sections for the system status panel:
+    - instances: per-instance health info
+    - integrations: Discord and Prowlarr configuration/status
+    - services: database and scheduler health
     """
     instances = (
         db.query(Instance)
@@ -1219,7 +1284,24 @@ async def api_dashboard_system_status(
         for inst in instances
     ]
 
-    return JSONResponse(content={"instances": instance_status})
+    integrations = _get_integration_status(db, current_user.id, include_timestamps=True)
+    services = _get_service_status()
+
+    logger.debug(
+        "dashboard_system_status_requested",
+        user_id=current_user.id,
+        instance_count=len(instance_status),
+        discord_configured=integrations["discord"]["configured"],
+        prowlarr_configured=integrations["prowlarr"]["configured"],
+    )
+
+    return JSONResponse(
+        content={
+            "instances": instance_status,
+            "integrations": integrations,
+            "services": services,
+        }
+    )
 
 
 @router.get("/api/dashboard/indexer-health", include_in_schema=False)

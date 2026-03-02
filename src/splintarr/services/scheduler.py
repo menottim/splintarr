@@ -537,6 +537,28 @@ class SearchScheduler:
 _scheduler_instance: SearchScheduler | None = None
 
 
+def get_scheduler_status() -> dict[str, Any]:
+    """
+    Get current scheduler status without requiring a db_session_factory.
+
+    Safe to call from any context. Returns stopped status if no scheduler
+    has been initialized yet.
+
+    Returns:
+        dict: Scheduler status with 'status' ('running'|'paused'|'stopped')
+              and 'jobs_count' (int).
+    """
+    result: dict[str, Any] = {"status": "stopped", "jobs_count": 0}
+    if _scheduler_instance:
+        info = _scheduler_instance.get_status()
+        if info["running"] and info["paused"]:
+            result["status"] = "paused"
+        elif info["running"]:
+            result["status"] = "running"
+        result["jobs_count"] = info["jobs_count"]
+    return result
+
+
 def get_scheduler(db_session_factory: Callable[[], Session]) -> SearchScheduler:
     """
     Get or create the global scheduler instance.
