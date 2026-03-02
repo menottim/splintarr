@@ -61,8 +61,8 @@
                 <tr>
                     <td><a href="/dashboard/instances">{{ item.instance.name }}</a></td>
                     <td>
-                        {% if item.search_queue %}
-                        <a href="/dashboard/search-queues/{{ item.search_queue.id }}">{{ item.search_queue.name }}</a>
+                        {% if item.search_queue_id %}
+                        <a href="/dashboard/search-queues/{{ item.search_queue_id }}">{{ item.search_name }}</a>
                         {% else %}
                         <span style="color: var(--muted-color);">Manual</span>
                         {% endif %}

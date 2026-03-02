@@ -72,7 +72,14 @@
                 {% if recent_searches %}
                 {% for search in recent_searches %}
                 <tr>
-                    <td><a href="/dashboard/instances">{{ search.instance.name }}</a></td>
+                    <td>
+                        {% if search.search_queue_id %}
+                        <a href="/dashboard/search-queues/{{ search.search_queue_id }}">{{ search.instance.name }}</a>
+                        <br><small style="color: var(--muted-color);">{{ search.search_name }}</small>
+                        {% else %}
+                        <a href="/dashboard/instances">{{ search.instance.name }}</a>
+                        {% endif %}
+                    </td>
                     <td><code>{{ search.strategy }}</code></td>
                     <td>
                         {% if search.status == 'completed' %}
@@ -366,9 +373,20 @@ function updateActivityTable(activities) {
         // Instance
         var instCell = document.createElement('td');
         var instLink = document.createElement('a');
-        instLink.href = '/dashboard/instances';
+        if (item.search_queue_id) {
+            instLink.href = '/dashboard/search-queues/' + item.search_queue_id;
+        } else {
+            instLink.href = '/dashboard/instances';
+        }
         instLink.textContent = item.instance_name || '\u2014';
         instCell.appendChild(instLink);
+        if (item.search_queue_id && item.search_name) {
+            instCell.appendChild(document.createElement('br'));
+            var queueSmall = document.createElement('small');
+            queueSmall.style.color = 'var(--muted-color)';
+            queueSmall.textContent = item.search_name;
+            instCell.appendChild(queueSmall);
+        }
         row.appendChild(instCell);
 
         // Strategy
