@@ -536,13 +536,24 @@ class LibrarySyncService:
                 )
                 .first()
             )
-            if not item or item.poster_path:
+            if not item:
                 continue
             rel = f"{instance_id}/{content_type}/{ext_id}.jpg"
             if (self.poster_dir / rel).exists():
-                item.poster_path = rel
-            else:
-                needs_poster.append((raw_item, item))
+                if not item.poster_path:
+                    item.poster_path = rel
+                continue
+            # File missing on disk — clear stale DB reference and re-download
+            if item.poster_path:
+                logger.debug(
+                    "library_sync_poster_file_missing",
+                    instance_id=instance_id,
+                    content_type=content_type,
+                    external_id=ext_id,
+                    stale_path=item.poster_path,
+                )
+                item.poster_path = None
+            needs_poster.append((raw_item, item))
 
         if not needs_poster:
             return

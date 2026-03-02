@@ -11,6 +11,15 @@ log() {
 
 log "Starting Splintarr entrypoint..."
 
+# Create symlink so relative data paths (e.g. "data/posters") from WORKDIR /app
+# resolve to the persistent Docker volume at /data.
+# Without this, posters are written to ephemeral /app/data/ and lost on rebuild.
+if [ ! -L /app/data ]; then
+    rm -rf /app/data 2>/dev/null || true
+    ln -sf /data /app/data
+    log "Created symlink /app/data -> /data"
+fi
+
 # Verify secrets are accessible
 if [ -d "/run/secrets" ]; then
     log "Verifying Docker secrets..."
