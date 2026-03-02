@@ -209,6 +209,25 @@ class LibrarySyncService:
                 series_count=total_series,
             )
 
+            # Fetch quality profile names for readable display
+            profile_names: dict[int, str] = {}
+            try:
+                profiles = await client._request("GET", "/api/v3/qualityprofile")
+                if isinstance(profiles, list):
+                    for p in profiles:
+                        profile_names[p.get("id", 0)] = p.get("name", "Unknown")
+                logger.debug(
+                    "library_sync_quality_profiles_fetched",
+                    instance_id=instance.id,
+                    profile_count=len(profile_names),
+                )
+            except Exception as e:
+                logger.debug(
+                    "library_sync_quality_profiles_fetch_failed",
+                    instance_id=instance.id,
+                    error=str(e),
+                )
+
             for series in series_list:
                 try:
                     external_id = series.get("id")
@@ -218,6 +237,11 @@ class LibrarySyncService:
                     seen_external_ids.add(external_id)
                     stats = series.get("statistics", {})
 
+                    quality_profile_id = series.get("qualityProfileId", 0)
+                    quality_profile = profile_names.get(
+                        quality_profile_id, str(quality_profile_id) if quality_profile_id else ""
+                    )
+
                     item = self._upsert_library_item(
                         db=db,
                         instance_id=instance.id,
@@ -226,7 +250,7 @@ class LibrarySyncService:
                         title=series.get("title", "Unknown"),
                         year=series.get("year"),
                         status=series.get("status"),
-                        quality_profile=str(series.get("qualityProfileId", "")),
+                        quality_profile=quality_profile,
                         episode_count=stats.get("episodeCount", 0),
                         episode_have=stats.get("episodeFileCount", 0),
                         added_at=series.get("added"),
@@ -244,8 +268,8 @@ class LibrarySyncService:
                         stage=f"Syncing series ({count}/{total_series})...",
                         items_synced=count,
                         items_total=total_series,
-                        total_instances=0,
-                        instances_done=0,
+                        total_instances=self._current_total_instances,
+                        instances_done=self._current_instances_done,
                     )
 
                 except Exception as e:
@@ -319,8 +343,8 @@ class LibrarySyncService:
             stage="Cleaning up...",
             items_synced=count,
             items_total=total_series,
-            total_instances=0,
-            instances_done=0,
+            total_instances=self._current_total_instances,
+            instances_done=self._current_instances_done,
         )
         stale_count = self._cleanup_stale_items(db, instance.id, "series", seen_external_ids)
         db.commit()
@@ -362,6 +386,25 @@ class LibrarySyncService:
                 movie_count=len(movie_list),
             )
 
+            # Fetch quality profile names for readable display
+            profile_names: dict[int, str] = {}
+            try:
+                profiles = await client._request("GET", "/api/v3/qualityprofile")
+                if isinstance(profiles, list):
+                    for p in profiles:
+                        profile_names[p.get("id", 0)] = p.get("name", "Unknown")
+                logger.debug(
+                    "library_sync_quality_profiles_fetched",
+                    instance_id=instance.id,
+                    profile_count=len(profile_names),
+                )
+            except Exception as e:
+                logger.debug(
+                    "library_sync_quality_profiles_fetch_failed",
+                    instance_id=instance.id,
+                    error=str(e),
+                )
+
             for movie in movie_list:
                 try:
                     external_id = movie.get("id")
@@ -371,6 +414,11 @@ class LibrarySyncService:
                     seen_external_ids.add(external_id)
                     has_file = movie.get("hasFile", False)
 
+                    quality_profile_id = movie.get("qualityProfileId", 0)
+                    quality_profile = profile_names.get(
+                        quality_profile_id, str(quality_profile_id) if quality_profile_id else ""
+                    )
+
                     self._upsert_library_item(
                         db=db,
                         instance_id=instance.id,
@@ -379,7 +427,7 @@ class LibrarySyncService:
                         title=movie.get("title", "Unknown"),
                         year=movie.get("year"),
                         status=movie.get("status"),
-                        quality_profile=str(movie.get("qualityProfileId", "")),
+                        quality_profile=quality_profile,
                         episode_count=1,
                         episode_have=1 if has_file else 0,
                         added_at=movie.get("added"),
