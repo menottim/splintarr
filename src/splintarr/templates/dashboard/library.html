@@ -165,9 +165,6 @@ async function syncLibrary() {
                     if (s.stage) {
                         progressText += '\n' + s.stage;
                     }
-                    if (s.items_total > 0) {
-                        progressText += ' (' + s.items_synced + '/' + s.items_total + ')';
-                    }
                     detail.textContent = progressText;
                     detail.style.whiteSpace = 'pre-line';
                 } else if (s.syncing) {
