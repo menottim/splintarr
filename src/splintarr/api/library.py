@@ -58,7 +58,9 @@ _sync_in_progress = False
 _sync_state: dict[str, Any] = {
     "syncing": False,
     "current_instance": None,
+    "stage": None,
     "items_synced": 0,
+    "items_total": 0,
     "total_instances": 0,
     "instances_done": 0,
     "errors": [],
@@ -74,7 +76,9 @@ async def _run_sync_all_background() -> None:
         {
             "syncing": True,
             "current_instance": None,
+            "stage": None,
             "items_synced": 0,
+            "items_total": 0,
             "total_instances": 0,
             "instances_done": 0,
             "errors": [],
@@ -108,7 +112,9 @@ async def _run_sync_all_background() -> None:
 
 def _update_sync_progress(
     current_instance: str | None = None,
+    stage: str | None = None,
     items_synced: int = 0,
+    items_total: int = 0,
     total_instances: int = 0,
     instances_done: int = 0,
 ) -> None:
@@ -116,7 +122,9 @@ def _update_sync_progress(
     _sync_state.update(
         {
             "current_instance": current_instance,
+            "stage": stage,
             "items_synced": items_synced,
+            "items_total": items_total,
             "total_instances": total_instances,
             "instances_done": instances_done,
         }

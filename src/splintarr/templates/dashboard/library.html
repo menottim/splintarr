@@ -126,18 +126,35 @@ async function syncLibrary() {
     detail.textContent = 'Starting sync...';
     detail.style.display = 'block';
 
+    var elapsed = document.createElement('small');
+    elapsed.style.cssText = 'display:block;margin-top:0.5rem;color:var(--muted-color);';
+    elapsed.textContent = '';
+    var syncStartTime = Date.now();
+
     var errorSection = document.createElement('div');
     errorSection.style.cssText = 'margin-top:1rem;text-align:left;display:none;';
 
     article.appendChild(heading);
     article.appendChild(detail);
+    article.appendChild(elapsed);
     article.appendChild(errorSection);
     overlay.appendChild(article);
     document.body.appendChild(overlay);
 
+    function formatElapsed(ms) {
+        var secs = Math.floor(ms / 1000);
+        if (secs < 60) return secs + 's';
+        var mins = Math.floor(secs / 60);
+        secs = secs % 60;
+        return mins + 'm ' + secs + 's';
+    }
+
     // Poll sync status every 2 seconds
     var pollInterval = setInterval(async function() {
         try {
+            // Update elapsed time
+            elapsed.textContent = 'Elapsed: ' + formatElapsed(Date.now() - syncStartTime);
+
             var statusResp = await fetch('/api/library/sync-status');
             if (statusResp.ok) {
                 var s = await statusResp.json();
@@ -145,10 +162,14 @@ async function syncLibrary() {
                 // Update progress detail while syncing
                 if (s.syncing && s.current_instance) {
                     var progressText = 'Instance ' + (s.instances_done + 1) + '/' + s.total_instances + ': ' + s.current_instance;
-                    if (s.items_synced > 0) {
-                        progressText += '... ' + s.items_synced + ' items';
+                    if (s.stage) {
+                        progressText += '\n' + s.stage;
+                    }
+                    if (s.items_total > 0) {
+                        progressText += ' (' + s.items_synced + '/' + s.items_total + ')';
                     }
                     detail.textContent = progressText;
+                    detail.style.whiteSpace = 'pre-line';
                 } else if (s.syncing) {
                     detail.textContent = 'Preparing sync...';
                 }

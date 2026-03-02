@@ -47,6 +47,7 @@ class LibrarySyncService:
     ):
         self.db_session_factory = db_session_factory
         self.poster_dir = poster_dir or POSTER_BASE_DIR
+        self._progress_callback: Callable[..., None] | None = None
         logger.info("library_sync_service_initialized")
 
     async def sync_all_instances(
@@ -58,11 +59,13 @@ class LibrarySyncService:
 
         Args:
             progress_callback: Optional callback for reporting sync progress.
-                Called with (current_instance, items_synced, total_instances, instances_done).
+                Called with (current_instance, stage, items_synced, items_total,
+                total_instances, instances_done).
 
         Returns:
             dict: Summary with instance_count, items_synced, errors
         """
+        self._progress_callback = progress_callback
         db = self.db_session_factory()
         total_items = 0
         errors: list[str] = []
@@ -73,13 +76,14 @@ class LibrarySyncService:
             logger.info("library_sync_started", instance_count=len(instances))
 
             for i, instance in enumerate(instances):
-                if progress_callback:
-                    progress_callback(
-                        current_instance=instance.name,
-                        items_synced=total_items,
-                        total_instances=len(instances),
-                        instances_done=i,
-                    )
+                self._report_progress(
+                    current_instance=instance.name,
+                    stage="Starting...",
+                    items_synced=0,
+                    items_total=0,
+                    total_instances=len(instances),
+                    instances_done=i,
+                )
                 try:
                     count = await self._sync_instance(instance, db)
                     total_items += count
@@ -94,13 +98,14 @@ class LibrarySyncService:
                         error=str(e),
                     )
 
-            if progress_callback:
-                progress_callback(
-                    current_instance=None,
-                    items_synced=total_items,
-                    total_instances=len(instances),
-                    instances_done=len(instances),
-                )
+            self._report_progress(
+                current_instance=None,
+                stage="Complete",
+                items_synced=total_items,
+                items_total=total_items,
+                total_instances=len(instances),
+                instances_done=len(instances),
+            )
 
             logger.info(
                 "library_sync_completed",
@@ -116,6 +121,11 @@ class LibrarySyncService:
 
         finally:
             db.close()
+
+    def _report_progress(self, **kwargs: Any) -> None:
+        """Report sync progress via callback if set."""
+        if self._progress_callback:
+            self._progress_callback(**kwargs)
 
     async def sync_instance(self, instance_id: int) -> int:
         """
@@ -174,14 +184,24 @@ class LibrarySyncService:
             verify_ssl=instance.verify_ssl,
             rate_limit_per_second=instance.rate_limit_per_second or 5,
         ) as client:
+            self._report_progress(
+                current_instance=instance.name,
+                stage="Fetching series list...",
+                items_synced=0,
+                items_total=0,
+                total_instances=0,
+                instances_done=0,
+            )
+
             series_list = await client.get_series()
             if not isinstance(series_list, list):
                 series_list = []
 
+            total_series = len(series_list)
             logger.info(
                 "library_sync_sonarr_series_fetched",
                 instance_id=instance.id,
-                series_count=len(series_list),
+                series_count=total_series,
             )
 
             for series in series_list:
@@ -214,6 +234,15 @@ class LibrarySyncService:
 
                     count += 1
 
+                    self._report_progress(
+                        current_instance=instance.name,
+                        stage=f"Syncing series ({count}/{total_series})...",
+                        items_synced=count,
+                        items_total=total_series,
+                        total_instances=0,
+                        instances_done=0,
+                    )
+
                 except Exception as e:
                     logger.warning(
                         "library_sync_series_failed",
@@ -229,10 +258,26 @@ class LibrarySyncService:
                 items=count,
             )
 
+            self._report_progress(
+                current_instance=instance.name,
+                stage="Downloading posters...",
+                items_synced=count,
+                items_total=total_series,
+                total_instances=0,
+                instances_done=0,
+            )
             await self._download_posters(client, db, instance.id, "series", series_list)
             db.commit()
 
         # Remove items no longer in the instance
+        self._report_progress(
+            current_instance=instance.name,
+            stage="Cleaning up...",
+            items_synced=count,
+            items_total=total_series,
+            total_instances=0,
+            instances_done=0,
+        )
         stale_count = self._cleanup_stale_items(db, instance.id, "series", seen_external_ids)
         db.commit()
 
