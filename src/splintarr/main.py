@@ -19,7 +19,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -374,8 +374,24 @@ async def validation_error_handler(request: Request, exc: RequestValidationError
 
 @app.exception_handler(HTTPException)
 @app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse | RedirectResponse:
     """Log HTTP exceptions — WARNING for 4xx, ERROR for 5xx."""
+    # Redirect browser page requests to login on 401
+    if exc.status_code == 401:
+        accept = request.headers.get("accept", "")
+        is_browser = "text/html" in accept and "application/json" not in accept
+        is_page_request = not request.url.path.startswith("/api/")
+        if is_browser or is_page_request:
+            from urllib.parse import quote
+
+            next_url = quote(str(request.url.path), safe="")
+            return RedirectResponse(
+                url=f"/login?next={next_url}",
+                status_code=status.HTTP_302_FOUND,
+            )
+
     if exc.status_code >= 500:
         logger.error(
             "http_server_error",

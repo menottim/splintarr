@@ -107,6 +107,19 @@
     <!-- Scripts -->
     <script src="/static/js/app.js" nonce="{{ request.state.csp_nonce }}"></script>
     <script nonce="{{ request.state.csp_nonce }}">
+        // Global 401 interceptor — redirect to login on auth failure
+        (function() {
+            var originalFetch = window.fetch;
+            window.fetch = function() {
+                return originalFetch.apply(this, arguments).then(function(response) {
+                    if (response.status === 401) {
+                        window.location.href = '/login?next=' + encodeURIComponent(window.location.pathname);
+                    }
+                    return response;
+                });
+            };
+        })();
+
         document.querySelectorAll('[data-action="logout"]').forEach(function(el) {
             el.addEventListener('click', function(e) { e.preventDefault(); logout(); });
         });
