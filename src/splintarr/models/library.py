@@ -318,6 +318,19 @@ class LibraryEpisode(Base):
         comment="Whether the episode is monitored in Sonarr",
     )
 
+    # Search tracking (per-episode)
+    search_attempts = Column(
+        Integer,
+        default=0,
+        nullable=False,
+        comment="Number of times this episode has been searched",
+    )
+    last_searched_at = Column(
+        DateTime,
+        nullable=True,
+        comment="UTC timestamp of last search for this episode",
+    )
+
     # Timestamps
     created_at = Column(
         DateTime,
@@ -342,6 +355,11 @@ class LibraryEpisode(Base):
         sn = f"{self.season_number:02d}" if self.season_number is not None else "?"
         en = f"{self.episode_number:02d}" if self.episode_number is not None else "?"
         return f"S{sn}E{en}"
+
+    def record_search(self) -> None:
+        """Record a search attempt for this episode."""
+        self.search_attempts = (self.search_attempts or 0) + 1
+        self.last_searched_at = datetime.utcnow()
 
     def __repr__(self) -> str:
         return f"<LibraryEpisode(id={self.id}, {self.episode_code}, has_file={self.has_file})>"

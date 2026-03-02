@@ -525,6 +525,24 @@ class SearchQueueManager:
                 # Step 2: Batch-load library items
                 library_items = self._load_library_items(db, instance.id)
 
+                # Load per-episode search tracking (Sonarr only)
+                episode_tracking: dict[tuple[int, int, int], Any] = {}
+                if is_sonarr and library_items:
+                    from splintarr.models.library import LibraryEpisode
+
+                    item_ids = [li.id for li in library_items.values()]
+                    if item_ids:
+                        db_episodes = (
+                            db.query(LibraryEpisode)
+                            .filter(LibraryEpisode.library_item_id.in_(item_ids))
+                            .all()
+                        )
+                        for ep in db_episodes:
+                            if ep.library_item:
+                                episode_tracking[
+                                    (ep.library_item.external_id, ep.season_number, ep.episode_number)
+                                ] = ep
+
                 # Step 3-7: Score, sort, filter, truncate
                 scored_records: list[tuple[dict[str, Any], float, str]] = []
                 for record in all_records:
@@ -577,6 +595,23 @@ class SearchQueueManager:
 
                     # Step 3: Score each item
                     score, reason = compute_score(record, library_item, strategy_name)
+
+                    # Per-episode deprioritization: penalize recently-searched episodes
+                    if is_sonarr:
+                        s_id = record.get("seriesId") or record.get("series", {}).get("id")
+                        s_num = record.get("seasonNumber")
+                        e_num = record.get("episodeNumber")
+                        if s_id and s_num is not None and e_num is not None:
+                            ep_rec = episode_tracking.get((s_id, s_num, e_num))
+                            if ep_rec and ep_rec.last_searched_at:
+                                hours = (
+                                    datetime.utcnow() - ep_rec.last_searched_at
+                                ).total_seconds() / 3600
+                                if hours < 24:
+                                    penalty = 50.0 * (1.0 - hours / 24.0)
+                                    score = max(0, score - penalty)
+                                    reason += f" (ep searched {hours:.0f}h ago: -{penalty:.0f})"
+
                     scored_records.append((record, score, reason))
 
                 # Step 4: Sort by score descending
@@ -710,6 +745,15 @@ class SearchQueueManager:
                         library_item = library_items.get(ext_id)
                         if library_item:
                             library_item.record_search()
+
+                        # Update per-episode search tracking
+                        if is_sonarr:
+                            s_id = record.get("seriesId") or record.get("series", {}).get("id")
+                            s_num = record.get("seasonNumber")
+                            e_num = record.get("episodeNumber")
+                            ep_rec = episode_tracking.get((s_id, s_num, e_num) if s_id else ())
+                            if ep_rec:
+                                ep_rec.record_search()
 
                         logger.debug(
                             "item_search_triggered",
