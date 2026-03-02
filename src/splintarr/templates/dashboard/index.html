@@ -87,12 +87,9 @@
                     </td>
                     <td>
                         {% if search.searches_triggered %}
-                        {{ search.searches_triggered }} searched
-                        {% if search.items_found %}
-                        of {{ search.items_found }} eligible
-                        {% endif %}
+                        <span title="Searched: items sent to Sonarr/Radarr for search. Eligible: items matching queue filters that were candidates for searching.">{{ search.searches_triggered }} searched{% if search.items_found %} of {{ search.items_found }} eligible{% endif %}</span>
                         {% else %}
-                        {{ search.items_found or 0 }} eligible
+                        <span title="Eligible: items matching queue filters that were candidates for searching.">{{ search.items_found or 0 }} eligible</span>
                         {% endif %}
                     </td>
                     <td>
@@ -402,16 +399,20 @@ function updateActivityTable(activities) {
 
         // Items
         var itemsCell = document.createElement('td');
+        var itemsSpan = document.createElement('span');
         var text = '';
         if (item.searches_triggered) {
             text = item.searches_triggered + ' searched';
             if (item.items_found) {
                 text += ' of ' + item.items_found + ' eligible';
             }
+            itemsSpan.title = 'Searched: items sent to Sonarr/Radarr for search. Eligible: items matching queue filters that were candidates for searching.';
         } else {
             text = (item.items_found || 0) + ' eligible';
+            itemsSpan.title = 'Eligible: items matching queue filters that were candidates for searching.';
         }
-        itemsCell.textContent = text;
+        itemsSpan.textContent = text;
+        itemsCell.appendChild(itemsSpan);
         row.appendChild(itemsCell);
 
         // Time

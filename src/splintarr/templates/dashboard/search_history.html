@@ -79,12 +79,9 @@
                     </td>
                     <td>
                         {% if item.searches_triggered %}
-                        {{ item.searches_triggered }} searched
-                        {% if item.items_found %}
-                        <br><small>of {{ item.items_found }} eligible</small>
-                        {% endif %}
+                        <span title="Searched: items sent to Sonarr/Radarr for search. Eligible: items matching queue filters that were candidates for searching.">{{ item.searches_triggered }} searched{% if item.items_found %}<br><small>of {{ item.items_found }} eligible</small>{% endif %}</span>
                         {% else %}
-                        {{ item.items_found or 0 }} eligible
+                        <span title="Eligible: items matching queue filters that were candidates for searching.">{{ item.items_found or 0 }} eligible</span>
                         {% endif %}
                     </td>
                     <td>
