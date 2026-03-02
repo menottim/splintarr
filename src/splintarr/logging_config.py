@@ -14,6 +14,8 @@ This module provides a robust logging setup with:
 import logging
 import logging.handlers
 import sys
+import time
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -69,6 +71,65 @@ def censor_sensitive_data(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
     return event_dict
 
 
+MAX_FIELD_LENGTH = 1024  # 1KB per field
+MAX_EXCEPTION_LENGTH = 2048  # 2KB for stack traces
+
+
+def truncate_long_values(_, __, event_dict: dict[str, Any]) -> dict[str, Any]:
+    """Truncate excessively long field values to keep log lines readable.
+
+    Caps individual field values to 1KB (2KB for exception/traceback fields).
+    This prevents massive stack traces from creating 10KB+ log lines.
+    """
+    for key, value in event_dict.items():
+        if not isinstance(value, str):
+            continue
+        max_len = (
+            MAX_EXCEPTION_LENGTH
+            if key in ("exception", "traceback", "exc_info")
+            else MAX_FIELD_LENGTH
+        )
+        if len(value) > max_len:
+            event_dict[key] = value[:max_len] + " [truncated]"
+    return event_dict
+
+
+_error_counts: dict[str, list[float]] = defaultdict(list)
+_ERROR_DEDUP_WINDOW = 30.0  # seconds
+_ERROR_DEDUP_THRESHOLD = 5  # suppress after this many repeats
+
+
+def deduplicate_errors(_, method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+    """Suppress repeated identical errors within a time window.
+
+    After 5 identical errors within 30 seconds, logs a summary and
+    suppresses further duplicates until the window expires.
+    """
+    if method_name not in ("error", "critical"):
+        return event_dict
+
+    event_name = event_dict.get("event", "")
+    now = time.monotonic()
+
+    # Clean old entries outside the window
+    _error_counts[event_name] = [
+        t for t in _error_counts[event_name] if now - t < _ERROR_DEDUP_WINDOW
+    ]
+
+    _error_counts[event_name].append(now)
+    count = len(_error_counts[event_name])
+
+    if count == _ERROR_DEDUP_THRESHOLD:
+        event_dict["event"] = (
+            f"{event_name} (suppressing further duplicates for {_ERROR_DEDUP_WINDOW:.0f}s)"
+        )
+        return event_dict
+    elif count > _ERROR_DEDUP_THRESHOLD:
+        raise structlog.DropEvent
+
+    return event_dict
+
+
 def rotation_namer(default_name: str) -> str:
     """
     Custom namer for rotated log files using datetime stamps.
@@ -103,8 +164,8 @@ def _create_file_handler(path: Path, level: int, fmt: str) -> logging.handlers.R
     """Create a rotating file handler with standard rotation settings."""
     handler = logging.handlers.RotatingFileHandler(
         path,
-        maxBytes=10 * 1024 * 1024,  # 10 MB
-        backupCount=5,
+        maxBytes=5 * 1024 * 1024,  # 5 MB
+        backupCount=3,
         encoding="utf-8",
     )
     handler.namer = rotation_namer
@@ -125,10 +186,10 @@ def configure_logging() -> None:
        - debug.log - Everything (only created if LOG_LEVEL=DEBUG)
 
     Log rotation:
-    - Max file size: 10 MB per file
+    - Max file size: 5 MB per file
     - Rotated files named with datetime: all-2026-02-24_143052.log
-    - Backup count: 5 (keeps up to 5 old rotated files)
-    - Total max space per log type: ~60 MB (1 current + 5 backups)
+    - Backup count: 3 (keeps up to 3 old rotated files)
+    - Total max space per log type: ~20 MB (1 current + 3 backups)
 
     Log levels:
     - DEBUG: Very verbose, includes all operations (use for troubleshooting)
@@ -159,6 +220,8 @@ def configure_logging() -> None:
         structlog.processors.format_exc_info,
         structlog.processors.UnicodeDecoder(),
         censor_sensitive_data,
+        truncate_long_values,
+        deduplicate_errors,
         drop_color_message_key,
     ]
 
@@ -269,9 +332,9 @@ def configure_logging() -> None:
             "debug_log": is_debug,
         },
         rotation={
-            "max_bytes": "10 MB",
-            "backup_count": 5,
-            "total_max_per_log": "~50 MB",
+            "max_bytes": "5 MB",
+            "backup_count": 3,
+            "total_max_per_log": "~20 MB",
         },
     )
 
