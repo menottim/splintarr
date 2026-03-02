@@ -53,7 +53,7 @@
             <dt>Next Run</dt>
             <dd>
                 {% if queue.next_run %}
-                {{ queue.next_run|timeago }}
+                {{ queue.next_run|datetime }}
                 {% else %}
                 Not scheduled
                 {% endif %}

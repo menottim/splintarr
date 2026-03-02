@@ -56,7 +56,7 @@ Expected variables:
         <dt>Next Run</dt>
         <dd>
             {% if queue.next_run_at %}
-            {{ queue.next_run_at|timeago }}
+            {{ queue.next_run_at|datetime }}
             {% else %}
             Not scheduled
             {% endif %}
