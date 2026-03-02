@@ -70,7 +70,7 @@ def _timeago(dt: datetime) -> str:
 
 
 templates.env.filters["datetime"] = lambda value: (
-    value.strftime("%Y-%m-%d %H:%M:%S") if value else ""
+    value.strftime("%Y-%m-%d %H:%M:%S UTC") if value else ""
 )
 templates.env.filters["timeago"] = lambda value: _timeago(value) if value else ""
 

@@ -66,7 +66,7 @@ templates = Jinja2Templates(directory="src/splintarr/templates")
 
 # Add custom filters for Jinja2
 templates.env.filters["datetime"] = lambda value: (
-    value.strftime("%Y-%m-%d %H:%M:%S") if value else ""
+    value.strftime("%Y-%m-%d %H:%M:%S UTC") if value else ""
 )
 templates.env.filters["timeago"] = lambda value: _timeago(value) if value else ""
 templates.env.filters["parse_search_log"] = lambda value: _parse_search_log(value)
