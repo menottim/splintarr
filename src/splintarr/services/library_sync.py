@@ -49,9 +49,16 @@ class LibrarySyncService:
         self.poster_dir = poster_dir or POSTER_BASE_DIR
         logger.info("library_sync_service_initialized")
 
-    async def sync_all_instances(self) -> dict[str, Any]:
+    async def sync_all_instances(
+        self,
+        progress_callback: Callable[..., None] | None = None,
+    ) -> dict[str, Any]:
         """
         Sync library data from all active instances.
+
+        Args:
+            progress_callback: Optional callback for reporting sync progress.
+                Called with (current_instance, items_synced, total_instances, instances_done).
 
         Returns:
             dict: Summary with instance_count, items_synced, errors
@@ -65,7 +72,14 @@ class LibrarySyncService:
 
             logger.info("library_sync_started", instance_count=len(instances))
 
-            for instance in instances:
+            for i, instance in enumerate(instances):
+                if progress_callback:
+                    progress_callback(
+                        current_instance=instance.name,
+                        items_synced=total_items,
+                        total_instances=len(instances),
+                        instances_done=i,
+                    )
                 try:
                     count = await self._sync_instance(instance, db)
                     total_items += count
@@ -79,6 +93,14 @@ class LibrarySyncService:
                         instance_type=instance.instance_type,
                         error=str(e),
                     )
+
+            if progress_callback:
+                progress_callback(
+                    current_instance=None,
+                    items_synced=total_items,
+                    total_instances=len(instances),
+                    instances_done=len(instances),
+                )
 
             logger.info(
                 "library_sync_completed",

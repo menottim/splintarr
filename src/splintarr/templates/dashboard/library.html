@@ -123,28 +123,77 @@ async function syncLibrary() {
     heading.style.cssText = 'font-size:1.25rem;font-weight:600;margin-bottom:0.5rem;';
 
     var detail = document.createElement('small');
-    detail.textContent = 'This may take a few minutes for large libraries. Please wait.';
+    detail.textContent = 'Starting sync...';
+    detail.style.display = 'block';
+
+    var errorSection = document.createElement('div');
+    errorSection.style.cssText = 'margin-top:1rem;text-align:left;display:none;';
 
     article.appendChild(heading);
     article.appendChild(detail);
+    article.appendChild(errorSection);
     overlay.appendChild(article);
     document.body.appendChild(overlay);
 
-    // Poll sync status every 3 seconds
+    // Poll sync status every 2 seconds
     var pollInterval = setInterval(async function() {
         try {
             var statusResp = await fetch('/api/library/sync-status');
             if (statusResp.ok) {
-                var statusData = await statusResp.json();
-                if (!statusData.syncing) {
+                var s = await statusResp.json();
+
+                // Update progress detail while syncing
+                if (s.syncing && s.current_instance) {
+                    var progressText = 'Instance ' + (s.instances_done + 1) + '/' + s.total_instances + ': ' + s.current_instance;
+                    if (s.items_synced > 0) {
+                        progressText += '... ' + s.items_synced + ' items';
+                    }
+                    detail.textContent = progressText;
+                } else if (s.syncing) {
+                    detail.textContent = 'Preparing sync...';
+                }
+
+                if (!s.syncing) {
                     clearInterval(pollInterval);
-                    location.reload();
+
+                    if (s.errors && s.errors.length > 0) {
+                        // Show errors — do NOT auto-reload
+                        article.removeAttribute('aria-busy');
+                        heading.textContent = 'Sync completed with errors';
+                        heading.style.color = 'var(--del-color)';
+                        detail.textContent = s.items_synced + ' items synced from ' + s.total_instances + ' instance(s).';
+
+                        errorSection.style.display = 'block';
+
+                        var errorLabel = document.createElement('p');
+                        errorLabel.textContent = 'Errors:';
+                        errorLabel.style.cssText = 'font-weight:600;margin-bottom:0.25rem;color:var(--del-color);';
+                        errorSection.appendChild(errorLabel);
+
+                        var errorList = document.createElement('ul');
+                        errorList.style.cssText = 'font-size:0.85rem;padding-left:1.25rem;margin-bottom:1rem;';
+                        s.errors.forEach(function(err) {
+                            var li = document.createElement('li');
+                            li.textContent = err;
+                            errorList.appendChild(li);
+                        });
+                        errorSection.appendChild(errorList);
+
+                        var reloadBtn = document.createElement('button');
+                        reloadBtn.textContent = 'Reload Page';
+                        reloadBtn.style.cssText = 'width:100%;';
+                        reloadBtn.addEventListener('click', function() { location.reload(); });
+                        errorSection.appendChild(reloadBtn);
+                    } else {
+                        // No errors — auto-reload
+                        location.reload();
+                    }
                 }
             }
         } catch (e) {
             // Polling error — keep trying
         }
-    }, 3000);
+    }, 2000);
 }
 </script>
 {% endblock %}

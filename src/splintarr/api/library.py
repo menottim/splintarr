@@ -14,6 +14,7 @@ JSON API routes (cookie auth, rate-limited):
 """
 
 from collections import defaultdict
+from datetime import datetime
 from typing import Any
 
 import structlog
@@ -54,30 +55,68 @@ limiter = Limiter(key_func=rate_limit_key_func)
 # ============================================================================
 
 _sync_in_progress = False
+_sync_state: dict[str, Any] = {
+    "syncing": False,
+    "current_instance": None,
+    "items_synced": 0,
+    "total_instances": 0,
+    "instances_done": 0,
+    "errors": [],
+    "started_at": None,
+}
 
 
 async def _run_sync_all_background() -> None:
     """Background task: sync library data from all active instances."""
     global _sync_in_progress
     _sync_in_progress = True
+    _sync_state.update({
+        "syncing": True,
+        "current_instance": None,
+        "items_synced": 0,
+        "total_instances": 0,
+        "instances_done": 0,
+        "errors": [],
+        "started_at": datetime.utcnow().isoformat(),
+    })
     logger.info("library_sync_background_started")
     try:
         service = get_sync_service()
-        result = await service.sync_all_instances()
+        result = await service.sync_all_instances(progress_callback=_update_sync_progress)
         logger.info(
             "library_sync_background_completed",
             instance_count=result.get("instance_count", 0),
             items_synced=result.get("items_synced", 0),
             error_count=len(result.get("errors", [])),
         )
+        if result.get("errors"):
+            _sync_state["errors"] = [str(e) for e in result["errors"]]
     except Exception as e:
         logger.error(
             "library_sync_background_failed",
             error=str(e),
             error_type=type(e).__name__,
         )
+        _sync_state["errors"].append(str(e))
     finally:
         _sync_in_progress = False
+        _sync_state["syncing"] = False
+        _sync_state["current_instance"] = None
+
+
+def _update_sync_progress(
+    current_instance: str | None = None,
+    items_synced: int = 0,
+    total_instances: int = 0,
+    instances_done: int = 0,
+) -> None:
+    """Callback for sync service to report progress."""
+    _sync_state.update({
+        "current_instance": current_instance,
+        "items_synced": items_synced,
+        "total_instances": total_instances,
+        "instances_done": instances_done,
+    })
 
 
 def _base_library_query(db: Session, user: User):  # type: ignore[return]
@@ -398,11 +437,33 @@ async def api_library_sync(
 @limiter.limit("60/minute")
 async def api_library_sync_status(
     request: Request,
-    current_user: User = Depends(get_current_user_from_cookie),
 ) -> JSONResponse:
-    """Check whether a library sync is currently running."""
-    logger.debug("library_sync_status_checked", user_id=current_user.id, syncing=_sync_in_progress)
-    return JSONResponse(content={"syncing": _sync_in_progress})
+    """Check whether a library sync is currently running.
+
+    This endpoint is resilient to DB lock errors during active sync.
+    Auth is best-effort: if the DB is locked while sync is running,
+    we still return the sync status since the user is already on
+    an authenticated page.
+    """
+    try:
+        db = next(get_db())
+        try:
+            user = get_current_user_from_cookie(request=request, db=db)
+            logger.debug("library_sync_status_checked", user_id=user.id, syncing=_sync_in_progress)
+        except Exception:
+            if not _sync_in_progress:
+                raise
+            logger.debug("library_sync_status_checked_no_auth", syncing=_sync_in_progress)
+        finally:
+            db.close()
+    except Exception:
+        if not _sync_in_progress:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+            ) from None
+        logger.debug("library_sync_status_db_unavailable", syncing=_sync_in_progress)
+
+    return JSONResponse(content=_sync_state)
 
 
 @router.get("/api/library/stats", include_in_schema=False)
