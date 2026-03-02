@@ -52,6 +52,7 @@
                     {{ item.completion_pct }}%
                 </small>
             </div>
+            {% if item.quality_profile %}<div style="font-size: 0.7rem; color: var(--muted-color);">{{ item.quality_profile }}</div>{% endif %}
         </div>
     </a>
     {% endfor %}
