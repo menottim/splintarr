@@ -95,7 +95,7 @@
     {% else %}
     <button class="secondary" data-action="pause-queue" data-id="{{ queue.id }}">Pause</button>
     {% endif %}
-    <button class="secondary" data-action="start-queue" data-id="{{ queue.id }}" {% if queue.status == 'in_progress' %}disabled aria-busy="true"{% endif %}>{% if queue.status == 'in_progress' %}Running...{% else %}Start Now{% endif %}</button>
+    <button class="secondary" data-action="run-now" data-id="{{ queue.id }}" {% if queue.status == 'in_progress' %}disabled aria-busy="true"{% endif %}>{% if queue.status == 'in_progress' %}Running...{% else %}Run Now{% endif %}</button>
     <button class="secondary" style="color: var(--del-color);" data-action="delete-queue" data-id="{{ queue.id }}" data-name="{{ queue.name }}">Delete</button>
     <a href="/dashboard/search-queues" role="button" class="secondary" style="margin-left: auto;">Back to Queues</a>
 </div>
@@ -223,6 +223,26 @@
     </p>
     {% endif %}
 </article>
+
+<!-- Run Now Dialog -->
+<dialog id="run-now-dialog">
+    <article style="max-width: 400px; margin: auto;">
+        <header>
+            <button aria-label="Close" rel="prev" data-action="close-run-dialog"></button>
+            <h3>Run Queue Now</h3>
+        </header>
+        <p>Start an immediate search run for this queue?</p>
+        <label>
+            <input type="checkbox" id="run-override-cooldowns" role="switch">
+            Override cooldowns
+            <small style="display: block; color: var(--muted-color);">Search all eligible items, including those in cooldown</small>
+        </label>
+        <footer>
+            <button class="secondary" data-action="close-run-dialog">Cancel</button>
+            <button id="run-now-confirm" data-action="confirm-run-now">Run Now</button>
+        </footer>
+    </article>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -233,7 +253,9 @@ document.addEventListener('click', function(e) {
     var action = target.dataset.action;
     if (action === 'resume-queue') resumeQueue(parseInt(target.dataset.id));
     else if (action === 'pause-queue') pauseQueue(parseInt(target.dataset.id));
-    else if (action === 'start-queue') startQueue(parseInt(target.dataset.id));
+    else if (action === 'run-now') openRunNowDialog(parseInt(target.dataset.id));
+    else if (action === 'close-run-dialog') document.getElementById('run-now-dialog').close();
+    else if (action === 'confirm-run-now') confirmRunNow();
     else if (action === 'delete-queue') deleteQueue(parseInt(target.dataset.id), target.dataset.name);
 });
 
@@ -265,31 +287,55 @@ async function resumeQueue(queueId) {
     }
 }
 
-async function startQueue(queueId) {
-    try {
-        var btn = document.querySelector('[data-action="start-queue"]');
-        btn.setAttribute('aria-busy', 'true');
-        btn.disabled = true;
-        btn.textContent = 'Running...';
+var _runNowQueueId = null;
 
-        var response = await fetch('/api/search-queues/' + queueId + '/start', { method: 'POST' });
+function openRunNowDialog(queueId) {
+    _runNowQueueId = queueId;
+    document.getElementById('run-override-cooldowns').checked = false;
+    document.getElementById('run-now-dialog').showModal();
+}
+
+async function confirmRunNow() {
+    if (!_runNowQueueId) return;
+
+    var btn = document.getElementById('run-now-confirm');
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    var overrideCooldowns = document.getElementById('run-override-cooldowns').checked;
+    var url = '/api/search-queues/' + _runNowQueueId + '/start';
+    if (overrideCooldowns) {
+        url += '?override_cooldowns=true';
+    }
+
+    try {
+        var response = await fetch(url, { method: 'POST' });
         var data = await response.json();
 
         if (response.ok) {
+            document.getElementById('run-now-dialog').close();
             showNotification(data.message || 'Search started', 'success');
-            pollQueueStatus(queueId);
+            // Update the Run Now button to show running state
+            var runBtn = document.querySelector('[data-action="run-now"]');
+            if (runBtn) {
+                runBtn.setAttribute('aria-busy', 'true');
+                runBtn.disabled = true;
+                runBtn.textContent = 'Running...';
+            }
+            pollQueueStatus(_runNowQueueId);
         } else if (response.status === 409) {
+            document.getElementById('run-now-dialog').close();
             showNotification('Search is already running');
-            pollQueueStatus(queueId);
+            pollQueueStatus(_runNowQueueId);
         } else {
             showNotification('Failed to start: ' + (data.detail || 'Unknown error'));
-            btn.setAttribute('aria-busy', 'false');
-            btn.disabled = false;
-            btn.textContent = 'Start Now';
         }
     } catch (error) {
         showNotification('Failed to start: ' + error.message);
     }
+
+    btn.disabled = false;
+    btn.removeAttribute('aria-busy');
 }
 
 function pollQueueStatus(queueId) {
@@ -310,7 +356,7 @@ function pollQueueStatus(queueId) {
 
 // Auto-poll if page loads while queue is in_progress
 (function() {
-    var btn = document.querySelector('[data-action="start-queue"]');
+    var btn = document.querySelector('[data-action="run-now"]');
     if (btn && btn.disabled) {
         pollQueueStatus({{ queue.id }});
     }
