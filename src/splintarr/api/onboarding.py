@@ -101,7 +101,7 @@ def get_onboarding_state(db: Session, user_id: int) -> dict:
             "name": "Sync Library",
             "status": ("done" if has_library else "current" if current_step == 2 else "future"),
             "url": "/dashboard/library",
-            "action": "Sync now",
+            "action": "Go to Library",
         },
         {
             "name": "Create Queue",
