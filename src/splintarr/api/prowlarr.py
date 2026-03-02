@@ -270,7 +270,6 @@ async def test_prowlarr_connection(
             user_id=current_user.id,
             error=str(e),
         )
-        await client.close()
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
@@ -285,7 +284,6 @@ async def test_prowlarr_connection(
             user_id=current_user.id,
             error=str(e),
         )
-        await client.close()
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={
@@ -301,7 +299,6 @@ async def test_prowlarr_connection(
             status_code=e.response.status_code,
             error=str(e),
         )
-        await client.close()
         if e.response.status_code == 401:
             msg = "Authentication failed. Check your Prowlarr API key."
         else:
@@ -319,7 +316,6 @@ async def test_prowlarr_connection(
             user_id=current_user.id,
             error=str(e),
         )
-        await client.close()
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={

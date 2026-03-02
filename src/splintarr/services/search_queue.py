@@ -36,9 +36,7 @@ from splintarr.services.sonarr import SonarrClient
 logger = structlog.get_logger()
 
 
-def _episode_label(
-    episode: dict[str, Any], library_items: dict[int, Any] | None = None
-) -> str:
+def _episode_label(episode: dict[str, Any], library_items: dict[int, Any] | None = None) -> str:
     """Build a human-readable label from a Sonarr episode record.
 
     Falls back to library_items for the series title if the API record
@@ -234,7 +232,10 @@ class SearchQueueManager:
             try:
                 # Execute based on strategy
                 result = await self._execute_strategy(
-                    queue, instance, db, effective_max_items=effective_max,
+                    queue,
+                    instance,
+                    db,
+                    effective_max_items=effective_max,
                     override_cooldowns=override_cooldowns,
                 )
 
@@ -361,22 +362,34 @@ class SearchQueueManager:
         """
         if queue.strategy == "missing":
             return await self._execute_missing_strategy(
-                queue, instance, db, effective_max_items=effective_max_items,
+                queue,
+                instance,
+                db,
+                effective_max_items=effective_max_items,
                 override_cooldowns=override_cooldowns,
             )
         elif queue.strategy == "cutoff_unmet":
             return await self._execute_cutoff_strategy(
-                queue, instance, db, effective_max_items=effective_max_items,
+                queue,
+                instance,
+                db,
+                effective_max_items=effective_max_items,
                 override_cooldowns=override_cooldowns,
             )
         elif queue.strategy == "recent":
             return await self._execute_recent_strategy(
-                queue, instance, db, effective_max_items=effective_max_items,
+                queue,
+                instance,
+                db,
+                effective_max_items=effective_max_items,
                 override_cooldowns=override_cooldowns,
             )
         elif queue.strategy == "custom":
             return await self._execute_custom_strategy(
-                queue, instance, db, effective_max_items=effective_max_items,
+                queue,
+                instance,
+                db,
+                effective_max_items=effective_max_items,
                 override_cooldowns=override_cooldowns,
             )
         else:
@@ -551,6 +564,7 @@ class SearchQueueManager:
 
                 # Build label function with library fallback for series titles
                 if is_sonarr:
+
                     def label_fn(rec: dict[str, Any]) -> str:
                         return _episode_label(rec, library_items=library_items)
                 else:
@@ -666,7 +680,6 @@ class SearchQueueManager:
                 )
 
                 # Step 7.5: Season pack grouping (Sonarr only)
-                season_pack_handled_ids: set[int] = set()
                 season_pack_enabled = getattr(queue, "season_pack_enabled", False) and is_sonarr
 
                 if season_pack_enabled:
@@ -691,11 +704,9 @@ class SearchQueueManager:
                                 searches_triggered += 1
                                 items_found += 1
 
-                                # Track all episode IDs in this pack as handled
+                                # Count episodes covered by the pack search
                                 for rec in group_records:
-                                    ep_id = rec.get("id")
-                                    if ep_id is not None:
-                                        season_pack_handled_ids.add(ep_id)
+                                    if rec.get("id") is not None:
                                         items_searched += 1
 
                                 # Update LibraryItem search tracking for the series
@@ -737,12 +748,11 @@ class SearchQueueManager:
                                     instance_id=instance.id,
                                 )
 
-                # Step 8: Search each remaining item (skip season-pack-handled)
+                # Step 8: Search each item individually
+                # Season pack search above is an optimization; individual
+                # search serves as fallback if the pack didn't grab.
                 for record, score, reason in truncated:
                     item_id = record.get("id")
-
-                    # Season pack search is an optimization; individual search
-                    # serves as fallback if season pack didn't find results.
 
                     label = label_fn(record)
 
@@ -963,7 +973,10 @@ class SearchQueueManager:
         logger.warning("custom_strategy_using_missing_fallback", filters=filters)
 
         return await self._execute_missing_strategy(
-            queue, instance, db, effective_max_items=effective_max_items,
+            queue,
+            instance,
+            db,
+            effective_max_items=effective_max_items,
             override_cooldowns=override_cooldowns,
         )
 

@@ -142,7 +142,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title=settings.app_name,
     description="Intelligent backlog search automation for Sonarr and Radarr (ALPHA - Not Hand-Verified)",
-    version="0.2.0",
+    version=__version__,
     docs_url="/api/docs" if settings.environment != "production" else None,
     redoc_url="/api/redoc" if settings.environment != "production" else None,
     openapi_url="/api/openapi.json" if settings.environment != "production" else None,

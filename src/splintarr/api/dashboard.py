@@ -14,7 +14,6 @@ All dashboard pages require authentication except the setup wizard.
 The setup wizard is only accessible when no users exist.
 """
 
-import json
 import re
 from datetime import datetime, timedelta
 from typing import Annotated, Any
@@ -22,7 +21,6 @@ from typing import Annotated, Any
 import structlog
 from fastapi import APIRouter, Cookie, Depends, Form, Query, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from slowapi import Limiter
 from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
@@ -30,6 +28,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from splintarr.api.auth import set_auth_cookies
 from splintarr.api.onboarding import get_onboarding_state
+from splintarr.api.template_filters import templates
 from splintarr.config import settings
 from splintarr.core.auth import (
     TokenError,
@@ -60,54 +59,6 @@ router = APIRouter(tags=["dashboard"])
 
 # Rate limiter
 limiter = Limiter(key_func=rate_limit_key_func)
-
-# Setup Jinja2 templates
-templates = Jinja2Templates(directory="src/splintarr/templates")
-
-# Add custom filters for Jinja2
-templates.env.filters["datetime"] = lambda value: (
-    value.strftime("%Y-%m-%d %H:%M:%S UTC") if value else ""
-)
-templates.env.filters["timeago"] = lambda value: _timeago(value) if value else ""
-templates.env.filters["parse_search_log"] = lambda value: _parse_search_log(value)
-
-
-def _timeago(dt: datetime) -> str:
-    """Format datetime as time ago (e.g., '2 hours ago')."""
-    if not dt:
-        return ""
-
-    seconds = (datetime.utcnow() - dt).total_seconds()
-
-    if seconds < 60:
-        return "just now"
-    if seconds < 3600:
-        minutes = int(seconds / 60)
-        return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-    if seconds < 86400:
-        hours = int(seconds / 3600)
-        return f"{hours} hour{'s' if hours != 1 else ''} ago"
-    if seconds < 604800:
-        days = int(seconds / 86400)
-        return f"{days} day{'s' if days != 1 else ''} ago"
-    return dt.strftime("%Y-%m-%d")
-
-
-def _parse_search_log(value: str | None) -> list[dict[str, Any]]:
-    """Parse JSON search_metadata into a list of log entries for template rendering.
-
-    Each entry may contain: item, action, result, reason, error,
-    score, score_reason, grab_confirmed.
-    """
-    if not value:
-        return []
-    try:
-        data = json.loads(value)
-        if not isinstance(data, list):
-            return []
-        return [entry for entry in data if isinstance(entry, dict)]
-    except (json.JSONDecodeError, TypeError):
-        return []
 
 
 # ============================================================================

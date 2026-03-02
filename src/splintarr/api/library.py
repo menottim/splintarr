@@ -28,12 +28,12 @@ from fastapi import (
     status,
 )
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
-from fastapi.templating import Jinja2Templates
 from slowapi import Limiter
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from splintarr.api.onboarding import get_onboarding_state
+from splintarr.api.template_filters import templates
 from splintarr.core.auth import get_current_user_from_cookie
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db, get_session_factory
@@ -46,33 +46,7 @@ from splintarr.services.library_sync import get_sync_service
 logger = structlog.get_logger()
 
 router = APIRouter(tags=["library"])
-templates = Jinja2Templates(directory="src/splintarr/templates")
 limiter = Limiter(key_func=rate_limit_key_func)
-
-
-def _timeago(dt: datetime) -> str:
-    """Format datetime as time ago (e.g., '2 hours ago')."""
-    if not dt:
-        return ""
-    seconds = (datetime.utcnow() - dt).total_seconds()
-    if seconds < 60:
-        return "just now"
-    if seconds < 3600:
-        minutes = int(seconds / 60)
-        return f"{minutes} minute{'s' if minutes != 1 else ''} ago"
-    if seconds < 86400:
-        hours = int(seconds / 3600)
-        return f"{hours} hour{'s' if hours != 1 else ''} ago"
-    if seconds < 604800:
-        days = int(seconds / 86400)
-        return f"{days} day{'s' if days != 1 else ''} ago"
-    return dt.strftime("%Y-%m-%d")
-
-
-templates.env.filters["datetime"] = lambda value: (
-    value.strftime("%Y-%m-%d %H:%M:%S UTC") if value else ""
-)
-templates.env.filters["timeago"] = lambda value: _timeago(value) if value else ""
 
 
 # ============================================================================

@@ -13,12 +13,12 @@ JSON API routes (cookie auth, rate-limited):
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from slowapi import Limiter
 from sqlalchemy.orm import Session
 
 from splintarr.api.onboarding import get_onboarding_state
+from splintarr.api.template_filters import templates
 from splintarr.core.auth import get_current_user_from_cookie
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db, get_session_factory
@@ -29,7 +29,6 @@ from splintarr.services.exclusion import ExclusionService
 logger = structlog.get_logger()
 
 router = APIRouter(tags=["exclusions"])
-templates = Jinja2Templates(directory="src/splintarr/templates")
 limiter = Limiter(key_func=rate_limit_key_func)
 
 
