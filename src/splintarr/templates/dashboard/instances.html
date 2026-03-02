@@ -96,14 +96,14 @@
                 Instance Type
                 <select id="add_instance_type" name="instance_type" required>
                     <option value="">Select type...</option>
-                    <option value="sonarr">Sonarr (TV Shows)</option>
-                    <option value="radarr">Radarr (Movies)</option>
+                    <option value="sonarr" selected>Sonarr (TV Shows)</option>
                 </select>
+                <small>Radarr (Movies) support coming in a future release</small>
             </label>
 
             <label for="add_name">
                 Instance Name
-                <input type="text" id="add_name" name="name" required placeholder="e.g., Main Sonarr, 4K Radarr">
+                <input type="text" id="add_name" name="name" required placeholder="e.g., Main Sonarr, 4K Sonarr">
                 <small>Friendly name to identify this instance</small>
             </label>
 
@@ -150,7 +150,7 @@
 
             <label for="edit_name">
                 Instance Name
-                <input type="text" id="edit_name" name="name" required placeholder="e.g., Main Sonarr, 4K Radarr">
+                <input type="text" id="edit_name" name="name" required placeholder="e.g., Main Sonarr, 4K Sonarr">
             </label>
 
             <label for="edit_url">

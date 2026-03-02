@@ -453,6 +453,23 @@ async def setup_instance_create(
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Alpha: only Sonarr is supported
+        if instance_type == "radarr":
+            return templates.TemplateResponse(
+                "setup/instance.html",
+                {
+                    "request": request,
+                    "app_name": settings.app_name,
+                    "user": current_user,
+                    "no_sidebar": True,
+                    "error": "Radarr support is coming in a future release. Only Sonarr is supported in the alpha.",
+                    "name": name,
+                    "url": url,
+                    "instance_type": instance_type,
+                },
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             validate_instance_url(url, allow_local=settings.allow_local_instances)
         except (SSRFError, ValueError):
@@ -751,6 +768,13 @@ async def dashboard_add_instance(
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
             content={"detail": "Invalid instance type. Must be 'sonarr' or 'radarr'."},
+        )
+
+    # Alpha: only Sonarr is supported
+    if instance_type == "radarr":
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "Radarr support is coming in a future release. Only Sonarr is supported in the alpha."},
         )
 
     try:

@@ -110,6 +110,13 @@ async def create_instance(
     Raises:
         HTTPException: If validation fails or duplicate instance exists
     """
+    # Alpha: only Sonarr is supported
+    if instance_data.instance_type == "radarr":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Radarr support is coming in a future release. Only Sonarr is supported in the alpha.",
+        )
+
     try:
         # Check for duplicate instance name
         existing = (

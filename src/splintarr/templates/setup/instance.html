@@ -16,7 +16,7 @@
 
     <hgroup>
         <h1>Add Your First Instance</h1>
-        <p>Connect to Sonarr or Radarr to start automating searches</p>
+        <p>Connect to Sonarr to start automating searches</p>
     </hgroup>
 
     <div class="setup-content">
@@ -27,9 +27,9 @@
                         Instance Type
                         <select id="instance_type" name="instance_type" required>
                             <option value="">Select type...</option>
-                            <option value="sonarr" {% if instance_type == 'sonarr' %}selected{% endif %}>Sonarr (TV Shows)</option>
-                            <option value="radarr" {% if instance_type == 'radarr' %}selected{% endif %}>Radarr (Movies)</option>
+                            <option value="sonarr" selected>Sonarr (TV Shows)</option>
                         </select>
+                        <small>Radarr (Movies) support coming in a future release</small>
                     </label>
                 </div>
 
@@ -41,7 +41,7 @@
                             id="name"
                             name="name"
                             required
-                            placeholder="e.g., Main Sonarr, 4K Radarr"
+                            placeholder="e.g., Main Sonarr, 4K Sonarr"
                             value="{{ name or '' }}">
                         <small>Friendly name to identify this instance</small>
                     </label>
