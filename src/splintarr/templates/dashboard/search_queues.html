@@ -76,6 +76,7 @@
                 {% elif queue.status in ['pending', 'completed'] %}
                 <button class="secondary" data-action="pause-queue" data-id="{{ queue.id }}">Pause</button>
                 {% endif %}
+                <button class="secondary" data-action="edit-queue" data-id="{{ queue.id }}" data-instance-name="{{ queue.instance.name }}">Edit</button>
                 <button class="secondary" data-action="clone-queue" data-id="{{ queue.id }}">Clone</button>
                 <button class="secondary" data-action="view-queue" data-id="{{ queue.id }}">View</button>
                 <button class="secondary" style="color: var(--del-color);" data-action="delete-queue" data-id="{{ queue.id }}" data-name="{{ queue.name }}">Delete</button>
@@ -205,6 +206,83 @@
         </form>
     </article>
 </dialog>
+
+<!-- Edit Queue Modal -->
+<dialog id="edit-queue">
+    <article style="max-width: 600px; margin: auto;">
+        <header>
+            <button aria-label="Close" rel="prev" data-action="close-edit-dialog"></button>
+            <h3>Edit Queue</h3>
+        </header>
+        <form id="edit-queue-form">
+            <input type="hidden" id="edit-queue-id">
+
+            <label for="edit-instance-name">
+                Instance
+                <input type="text" id="edit-instance-name" disabled>
+            </label>
+
+            <label for="edit-name">
+                Queue Name
+                <input type="text" id="edit-name" required placeholder="Queue name">
+            </label>
+
+            <label for="edit-strategy">
+                Strategy
+                <select id="edit-strategy" required>
+                    <option value="missing">Missing</option>
+                    <option value="cutoff_unmet">Cutoff Unmet</option>
+                    <option value="recent">Recent</option>
+                </select>
+            </label>
+
+            <label for="edit-max-items">
+                Max Items Per Run
+                <input type="number" id="edit-max-items" min="1" max="500" value="50">
+            </label>
+
+            <label for="edit-interval">
+                Interval (hours)
+                <input type="number" id="edit-interval" min="1" max="168" value="24">
+            </label>
+
+            <label for="edit-cooldown-mode">
+                Cooldown Mode
+                <select id="edit-cooldown-mode">
+                    <option value="adaptive">Adaptive (recommended)</option>
+                    <option value="flat">Fixed interval</option>
+                </select>
+            </label>
+
+            <div id="edit-flat-cooldown-row" style="display: none;">
+                <label for="edit-cooldown-hours">
+                    Cooldown Hours
+                    <input type="number" id="edit-cooldown-hours" min="1" max="336" value="24">
+                </label>
+            </div>
+
+            <fieldset>
+                <label>
+                    <input type="checkbox" id="edit-season-pack" role="switch">
+                    Enable Season Pack Search
+                </label>
+            </fieldset>
+
+            <div id="edit-season-threshold-row">
+                <label for="edit-season-threshold">
+                    Season Pack Threshold
+                    <input type="number" id="edit-season-threshold" min="2" max="50" value="3">
+                    <small>Minimum missing episodes per season to trigger pack search</small>
+                </label>
+            </div>
+
+            <footer>
+                <button type="button" class="secondary" data-action="close-edit-dialog">Cancel</button>
+                <button type="submit">Save Changes</button>
+            </footer>
+        </form>
+    </article>
+</dialog>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -248,10 +326,12 @@ document.addEventListener('click', function(e) {
     var action = target.dataset.action;
     if (action === 'resume-queue') resumeQueue(parseInt(target.dataset.id));
     else if (action === 'pause-queue') pauseQueue(parseInt(target.dataset.id));
+    else if (action === 'edit-queue') editQueue(parseInt(target.dataset.id), target.dataset.instanceName);
     else if (action === 'clone-queue') cloneQueue(parseInt(target.dataset.id));
     else if (action === 'view-queue') viewQueue(parseInt(target.dataset.id));
     else if (action === 'delete-queue') deleteQueue(parseInt(target.dataset.id), target.dataset.name);
     else if (action === 'close-create-modal') closeCreateModal();
+    else if (action === 'close-edit-dialog') document.getElementById('edit-queue').close();
 });
 
 function toggleRecurring() {
@@ -524,6 +604,85 @@ document.getElementById('presetSelect').addEventListener('change', function() {
 function closeCreateModal() {
     document.getElementById('create-queue').close();
 }
+
+// Edit queue functionality
+async function editQueue(queueId, instanceName) {
+    try {
+        var result = await Splintarr.apiCall('/api/search-queues/' + queueId);
+        if (!result.success) {
+            Splintarr.showNotification('Failed to load queue details: ' + result.error);
+            return;
+        }
+        var queue = result.data;
+
+        document.getElementById('edit-queue-id').value = queue.id;
+        document.getElementById('edit-instance-name').value = instanceName || 'Instance #' + queue.instance_id;
+        document.getElementById('edit-name').value = queue.name;
+        document.getElementById('edit-strategy').value = queue.strategy;
+        document.getElementById('edit-max-items').value = queue.max_items_per_run;
+        document.getElementById('edit-interval').value = queue.interval_hours || 24;
+        document.getElementById('edit-cooldown-mode').value = queue.cooldown_mode || 'adaptive';
+        document.getElementById('edit-cooldown-hours').value = queue.cooldown_hours || 24;
+        document.getElementById('edit-flat-cooldown-row').style.display =
+            queue.cooldown_mode === 'flat' ? '' : 'none';
+        document.getElementById('edit-season-pack').checked = queue.season_pack_enabled || false;
+        document.getElementById('edit-season-threshold').value = queue.season_pack_threshold || 3;
+        document.getElementById('edit-season-threshold-row').style.display =
+            queue.season_pack_enabled ? '' : 'none';
+
+        document.getElementById('edit-queue').showModal();
+    } catch (error) {
+        Splintarr.showNotification('Failed to load queue: ' + error.message);
+    }
+}
+
+document.getElementById('edit-cooldown-mode').addEventListener('change', function() {
+    document.getElementById('edit-flat-cooldown-row').style.display =
+        this.value === 'flat' ? '' : 'none';
+});
+
+document.getElementById('edit-season-pack').addEventListener('change', function() {
+    document.getElementById('edit-season-threshold-row').style.display =
+        this.checked ? '' : 'none';
+});
+
+document.getElementById('edit-queue-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var queueId = document.getElementById('edit-queue-id').value;
+    var cooldownMode = document.getElementById('edit-cooldown-mode').value;
+    var seasonPackEnabled = document.getElementById('edit-season-pack').checked;
+    var payload = {
+        name: document.getElementById('edit-name').value,
+        strategy: document.getElementById('edit-strategy').value,
+        max_items_per_run: parseInt(document.getElementById('edit-max-items').value),
+        interval_hours: parseInt(document.getElementById('edit-interval').value),
+        cooldown_mode: cooldownMode,
+        cooldown_hours: cooldownMode === 'flat'
+            ? parseInt(document.getElementById('edit-cooldown-hours').value)
+            : null,
+        season_pack_enabled: seasonPackEnabled,
+        season_pack_threshold: seasonPackEnabled
+            ? parseInt(document.getElementById('edit-season-threshold').value)
+            : 3,
+    };
+
+    try {
+        var response = await fetch('/api/search-queues/' + queueId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (response.ok) {
+            document.getElementById('edit-queue').close();
+            location.reload();
+        } else {
+            var data = await response.json();
+            Splintarr.showNotification('Failed to update queue: ' + (data.detail || 'Unknown error'));
+        }
+    } catch (error) {
+        Splintarr.showNotification('Failed to update queue: ' + error.message);
+    }
+});
 
 // Open modal from the Create Queue link
 document.querySelector('a[href="#create-queue"]').addEventListener('click', function(e) {
