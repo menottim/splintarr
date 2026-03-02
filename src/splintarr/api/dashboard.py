@@ -52,7 +52,7 @@ from splintarr.models.user import User
 from splintarr.schemas.user import common_passwords
 from splintarr.services.prowlarr import ProwlarrClient, ProwlarrError
 from splintarr.services.radarr import RadarrClient, RadarrError
-from splintarr.services.scheduler import _scheduler_instance
+from splintarr.services.scheduler import get_scheduler_status
 from splintarr.services.sonarr import SonarrClient, SonarrError
 
 logger = structlog.get_logger()
@@ -62,6 +62,59 @@ router = APIRouter(tags=["dashboard"])
 
 # Rate limiter
 limiter = Limiter(key_func=rate_limit_key_func)
+
+
+# ============================================================================
+# SYSTEM STATUS HELPERS
+# ============================================================================
+
+
+def _get_integration_status(
+    db: Session, user_id: int, *, include_timestamps: bool = False
+) -> dict[str, Any]:
+    """Get Discord and Prowlarr integration status for the system status panel."""
+    discord_config = (
+        db.query(NotificationConfig)
+        .filter(NotificationConfig.user_id == user_id)
+        .first()
+    )
+    prowlarr_config = (
+        db.query(ProwlarrConfig)
+        .filter(ProwlarrConfig.user_id == user_id)
+        .first()
+    )
+
+    discord: dict[str, Any] = {
+        "configured": discord_config is not None,
+        "active": bool(discord_config and discord_config.is_active),
+    }
+    prowlarr: dict[str, Any] = {
+        "configured": prowlarr_config is not None,
+        "active": bool(prowlarr_config and prowlarr_config.is_active),
+    }
+
+    if include_timestamps:
+        discord["last_sent_at"] = (
+            discord_config.last_sent_at.isoformat()
+            if discord_config and discord_config.last_sent_at
+            else None
+        )
+        prowlarr["last_sync_at"] = (
+            prowlarr_config.last_sync_at.isoformat()
+            if prowlarr_config and prowlarr_config.last_sync_at
+            else None
+        )
+
+    return {"discord": discord, "prowlarr": prowlarr}
+
+
+def _get_service_status() -> dict[str, Any]:
+    """Get database and scheduler health for the system status panel."""
+    db_health = database_health_check()
+    return {
+        "database": {"status": db_health.get("status", "unhealthy")},
+        "scheduler": get_scheduler_status(),
+    }
 
 
 # ============================================================================
@@ -666,43 +719,8 @@ async def dashboard_index(
         .all()
     )
 
-    # Get integration status for server-rendered system status
-    discord_config = (
-        db.query(NotificationConfig)
-        .filter(NotificationConfig.user_id == current_user.id)
-        .first()
-    )
-    prowlarr_config = (
-        db.query(ProwlarrConfig)
-        .filter(ProwlarrConfig.user_id == current_user.id)
-        .first()
-    )
-
-    integrations = {
-        "discord": {
-            "configured": discord_config is not None,
-            "active": bool(discord_config and discord_config.is_active),
-        },
-        "prowlarr": {
-            "configured": prowlarr_config is not None,
-            "active": bool(prowlarr_config and prowlarr_config.is_active),
-        },
-    }
-
-    db_health = database_health_check()
-    scheduler_info: dict[str, Any] = {"status": "stopped", "jobs_count": 0}
-    if _scheduler_instance:
-        sched = _scheduler_instance.get_status()
-        if sched["running"] and sched["paused"]:
-            scheduler_info["status"] = "paused"
-        elif sched["running"]:
-            scheduler_info["status"] = "running"
-        scheduler_info["jobs_count"] = sched["jobs_count"]
-
-    services = {
-        "database": {"status": db_health.get("status", "unhealthy")},
-        "scheduler": scheduler_info,
-    }
+    integrations = _get_integration_status(db, current_user.id)
+    services = _get_service_status()
 
     return templates.TemplateResponse(
         "dashboard/index.html",
@@ -1228,7 +1246,9 @@ async def api_dashboard_activity(
 
 
 @router.get("/api/dashboard/system-status", include_in_schema=False)
+@limiter.limit("30/minute")
 async def api_dashboard_system_status(
+    request: Request,
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
 ) -> JSONResponse:
@@ -1240,7 +1260,6 @@ async def api_dashboard_system_status(
     - integrations: Discord and Prowlarr configuration/status
     - services: database and scheduler health
     """
-    # Instances
     instances = (
         db.query(Instance)
         .filter(Instance.user_id == current_user.id)
@@ -1265,55 +1284,8 @@ async def api_dashboard_system_status(
         for inst in instances
     ]
 
-    # Integrations
-    discord_config = (
-        db.query(NotificationConfig)
-        .filter(NotificationConfig.user_id == current_user.id)
-        .first()
-    )
-    prowlarr_config = (
-        db.query(ProwlarrConfig)
-        .filter(ProwlarrConfig.user_id == current_user.id)
-        .first()
-    )
-
-    integrations = {
-        "discord": {
-            "configured": discord_config is not None,
-            "active": bool(discord_config and discord_config.is_active),
-            "last_sent_at": (
-                discord_config.last_sent_at.isoformat()
-                if discord_config and discord_config.last_sent_at
-                else None
-            ),
-        },
-        "prowlarr": {
-            "configured": prowlarr_config is not None,
-            "active": bool(prowlarr_config and prowlarr_config.is_active),
-            "last_sync_at": (
-                prowlarr_config.last_sync_at.isoformat()
-                if prowlarr_config and prowlarr_config.last_sync_at
-                else None
-            ),
-        },
-    }
-
-    # Services
-    db_health = database_health_check()
-
-    scheduler_status: dict[str, Any] = {"status": "stopped", "jobs_count": 0}
-    if _scheduler_instance:
-        sched_info = _scheduler_instance.get_status()
-        if sched_info["running"] and sched_info["paused"]:
-            scheduler_status["status"] = "paused"
-        elif sched_info["running"]:
-            scheduler_status["status"] = "running"
-        scheduler_status["jobs_count"] = sched_info["jobs_count"]
-
-    services = {
-        "database": {"status": db_health.get("status", "unhealthy")},
-        "scheduler": scheduler_status,
-    }
+    integrations = _get_integration_status(db, current_user.id, include_timestamps=True)
+    services = _get_service_status()
 
     logger.debug(
         "dashboard_system_status_requested",
