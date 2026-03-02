@@ -124,6 +124,9 @@ class FeedbackCheckService:
                             is_sonarr=is_sonarr,
                         )
                         entry["grab_confirmed"] = grab_confirmed
+                        # Update result from "sent" to "grabbed"/"no grab"
+                        if entry.get("result") == "sent":
+                            entry["result"] = "grabbed" if grab_confirmed else "no grab"
                         checked += 1
 
                         if grab_confirmed:

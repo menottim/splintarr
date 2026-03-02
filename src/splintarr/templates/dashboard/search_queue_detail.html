@@ -185,7 +185,11 @@
                                             </td>
                                             <td><code>{{ log_entry.action }}</code></td>
                                             <td>
-                                                {% if log_entry.result == 'sent' %}
+                                                {% if log_entry.result == 'grabbed' %}
+                                                <span style="color: var(--ins-color);">&#10003; grabbed</span>
+                                                {% elif log_entry.result == 'no grab' %}
+                                                <span style="color: var(--muted-color);">&#9675; no grab</span>
+                                                {% elif log_entry.result == 'sent' %}
                                                 <span style="color: var(--ins-color);">sent</span>
                                                 {% elif log_entry.result == 'error' %}
                                                 <span style="color: var(--del-color);" title="{{ log_entry.error }}">error</span>
@@ -193,14 +197,6 @@
                                                 <span style="color: var(--muted-color);">{{ log_entry.reason }}</span>
                                                 {% else %}
                                                 {{ log_entry.get('result', log_entry.get('reason', '-')) }}
-                                                {% endif %}
-                                                {% if log_entry.grab_confirmed is defined and log_entry.grab_confirmed is not none %}
-                                                <br>
-                                                {% if log_entry.grab_confirmed %}
-                                                <small style="color: var(--ins-color);">&#10003; Grabbed</small>
-                                                {% else %}
-                                                <small style="color: var(--muted-color);">&#9675; No grab</small>
-                                                {% endif %}
                                                 {% endif %}
                                             </td>
                                         </tr>
