@@ -217,7 +217,9 @@
             var total = document.getElementById('stat-library-total');
             var detail = document.getElementById('stat-library-detail');
             if (total) total.textContent = data.total_items;
-            if (detail) detail.textContent = data.complete_count + ' complete \u00b7 ' + data.missing_count + ' missing';
+            var parts = [data.complete_count + ' complete', data.missing_count + ' missing'];
+            if (data.cutoff_unmet_count > 0) parts.push(data.cutoff_unmet_count + ' cutoff unmet');
+            if (detail) detail.textContent = parts.join(' \u00b7 ');
         }
     } catch (e) {
         var detail = document.getElementById('stat-library-detail');

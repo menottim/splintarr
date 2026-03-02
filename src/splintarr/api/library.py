@@ -261,6 +261,12 @@ def _get_library_stats(db: Session, user: User) -> dict[str, Any]:
                     else_=0,
                 )
             ).label("movies"),
+            func.sum(
+                case(
+                    (LibraryItem.cutoff_unmet_count > 0, 1),
+                    else_=0,
+                )
+            ).label("cutoff_unmet"),
         )
         .join(Instance, LibraryItem.instance_id == Instance.id)
         .filter(Instance.user_id == user.id)
@@ -273,6 +279,7 @@ def _get_library_stats(db: Session, user: User) -> dict[str, Any]:
         "missing_count": int(row.missing or 0),
         "series_count": int(row.series or 0),
         "movie_count": int(row.movies or 0),
+        "cutoff_unmet_count": int(row.cutoff_unmet or 0),
     }
 
 
