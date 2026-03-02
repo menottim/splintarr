@@ -177,30 +177,100 @@
         </header>
 
         <div id="system-status-content">
-            {% if instances %}
-            {% for instance in instances %}
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                {% if instance.connection_status == 'healthy' %}
-                <span style="color: var(--ins-color);" title="Healthy">●</span>
-                {% elif instance.connection_status == 'unhealthy' %}
-                <span style="color: var(--del-color);" title="Unhealthy">●</span>
-                {% else %}
-                <span style="color: var(--muted-color);" title="Unknown">●</span>
-                {% endif %}
-                <a href="/dashboard/instances" style="text-decoration: none;">{{ instance.name }}</a>
-                <small style="color: var(--muted-color);">({{ instance.instance_type }})</small>
-                <small style="color: var(--muted-color); margin-left: auto;">
-                    {% if instance.last_connection_test %}
-                    {{ instance.last_connection_test|timeago }}
+            <!-- Instances -->
+            <div id="system-status-instances">
+                <small style="color: var(--muted-color); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em;">Instances</small>
+                {% if instances %}
+                {% for instance in instances %}
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    {% if instance.connection_status == 'healthy' %}
+                    <span style="color: var(--ins-color);" title="Healthy">●</span>
+                    {% elif instance.connection_status == 'unhealthy' %}
+                    <span style="color: var(--del-color);" title="Unhealthy">●</span>
                     {% else %}
-                    never checked
+                    <span style="color: var(--muted-color);" title="Unknown">●</span>
                     {% endif %}
-                </small>
+                    <a href="/dashboard/instances" style="text-decoration: none;">{{ instance.name }}</a>
+                    <small style="color: var(--muted-color);">({{ instance.instance_type }})</small>
+                    <small style="color: var(--muted-color); margin-left: auto;">
+                        {% if instance.last_connection_test %}
+                        {{ instance.last_connection_test|timeago }}
+                        {% else %}
+                        never checked
+                        {% endif %}
+                    </small>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="color: var(--muted-color); margin-bottom: 0.5rem;">No instances configured. <a href="/dashboard/instances">Add one</a></div>
+                {% endif %}
             </div>
-            {% endfor %}
-            {% else %}
-            <p style="color: var(--muted-color);">No instances configured. <a href="/dashboard/instances">Add one</a></p>
-            {% endif %}
+
+            <!-- Integrations -->
+            <div id="system-status-integrations" style="margin-top: 0.75rem;">
+                <small style="color: var(--muted-color); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em;">Integrations</small>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    {% if integrations.discord.configured %}
+                        {% if integrations.discord.active %}
+                        <span style="color: var(--ins-color);" title="Active">●</span>
+                        {% else %}
+                        <span style="color: var(--muted-color);" title="Inactive">●</span>
+                        {% endif %}
+                    {% else %}
+                    <span style="color: var(--muted-color);" title="Not configured">●</span>
+                    {% endif %}
+                    <a href="/dashboard/settings#notifications" style="text-decoration: none;">Discord</a>
+                    <small style="color: var(--muted-color); margin-left: auto;">
+                        {% if not integrations.discord.configured %}not configured
+                        {% elif integrations.discord.active %}active
+                        {% else %}inactive{% endif %}
+                    </small>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    {% if integrations.prowlarr.configured %}
+                        {% if integrations.prowlarr.active %}
+                        <span style="color: var(--ins-color);" title="Active">●</span>
+                        {% else %}
+                        <span style="color: var(--muted-color);" title="Inactive">●</span>
+                        {% endif %}
+                    {% else %}
+                    <span style="color: var(--muted-color);" title="Not configured">●</span>
+                    {% endif %}
+                    <a href="/dashboard/settings#prowlarr" style="text-decoration: none;">Prowlarr</a>
+                    <small style="color: var(--muted-color); margin-left: auto;">
+                        {% if not integrations.prowlarr.configured %}not configured
+                        {% elif integrations.prowlarr.active %}active
+                        {% else %}inactive{% endif %}
+                    </small>
+                </div>
+            </div>
+
+            <!-- Internal Services -->
+            <div id="system-status-services" style="margin-top: 0.75rem;">
+                <small style="color: var(--muted-color); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em;">Internal Services</small>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    {% if services.database.status == 'healthy' %}
+                    <span style="color: var(--ins-color);" title="Healthy">●</span>
+                    {% else %}
+                    <span style="color: var(--del-color);" title="Unhealthy">●</span>
+                    {% endif %}
+                    <span>Database</span>
+                    <small style="color: var(--muted-color); margin-left: auto;">{{ services.database.status }}</small>
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    {% if services.scheduler.status == 'running' %}
+                    <span style="color: var(--ins-color);" title="Running">●</span>
+                    {% elif services.scheduler.status == 'paused' %}
+                    <span style="color: var(--muted-color);" title="Paused">●</span>
+                    {% else %}
+                    <span style="color: var(--del-color);" title="Stopped">●</span>
+                    {% endif %}
+                    <span>Scheduler</span>
+                    <small style="color: var(--muted-color); margin-left: auto;">
+                        {{ services.scheduler.status }}{% if services.scheduler.jobs_count %} · {{ services.scheduler.jobs_count }} job{{ 's' if services.scheduler.jobs_count != 1 }}{% endif %}
+                    </small>
+                </div>
+            </div>
         </div>
     </article>
 </div>
@@ -320,19 +390,128 @@ function buildStatusRow(inst) {
     return row;
 }
 
+function buildIntegrationRow(name, href, info) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;';
+
+    var dot = document.createElement('span');
+    if (info.configured && info.active) {
+        dot.style.color = 'var(--ins-color)';
+        dot.title = 'Active';
+    } else {
+        dot.style.color = 'var(--muted-color)';
+        dot.title = info.configured ? 'Inactive' : 'Not configured';
+    }
+    dot.textContent = '\u25cf';
+    row.appendChild(dot);
+
+    var link = document.createElement('a');
+    link.href = href;
+    link.style.textDecoration = 'none';
+    link.textContent = name;
+    row.appendChild(link);
+
+    var detail = document.createElement('small');
+    detail.style.cssText = 'color: var(--muted-color); margin-left: auto;';
+    if (!info.configured) {
+        detail.textContent = 'not configured';
+    } else if (info.active) {
+        detail.textContent = 'active';
+    } else {
+        detail.textContent = 'inactive';
+    }
+    row.appendChild(detail);
+
+    return row;
+}
+
+function buildServiceRow(name, serviceStatus, extra) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;';
+
+    var dot = document.createElement('span');
+    if (serviceStatus === 'healthy' || serviceStatus === 'running') {
+        dot.style.color = 'var(--ins-color)';
+        dot.title = serviceStatus.charAt(0).toUpperCase() + serviceStatus.slice(1);
+    } else if (serviceStatus === 'paused') {
+        dot.style.color = 'var(--muted-color)';
+        dot.title = 'Paused';
+    } else {
+        dot.style.color = 'var(--del-color)';
+        dot.title = serviceStatus.charAt(0).toUpperCase() + serviceStatus.slice(1);
+    }
+    dot.textContent = '\u25cf';
+    row.appendChild(dot);
+
+    var label = document.createElement('span');
+    label.textContent = name;
+    row.appendChild(label);
+
+    var detail = document.createElement('small');
+    detail.style.cssText = 'color: var(--muted-color); margin-left: auto;';
+    detail.textContent = extra || serviceStatus;
+    row.appendChild(detail);
+
+    return row;
+}
+
+function buildSectionLabel(text) {
+    var label = document.createElement('small');
+    label.style.cssText = 'color: var(--muted-color); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em;';
+    label.textContent = text;
+    return label;
+}
+
 setInterval(async () => {
     try {
         const response = await fetch('/api/dashboard/system-status');
         if (response.ok) {
             const data = await response.json();
             statusLastChecked = Date.now();
-            var content = document.getElementById('system-status-content');
-            if (!content || !data.instances.length) return;
 
-            content.replaceChildren();
-            data.instances.forEach(function(inst) {
-                content.appendChild(buildStatusRow(inst));
-            });
+            // Instances section
+            var instSection = document.getElementById('system-status-instances');
+            if (instSection) {
+                instSection.replaceChildren();
+                instSection.appendChild(buildSectionLabel('Instances'));
+                if (data.instances && data.instances.length) {
+                    data.instances.forEach(function(inst) {
+                        instSection.appendChild(buildStatusRow(inst));
+                    });
+                } else {
+                    var empty = document.createElement('div');
+                    empty.style.cssText = 'color: var(--muted-color); margin-bottom: 0.5rem;';
+                    empty.textContent = 'No instances configured. ';
+                    var addLink = document.createElement('a');
+                    addLink.href = '/dashboard/instances';
+                    addLink.textContent = 'Add one';
+                    empty.appendChild(addLink);
+                    instSection.appendChild(empty);
+                }
+            }
+
+            // Integrations section
+            var intSection = document.getElementById('system-status-integrations');
+            if (intSection && data.integrations) {
+                intSection.replaceChildren();
+                intSection.appendChild(buildSectionLabel('Integrations'));
+                intSection.appendChild(buildIntegrationRow('Discord', '/dashboard/settings#notifications', data.integrations.discord));
+                intSection.appendChild(buildIntegrationRow('Prowlarr', '/dashboard/settings#prowlarr', data.integrations.prowlarr));
+            }
+
+            // Services section
+            var svcSection = document.getElementById('system-status-services');
+            if (svcSection && data.services) {
+                svcSection.replaceChildren();
+                svcSection.appendChild(buildSectionLabel('Internal Services'));
+                svcSection.appendChild(buildServiceRow('Database', data.services.database.status));
+                var schedStatus = data.services.scheduler.status;
+                var schedExtra = schedStatus;
+                if (data.services.scheduler.jobs_count) {
+                    schedExtra += ' \u00b7 ' + data.services.scheduler.jobs_count + ' job' + (data.services.scheduler.jobs_count !== 1 ? 's' : '');
+                }
+                svcSection.appendChild(buildServiceRow('Scheduler', schedStatus, schedExtra));
+            }
         }
     } catch (error) {
         console.error('Failed to refresh system status:', error);

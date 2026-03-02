@@ -41,9 +41,10 @@ from splintarr.core.auth import (
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.core.security import decrypt_field, encrypt_field, hash_password
 from splintarr.core.ssrf_protection import SSRFError, validate_instance_url
-from splintarr.database import get_db
+from splintarr.database import database_health_check, get_db
 from splintarr.models.instance import Instance
 from splintarr.models.library import LibraryItem
+from splintarr.models.notification import NotificationConfig
 from splintarr.models.prowlarr import ProwlarrConfig
 from splintarr.models.search_history import SearchHistory
 from splintarr.models.search_queue import SearchQueue
@@ -51,6 +52,7 @@ from splintarr.models.user import User
 from splintarr.schemas.user import common_passwords
 from splintarr.services.prowlarr import ProwlarrClient, ProwlarrError
 from splintarr.services.radarr import RadarrClient, RadarrError
+from splintarr.services.scheduler import _scheduler_instance
 from splintarr.services.sonarr import SonarrClient, SonarrError
 
 logger = structlog.get_logger()
@@ -664,6 +666,44 @@ async def dashboard_index(
         .all()
     )
 
+    # Get integration status for server-rendered system status
+    discord_config = (
+        db.query(NotificationConfig)
+        .filter(NotificationConfig.user_id == current_user.id)
+        .first()
+    )
+    prowlarr_config = (
+        db.query(ProwlarrConfig)
+        .filter(ProwlarrConfig.user_id == current_user.id)
+        .first()
+    )
+
+    integrations = {
+        "discord": {
+            "configured": discord_config is not None,
+            "active": bool(discord_config and discord_config.is_active),
+        },
+        "prowlarr": {
+            "configured": prowlarr_config is not None,
+            "active": bool(prowlarr_config and prowlarr_config.is_active),
+        },
+    }
+
+    db_health = database_health_check()
+    scheduler_info: dict[str, Any] = {"status": "stopped", "jobs_count": 0}
+    if _scheduler_instance:
+        sched = _scheduler_instance.get_status()
+        if sched["running"] and sched["paused"]:
+            scheduler_info["status"] = "paused"
+        elif sched["running"]:
+            scheduler_info["status"] = "running"
+        scheduler_info["jobs_count"] = sched["jobs_count"]
+
+    services = {
+        "database": {"status": db_health.get("status", "unhealthy")},
+        "scheduler": scheduler_info,
+    }
+
     return templates.TemplateResponse(
         "dashboard/index.html",
         {
@@ -672,6 +712,8 @@ async def dashboard_index(
             "stats": stats,
             "recent_searches": recent_searches,
             "instances": instances,
+            "integrations": integrations,
+            "services": services,
             "active_page": "dashboard",
             "onboarding": get_onboarding_state(db, current_user.id),
         },
@@ -1191,10 +1233,14 @@ async def api_dashboard_system_status(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """
-    Get instance health status (JSON API).
+    Get system status (JSON API).
 
-    Returns per-instance health info for the system status panel.
+    Returns three sections for the system status panel:
+    - instances: per-instance health info
+    - integrations: Discord and Prowlarr configuration/status
+    - services: database and scheduler health
     """
+    # Instances
     instances = (
         db.query(Instance)
         .filter(Instance.user_id == current_user.id)
@@ -1219,7 +1265,71 @@ async def api_dashboard_system_status(
         for inst in instances
     ]
 
-    return JSONResponse(content={"instances": instance_status})
+    # Integrations
+    discord_config = (
+        db.query(NotificationConfig)
+        .filter(NotificationConfig.user_id == current_user.id)
+        .first()
+    )
+    prowlarr_config = (
+        db.query(ProwlarrConfig)
+        .filter(ProwlarrConfig.user_id == current_user.id)
+        .first()
+    )
+
+    integrations = {
+        "discord": {
+            "configured": discord_config is not None,
+            "active": bool(discord_config and discord_config.is_active),
+            "last_sent_at": (
+                discord_config.last_sent_at.isoformat()
+                if discord_config and discord_config.last_sent_at
+                else None
+            ),
+        },
+        "prowlarr": {
+            "configured": prowlarr_config is not None,
+            "active": bool(prowlarr_config and prowlarr_config.is_active),
+            "last_sync_at": (
+                prowlarr_config.last_sync_at.isoformat()
+                if prowlarr_config and prowlarr_config.last_sync_at
+                else None
+            ),
+        },
+    }
+
+    # Services
+    db_health = database_health_check()
+
+    scheduler_status: dict[str, Any] = {"status": "stopped", "jobs_count": 0}
+    if _scheduler_instance:
+        sched_info = _scheduler_instance.get_status()
+        if sched_info["running"] and sched_info["paused"]:
+            scheduler_status["status"] = "paused"
+        elif sched_info["running"]:
+            scheduler_status["status"] = "running"
+        scheduler_status["jobs_count"] = sched_info["jobs_count"]
+
+    services = {
+        "database": {"status": db_health.get("status", "unhealthy")},
+        "scheduler": scheduler_status,
+    }
+
+    logger.debug(
+        "dashboard_system_status_requested",
+        user_id=current_user.id,
+        instance_count=len(instance_status),
+        discord_configured=integrations["discord"]["configured"],
+        prowlarr_configured=integrations["prowlarr"]["configured"],
+    )
+
+    return JSONResponse(
+        content={
+            "instances": instance_status,
+            "integrations": integrations,
+            "services": services,
+        }
+    )
 
 
 @router.get("/api/dashboard/indexer-health", include_in_schema=False)
