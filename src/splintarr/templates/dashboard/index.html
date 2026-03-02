@@ -51,32 +51,6 @@
     </a>
 </div>
 
-<!-- Indexer Health (only shown if Prowlarr configured) -->
-<div id="indexer-health-section" style="display: none;">
-    <article>
-        <header>
-            <h3>Indexer Health</h3>
-        </header>
-        <div class="overflow-auto">
-            <table id="indexer-health-table" role="grid">
-                <thead>
-                    <tr>
-                        <th>Indexer</th>
-                        <th>Query Limit</th>
-                        <th>Queries Used</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody id="indexer-health-body">
-                    <tr>
-                        <td colspan="4" style="text-align: center; color: var(--muted-color);">Loading...</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-    </article>
-</div>
-
 <!-- Recent Activity -->
 <article>
     <header>
@@ -141,6 +115,32 @@
         <a href="/dashboard/search-history">View all history →</a>
     </footer>
 </article>
+
+<!-- Indexer Health (only shown if Prowlarr configured) -->
+<div id="indexer-health-section" style="display: none;">
+    <article>
+        <header>
+            <h3>Indexer Health</h3>
+        </header>
+        <div class="overflow-auto">
+            <table id="indexer-health-table" role="grid">
+                <thead>
+                    <tr>
+                        <th>Indexer</th>
+                        <th>Query Limit</th>
+                        <th>Queries Used</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="indexer-health-body">
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--muted-color);">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </article>
+</div>
 
 <!-- Quick Actions & System Status -->
 <div class="grid">
