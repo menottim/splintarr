@@ -70,15 +70,17 @@ async def _run_sync_all_background() -> None:
     """Background task: sync library data from all active instances."""
     global _sync_in_progress
     _sync_in_progress = True
-    _sync_state.update({
-        "syncing": True,
-        "current_instance": None,
-        "items_synced": 0,
-        "total_instances": 0,
-        "instances_done": 0,
-        "errors": [],
-        "started_at": datetime.utcnow().isoformat(),
-    })
+    _sync_state.update(
+        {
+            "syncing": True,
+            "current_instance": None,
+            "items_synced": 0,
+            "total_instances": 0,
+            "instances_done": 0,
+            "errors": [],
+            "started_at": datetime.utcnow().isoformat(),
+        }
+    )
     logger.info("library_sync_background_started")
     try:
         service = get_sync_service()
@@ -111,12 +113,14 @@ def _update_sync_progress(
     instances_done: int = 0,
 ) -> None:
     """Callback for sync service to report progress."""
-    _sync_state.update({
-        "current_instance": current_instance,
-        "items_synced": items_synced,
-        "total_instances": total_instances,
-        "instances_done": instances_done,
-    })
+    _sync_state.update(
+        {
+            "current_instance": current_instance,
+            "items_synced": items_synced,
+            "total_instances": total_instances,
+            "instances_done": instances_done,
+        }
+    )
 
 
 def _base_library_query(db: Session, user: User):  # type: ignore[return]

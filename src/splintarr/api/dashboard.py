@@ -774,7 +774,9 @@ async def dashboard_add_instance(
     if instance_type == "radarr":
         return JSONResponse(
             status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": "Radarr support is coming in a future release. Only Sonarr is supported in the alpha."},
+            content={
+                "detail": "Radarr support is coming in a future release. Only Sonarr is supported in the alpha."
+            },
         )
 
     try:

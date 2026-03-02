@@ -540,7 +540,11 @@ class SearchQueueManager:
                         for ep in db_episodes:
                             if ep.library_item:
                                 episode_tracking[
-                                    (ep.library_item.external_id, ep.season_number, ep.episode_number)
+                                    (
+                                        ep.library_item.external_id,
+                                        ep.season_number,
+                                        ep.episode_number,
+                                    )
                                 ] = ep
 
                 # Step 3-7: Score, sort, filter, truncate
