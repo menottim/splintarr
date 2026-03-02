@@ -2,7 +2,7 @@
 
 > **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. This is the sole source of truth; versioned PRDs have been retired.
 
-**Last updated:** 2026-03-02 (v1.0.0-alpha)
+**Last updated:** 2026-03-02 (v1.0.1-alpha)
 
 ---
 
@@ -160,6 +160,13 @@ All features below shipped in **v1.0.0-alpha** (Sonarr only; Radarr support defe
 ### v1.0.0-alpha
 
 - **Alpha Release Prep** — Version bump, README updated to alpha status, RELEASE_NOTES.md created, PRD updated. All features through v0.5.1 shipped as first alpha. Radarr support deferred to post-alpha (backend code exists, UI gated). Tested on Docker Desktop for Windows.
+
+### v1.0.1-alpha
+
+- **Dashboard System Status Redesign** (PR #108) — Reorganized System Status card into three labeled sections: Instances, Integrations (Discord, Prowlarr), and Internal Services (Database, Scheduler). Rate-limited the status API endpoint.
+- **Dashboard Polish** — Cutoff unmet count in library stats card, recent search activity limited to 5 items, queue all-time stats per strategy on detail page.
+- **UI Fixes** — Indexer health table tooltip clipping, tooltip text styling, hover tooltips on non-obvious table headers, Docker version display in footer.
+- **Infrastructure** — Persistent poster images across container rebuilds, library sync progress fix, poster-missing log level bump.
 
 ---
 
@@ -486,3 +493,4 @@ Upgrade the v0.2.1 enhanced polling (15s interval) to true WebSocket push at `/w
 | 2026-03-01 | v0.5.0 shipped: UX overhaul — setup wizard expansion, guided onboarding, search filters (PR #94) |
 | 2026-03-01 | v0.5.1 shipped: Fix setup progress bars (6 steps), Docker version display (PR #97) |
 | 2026-03-02 | v1.0.0-alpha: Alpha release. All features through v0.5.1 plus alpha hardening (DB locking fix, per-episode tracking, sync progress, logging overhaul, UX polish, security audit). Radarr deferred to post-alpha. Tested on Docker Desktop for Windows. |
+| 2026-03-02 | v1.0.1-alpha: Dashboard system status redesign (3 sections), dashboard polish (cutoff unmet, activity limit, queue stats), UI fixes (tooltips, footer version), infrastructure (persistent posters, sync progress fix). |

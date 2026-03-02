@@ -4,7 +4,7 @@
 
 <h1 align="center">Splintarr</h1>
 
-<p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.0.0-alpha">Version 1.0.0-alpha</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
+<p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.0.1-alpha">Version 1.0.1-alpha</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
 
 > **Status: Alpha Release -- Ready for Testing**
 >

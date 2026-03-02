@@ -1,76 +1,57 @@
-# Splintarr v1.0.0-alpha Release Notes
+# Splintarr v1.0.1-alpha Release Notes
 
 **Release Date:** 2026-03-02
 **Status:** Alpha -- Ready for Testing
 
-## What is Splintarr?
+## What's New in v1.0.1-alpha
 
-Splintarr automates intelligent backlog searching for Sonarr. It runs as a Docker container on your home network, intelligently scheduling searches for missing and quality-upgradeable content while respecting indexer rate limits.
+This is a polish and fixes release building on the v1.0.0-alpha foundation. No new major features, but significant dashboard improvements and bug fixes.
 
-## Alpha Scope
+### Dashboard System Status Redesign (PR #108)
 
-This alpha supports **Sonarr only**. Radarr support is planned for a future release. All backend code for Radarr exists but is disabled in the UI.
+The System Status card on the dashboard has been reorganized from a flat instance list into three labeled sections:
 
-### Tested Platform
+- **Instances** — Sonarr/Radarr connection health (existing)
+- **Integrations** — Discord and Prowlarr configuration status (new)
+- **Internal Services** — Database health and scheduler status (new)
 
-This release has been hand-tested on **Docker Desktop for Windows**. It is expected to work on Linux and macOS Docker environments but has not been independently verified.
+Both the server-rendered initial state and the 30-second polling JS render all three sections. The `/api/dashboard/system-status` endpoint now returns structured data for all sections and is rate-limited at 30 requests/minute.
 
-## Features
+### Dashboard Polish
 
-### Core Search Engine
-- Automated backlog searching with configurable strategies (missing, cutoff unmet, recent)
-- Per-episode search tracking prevents repeated searches of the same content
-- Season pack detection with automatic individual episode fallback
-- Search result feedback loop -- tracks whether searches resulted in grabs
-- Adaptive search prioritization with customizable cooldowns
-- Cooldown override option for manual "Run Now" operations
+- **Cutoff unmet count** shown in library stats card on the dashboard
+- **Recent search activity** limited to 5 items (previously unbounded)
+- **All-time stats per strategy** on the queue detail page
+- **Hover tooltips** on non-obvious table headers across all pages
 
-### Instance Management
-- Connect multiple Sonarr instances
-- Encrypted API key storage (Fernet)
-- Instance health monitoring with auto-recovery
-- Docker networking tips with click-to-copy URLs
+### Bug Fixes
 
-### Library
-- Visual poster grid with episode-level completion tracking
-- Missing content and cutoff unmet filtered views
-- Series detail pages with per-season episode breakdown
-- Quality profile display from Sonarr
-- Content exclusion lists
+- **Indexer health table tooltips** no longer clipped by overflow wrapper
+- **Tooltip text styling** fixed across pseudo-elements (lowercase, lighter weight)
+- **Docker footer version** now displays actual version instead of "vdev"
+- **Library sync progress** no longer stuck on "Preparing sync" (broken auth call fixed)
+- **Poster images** persist across container rebuilds (Docker volume fix)
 
-### Search Queues
-- Create, edit, clone, and delete search queues
-- Pause/resume with automatic scheduling
-- Configurable search intervals and batch sizes
-- Queue presets for common configurations
-- Detailed execution history with per-item results
+### Infrastructure
 
-### Integrations
-- **Prowlarr** -- Indexer-aware rate limiting
-- **Discord** -- Notifications for search activity, instance health, and errors
+- Poster-missing log level bumped from DEBUG to INFO
+- Documentation screenshots regenerated for v1.0.0-alpha
+- AI warning and author info moved under Acknowledgments in README
 
-### Setup & Configuration
-- Guided setup wizard (6 steps)
-- Config export (import coming in a future release)
-- Discord and Prowlarr configuration in settings
-- Contextual dashboard with Getting Started guide
+## Upgrading from v1.0.0-alpha
 
-### Security
-- SQLCipher encrypted database (AES-256)
-- Argon2id password hashing with pepper
-- JWT authentication with httpOnly cookies
-- Optional TOTP two-factor authentication
-- SSRF protection on instance URLs
-- CSP nonce-based script security
-- Rate limiting on sensitive endpoints
+Pull the latest image and restart:
 
-### Operations
-- Structured JSON logging with truncation and deduplication
-- Log rotation (5MB per file, 3 backups)
-- Health check endpoint for Docker
-- Database integrity checking
+```bash
+docker-compose pull
+docker-compose up -d
+```
+
+No database migrations required. Existing data is preserved.
 
 ## Known Limitations
+
+Same as v1.0.0-alpha:
 
 - **Sonarr only** -- Radarr support is disabled in the alpha (backend code exists, UI is gated)
 - **Single-worker only** -- Rate limiting is in-memory, doesn't share state across workers
@@ -78,30 +59,6 @@ This release has been hand-tested on **Docker Desktop for Windows**. It is expec
 - **No config import** -- Export only in this release
 - **Series-level cooldown** -- Cooldown applies at the series level in Sonarr, not per-episode (by design)
 - **Tested on Windows Docker only** -- Linux/macOS should work but is unverified
-
-## Setup
-
-### Windows
-```powershell
-git clone https://github.com/menottim/splintarr.git
-cd splintarr
-.\scripts\setup-windows.ps1 -AutoStart
-```
-
-### Linux / macOS
-```bash
-git clone https://github.com/menottim/splintarr.git
-cd splintarr
-./scripts/setup.sh --auto-start
-```
-
-Then open **http://localhost:7337** to complete the setup wizard.
-
-## Security Audit Summary
-
-A pre-alpha security audit found **0 Critical** and **2 High** findings:
-- **HIGH-01 (Fixed):** Sync status endpoint limited to minimal response for unauthenticated users
-- **HIGH-02 (Known):** No CSRF tokens on form-POST setup endpoints (mitigated by SameSite=strict cookies)
 
 ## Feedback
 
