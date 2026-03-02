@@ -13,12 +13,12 @@
 <!-- Statistics Cards -->
 <div class="grid">
     <a href="/dashboard/search-queues" style="text-decoration: none; color: inherit;">
-        <article>
+        <article style="display: flex; flex-direction: column;">
             <hgroup>
                 <h2 id="stat-queues-total">{{ stats.search_queues.total }}</h2>
                 <p>Search Queues</p>
             </hgroup>
-            <small>
+            <small style="margin-top: auto;">
                 <span style="color: var(--ins-color);" id="stat-queues-active">{{ stats.search_queues.active }} active</span>
                 {% if stats.search_queues.paused > 0 %}
                 &middot; <span style="color: var(--muted-color);" id="stat-queues-paused">{{ stats.search_queues.paused }} paused</span>
@@ -28,27 +28,29 @@
     </a>
 
     <a href="/dashboard/search-history" style="text-decoration: none; color: inherit;">
-        <article>
+        <article style="display: flex; flex-direction: column;">
             <hgroup>
                 <h2 id="stat-searches-today">{{ stats.searches.today }}</h2>
                 <p>Searches Today</p>
             </hgroup>
-            <small id="stat-searches-detail">{{ stats.searches.this_week }} this week &middot; {{ stats.searches.success_rate }}% success rate</small>
-            {% if stats.searches.grab_rate and stats.searches.grab_rate > 0 %}
-            <br><small id="stat-grab-rate" style="color: var(--muted-color);">{{ stats.searches.grab_rate }}% grab rate</small>
-            {% else %}
-            <br><small id="stat-grab-rate" style="color: var(--muted-color);"></small>
-            {% endif %}
+            <div style="margin-top: auto;">
+                <small id="stat-searches-detail">{{ stats.searches.this_week }} this week &middot; {{ stats.searches.success_rate }}% success rate</small>
+                {% if stats.searches.grab_rate and stats.searches.grab_rate > 0 %}
+                <br><small id="stat-grab-rate" style="color: var(--muted-color);">{{ stats.searches.grab_rate }}% grab rate</small>
+                {% else %}
+                <br><small id="stat-grab-rate" style="color: var(--muted-color);"></small>
+                {% endif %}
+            </div>
         </article>
     </a>
 
     <a href="/dashboard/library" style="text-decoration: none; color: inherit;">
-        <article>
+        <article style="display: flex; flex-direction: column;">
             <hgroup>
                 <h2 id="stat-library-total">-</h2>
                 <p>Library Items</p>
             </hgroup>
-            <small id="stat-library-detail">Loading...</small>
+            <small style="margin-top: auto;" id="stat-library-detail">Loading...</small>
         </article>
     </a>
 </div>
