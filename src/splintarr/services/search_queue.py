@@ -704,9 +704,8 @@ class SearchQueueManager:
                 for record, score, reason in truncated:
                     item_id = record.get("id")
 
-                    # Skip items already handled by season pack searches
-                    if item_id in season_pack_handled_ids:
-                        continue
+                    # Season pack search is an optimization; individual search
+                    # serves as fallback if season pack didn't find results.
 
                     label = label_fn(record)
 
