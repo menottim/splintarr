@@ -143,10 +143,8 @@ class TestSetSQLitePragma:
             result = conn.execute(text("PRAGMA secure_delete"))
             assert result.fetchone()[0] == 1
 
-            # Check auto_vacuum is FULL
-            result = conn.execute(text("PRAGMA auto_vacuum"))
-            # FULL = 1
-            assert result.fetchone()[0] == 1
+            # Note: auto_vacuum is now set once at startup in init_db(),
+            # not per-connection, to avoid write lock contention during sync
 
     def test_foreign_keys_enforced(self, db_session):
         """Test that foreign key constraints are actually enforced."""

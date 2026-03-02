@@ -74,7 +74,6 @@ def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
     - Full synchronous mode for crash safety
     - Memory-based temp storage
     - Secure deletion (overwrite deleted data)
-    - Automatic vacuum (skipped for in-memory databases)
 
     Args:
         dbapi_conn: DBAPI connection object
@@ -102,14 +101,6 @@ def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
         # Overwrite deleted data instead of just marking it as free
         # This prevents recovery of deleted sensitive data
         cursor.execute("PRAGMA secure_delete = ON")
-
-        # Automatically reclaim free space
-        # Note: Skip for in-memory databases as auto_vacuum breaks SQLCipher :memory: databases
-        result = cursor.execute("PRAGMA database_list").fetchall()
-        is_memory = any(row[2] in (":memory:", "") for row in result)
-
-        if not is_memory:
-            cursor.execute("PRAGMA auto_vacuum = FULL")
 
         logger.debug("sqlite_pragma_set", connection_id=id(dbapi_conn))
 
@@ -324,6 +315,18 @@ def init_db() -> None:
 
         # Create all tables
         engine = get_engine()
+
+        # Set auto_vacuum once at startup (not per-connection, to avoid write lock contention)
+        try:
+            with engine.connect() as conn:
+                result = conn.execute(text("PRAGMA database_list")).fetchall()
+                is_memory = any(row[2] in (":memory:", "") for row in result)
+                if not is_memory:
+                    conn.execute(text("PRAGMA auto_vacuum = FULL"))
+                    conn.commit()
+        except Exception as e:
+            logger.warning("auto_vacuum_setup_skipped", error=str(e))
+
         Base.metadata.create_all(bind=engine)
         logger.info("database_tables_created")
 
