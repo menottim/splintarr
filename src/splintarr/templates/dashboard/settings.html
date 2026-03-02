@@ -189,7 +189,7 @@
                 Prowlarr URL
                 <input type="url" id="prowlarr_url" placeholder="http://prowlarr:9696" required>
                 <small>Base URL of your Prowlarr instance. It will be validated for SSRF protection.</small>
-                <small>For Docker: try <code>http://prowlarr:9696</code> (same Docker network) or <code>http://host.docker.internal:9696</code> (host machine)</small>
+                <small>For Docker: try <code class="copy-url" title="Click to copy">http://prowlarr:9696</code> (same Docker network) or <code class="copy-url" title="Click to copy">http://host.docker.internal:9696</code> (host machine)</small>
             </label>
 
             <label for="prowlarr_api_key">
@@ -864,6 +864,24 @@ document.getElementById('integrityCheckBtn').addEventListener('click', async fun
     } finally {
         this.removeAttribute('aria-busy');
     }
+});
+
+// Click-to-copy for example URLs
+document.querySelectorAll('.copy-url').forEach(function(el) {
+    el.style.cursor = 'pointer';
+    el.style.borderBottom = '1px dashed var(--brand-info)';
+    el.addEventListener('click', function() {
+        var text = this.textContent;
+        navigator.clipboard.writeText(text).then(function() {
+            var orig = el.textContent;
+            el.textContent = 'Copied!';
+            el.style.color = 'var(--brand-success)';
+            setTimeout(function() {
+                el.textContent = orig;
+                el.style.color = '';
+            }, 1200);
+        });
+    });
 });
 </script>
 {% endblock %}
