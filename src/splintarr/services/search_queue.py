@@ -24,6 +24,7 @@ import structlog
 from sqlalchemy.orm import Session
 
 from splintarr.config import settings
+from splintarr.core.events import event_bus
 from splintarr.core.security import decrypt_api_key, decrypt_field
 from splintarr.models import Instance, NotificationConfig, SearchHistory, SearchQueue
 from splintarr.services.cooldown import is_in_cooldown
@@ -173,6 +174,12 @@ class SearchQueueManager:
                 strategy=queue.strategy,
                 instance_id=instance.id,
             )
+            await event_bus.emit("search.started", {
+                "queue_id": queue_id,
+                "queue_name": queue.name,
+                "strategy": queue.strategy,
+                "max_items": queue.max_items_per_run,
+            })
 
             # Resolve effective rate limit from Prowlarr (if configured)
             from splintarr.services.indexer_rate_limit import IndexerRateLimitService
@@ -267,6 +274,15 @@ class SearchQueueManager:
                     items_searched=result["items_searched"],
                     items_found=result["items_found"],
                 )
+                await event_bus.emit("search.completed", {
+                    "queue_id": queue_id,
+                    "queue_name": queue.name,
+                    "status": result["status"],
+                    "items_searched": result["items_searched"],
+                    "items_found": result["items_found"],
+                })
+                await event_bus.emit("stats.updated", {})
+                await event_bus.emit("activity.updated", {})
 
                 # Fire-and-forget: send Discord notification on successful search
                 if result["items_found"] > 0:
@@ -315,6 +331,10 @@ class SearchQueueManager:
                 db.commit()
 
                 logger.error("search_queue_execution_failed", queue_id=queue_id, error=error_msg)
+                await event_bus.emit("search.failed", {
+                    "queue_id": queue_id,
+                    "error": str(e),
+                })
 
                 # Fire-and-forget: send Discord notification on failure
                 await self._notify_queue_failed(
@@ -820,6 +840,13 @@ class SearchQueueManager:
                                 "result": "sent",
                             }
                         )
+                        await event_bus.emit("search.item_result", {
+                            "queue_id": queue.id,
+                            "item_name": label,
+                            "result": "found",
+                            "score": score,
+                            "score_reason": reason,
+                        })
                     except Exception as e:
                         errors.append(f"{item_type.title()} {item_id}: {e}")
                         logger.error(
@@ -840,6 +867,13 @@ class SearchQueueManager:
                                 "error": str(e),
                             }
                         )
+                        await event_bus.emit("search.item_result", {
+                            "queue_id": queue.id,
+                            "item_name": label,
+                            "result": "failed",
+                            "score": score,
+                            "score_reason": reason,
+                        })
 
                 # Commit library item search tracking updates
                 try:
