@@ -2,7 +2,7 @@
 
 > **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. This is the sole source of truth; versioned PRDs have been retired.
 
-**Last updated:** 2026-03-02 (v1.0.2-alpha)
+**Last updated:** 2026-03-03 (v1.1.0–v1.3.0 roadmap)
 
 ---
 
@@ -405,25 +405,109 @@ The core differentiator: making searches smarter, not just scheduled.
 
 ---
 
-## Post-Alpha — Deferred
+## v1.1.0 — Visibility
+
+> **Theme:** Make everything visible. See what's happening, what will happen, and what has happened — in real time.
+> **Delivery:** PR per feature, merge as ready. Tag v1.1.0 when all complete.
+> **Full proposal:** `docs/plans/2026-03-02-next-features-proposal.md`
+
+### 15. WebSocket Real-Time Activity Feed
+
+**Priority:** High | **Effort:** Medium | **Status:** Planned (v1.1.0)
+
+Replace ALL dashboard polling with a single WebSocket connection at `/ws/activity`. In-process event bus (no Redis), JWT cookie auth on upgrade, auto-reconnect with exponential backoff, graceful fallback to polling. Events: search progress, item results, stats, system status, indexer health, library sync.
+
+### 16. Search Progress & Live Queue View
+
+**Priority:** High | **Effort:** Low-Medium | **Status:** Planned (v1.1.0)
+
+Full live progress view on queue detail page (progress bar, current item, per-item results streaming with reasons). Compact "currently running" indicator on dashboard. Powered by Feature #15 WebSocket.
+
+### 17. Search Dry Run / Preview Mode
+
+**Priority:** High | **Effort:** Low | **Status:** Planned (v1.1.0)
+
+"Preview" button on queue creation modal AND "Preview next run" on existing queue detail pages. Runs the full scoring/filtering pipeline without executing searches. Returns item list in priority order with scores, reasons, estimated API cost, season pack groupings, cooldown skips.
+
+### 18. Search History Analytics (Mini)
+
+**Priority:** Medium | **Effort:** Low | **Status:** Planned (v1.1.0)
+
+Single "Last 7 Days" dashboard card. Searches run, items found, grabs confirmed with trend arrows vs previous 7 days. Top 3 most-searched series. Indexer hit/miss rates. Inline SVG sparklines (no chart library).
+
+### 19. Bulk Queue Operations
+
+**Priority:** Medium | **Effort:** Low | **Status:** Planned (v1.1.0)
+
+Multi-select checkboxes on Queues page. Bulk pause/resume/delete. Header buttons: Pause All, Resume All, Run All Now (with confirmation).
+
+---
+
+## v1.2.0 — Smart Searching
+
+> **Theme:** Search smarter, not harder. Target specific content, respect API budgets, prioritize by quality gap.
+
+### 20. Custom Strategy Filters
+
+**Priority:** High | **Effort:** Medium | **Status:** Planned (v1.2.0)
+
+Implement the stubbed Custom Strategy with simple dropdown filters: year range, quality profile, series status (continuing/ended/upcoming). Missing + Cutoff Unmet can be combined (explicit opt-in exception to strategy isolation). Filters applied client-side after Sonarr API fetch. Integrates with dry run (Feature #17).
+
+### 21. Indexer Budget Visibility & Forecasting
+
+**Priority:** High | **Effort:** Medium | **Status:** Planned (v1.2.0)
+
+Per-indexer API usage progress bars on dashboard. Estimated API cost in queue creation. Budget alerts via notifications at 20% remaining. Smart batch auto-sizing ON by default — automatically reduces `max_items_per_run` when budget is low. User can disable per-queue.
+
+### 22. Quality-Aware Search Intelligence
+
+**Priority:** Medium | **Effort:** Medium | **Status:** Planned (v1.2.0)
+
+**API spike confirmed:** Sonarr exposes `quality.quality.resolution`, `quality.quality.source`, `customFormats`, `customFormatScore` on episode files.
+
+New quality gap scoring factor for cutoff unmet: resolution gap (720p→1080p = high priority) and CF score gap (current vs upgrade-until target). Displayed in library detail ("Currently: HDTV-720p → Target: Bluray-1080p") and search logs ("large quality gap").
+
+### 23. Queue Scheduling Improvements
+
+**Priority:** Medium | **Effort:** Low-Medium | **Status:** Planned (v1.2.0)
+
+Three schedule modes: Interval (existing "every N hours"), Daily ("run at HH:MM every day"), Weekly ("run at HH:MM on Mon/Wed/Fri"). Jitter: random 0-15 min offset to prevent thundering herd. Uses APScheduler CronTrigger (already a dependency).
+
+---
+
+## v1.3.0 — Polish & Reach
+
+> **Theme:** Broaden appeal. More notification services, better onboarding, richer library views.
+
+### 24. Apprise Notification Integration
+
+**Priority:** Medium | **Effort:** Low | **Status:** Planned (v1.3.0)
+
+[Apprise](https://github.com/caronc/apprise) integration for 90+ notification services via URL strings. Keep existing Discord as primary. Apprise handles formatting and delivery for all additional services.
+
+### 25. Series Completion Cards
+
+**Priority:** Medium | **Effort:** Low | **Status:** Planned (v1.3.0)
+
+Library page "Completion Progress" section. Compact cards with small poster, completion bar, missing/total count. Filters: most incomplete, most recently aired, closest to complete.
+
+### 26. Queue Recommendations
+
+**Priority:** Medium | **Effort:** Medium | **Status:** Planned (v1.3.0)
+
+Post-sync library analysis with data-driven queue recommendations. Sizes batches to fit Prowlarr indexer limits. "You have 342 missing episodes → batch 20, every 6h, covered in ~4 days." One-click "Create recommended queues" button on Getting Started and empty Queues page.
 
 ### 13. Search Analytics Dashboard
 
 **Priority:** Low | **Effort:** Medium | **Status:** Deferred
 
-Time-series charts, strategy comparison, instance comparison. Lightweight chart library bundled locally (no CDN). Useful for occasional glancing but not a daily need.
+Time-series charts, strategy comparison, instance comparison. Superseded by Feature #18 (mini analytics) for now. Full dashboard deferred until demand warrants it.
 
 ### 14. Config Import
 
-**Priority:** Low | **Effort:** Medium | **Status:** Deferred
+**Priority:** Low | **Effort:** Medium | **Status:** Planned (v1.3.0)
 
-Companion to Config Export (v0.2.1). Upload a previously exported JSON file to re-create instances, queues, exclusions, and notification settings. Requires conflict resolution (duplicate names, missing API keys that must be re-entered). Not needed for v0.2.1 — export is reference/documentation material for now.
-
-### 15. WebSocket Real-Time Activity Feed
-
-**Priority:** Low | **Effort:** Medium | **Status:** Deferred
-
-Upgrade the v0.2.1 enhanced polling (15s interval) to true WebSocket push at `/ws/activity`. In-process event bus, connection registry, graceful fallback to polling, JWT cookie auth on WS upgrade, reconnect logic for 15-min token expiry. Deferred because enhanced polling provides 80% of the value for a single-user homelab app.
+Companion to Config Export (v0.2.1). Upload JSON to restore instances, queues, exclusions, notifications. Conflict resolution for duplicate names, API key re-entry.
 
 ---
 
@@ -435,6 +519,11 @@ Upgrade the v0.2.1 enhanced polling (15s interval) to true WebSocket push at `/w
 | 2 | ~~Season pack threshold~~ | Resolved: Configurable per queue (default 3+), shipped in v0.4.0 |
 | 3 | Radarr alpha timeline | Backend code exists but UI is gated. When to enable for testing? |
 | 4 | Linux/macOS verification | Alpha tested on Docker Desktop for Windows only. Community testing needed. |
+| 5 | ~~Custom filter complexity~~ | Resolved: Simple dropdowns (year, quality profile, status). No tags in v1.2. |
+| 6 | ~~WebSocket scope~~ | Resolved: Replace ALL polling — one WS connection for everything. |
+| 7 | ~~Quality data availability~~ | Resolved: API spike confirmed. Sonarr exposes resolution, source, CF score on episodefile. |
+| 8 | ~~Apprise vs native~~ | Resolved: Apprise — maximum reach, one dependency. |
+| 9 | ~~Release cadence~~ | Resolved: PR per feature, merge as ready. Tag version when all features complete. |
 
 ---
 
@@ -501,3 +590,4 @@ Upgrade the v0.2.1 enhanced polling (15s interval) to true WebSocket push at `/w
 | 2026-03-02 | v1.0.0-alpha: Alpha release. All features through v0.5.1 plus alpha hardening (DB locking fix, per-episode tracking, sync progress, logging overhaul, UX polish, security audit). Radarr deferred to post-alpha. Tested on Docker Desktop for Windows. |
 | 2026-03-02 | v1.0.1-alpha: Dashboard system status redesign (3 sections), dashboard polish (cutoff unmet, activity limit, queue stats), UI fixes (tooltips, footer version), infrastructure (persistent posters, sync progress fix). |
 | 2026-03-02 | v1.0.2-alpha: Code simplification (PR #109), security hardening — removed dead redirect param + innerHTML (PR #110), UI fixes (stat card alignment, inline grab rate). |
+| 2026-03-03 | v1.1.0–v1.3.0 roadmap: 12 features across 3 releases. Research-backed proposal based on Sonarr ecosystem analysis, competitor review (Scoutarr), and community pain points. Features #15-26 added. API spike confirmed quality data availability for Feature #22. |
