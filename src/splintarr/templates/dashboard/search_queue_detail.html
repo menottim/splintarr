@@ -546,10 +546,11 @@ async function previewQueue(queueId) {
 
     try {
         var response = await fetch('/api/search-queues/' + queueId + '/preview', { method: 'POST' });
-        var data = await response.json();
+        var data = {};
+        try { data = await response.json(); } catch (_) {}
 
         if (!response.ok) {
-            showNotification('Preview failed: ' + (data.detail || 'Unknown error'), 'error');
+            showNotification('Preview failed: ' + (data.detail || 'Server error (' + response.status + ')'), 'error');
             return;
         }
 

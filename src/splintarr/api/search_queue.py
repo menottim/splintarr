@@ -483,6 +483,7 @@ async def preview_search_queue(
     current_user: User = Depends(get_current_user),
 ) -> Any:
     """Preview what would be searched in the next run."""
+    logger.debug("search_queue_preview_requested", queue_id=queue_id, user_id=current_user.id)
     try:
         _get_user_queue(db, queue_id, current_user.id)
         queue_manager = SearchQueueManager(get_session_factory())
@@ -492,7 +493,8 @@ async def preview_search_queue(
     except SearchQueueError as e:
         logger.warning("search_queue_preview_failed", error=str(e), queue_id=queue_id)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Preview failed — queue configuration error",
         ) from None
     except Exception as e:
         logger.error("search_queue_preview_error", error=str(e), queue_id=queue_id)

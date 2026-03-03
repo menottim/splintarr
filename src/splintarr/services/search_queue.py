@@ -1050,6 +1050,8 @@ class SearchQueueManager:
             queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
             if not queue:
                 raise SearchQueueError(f"Queue {queue_id} not found")
+            if not queue.is_active:
+                raise SearchQueueError(f"Queue {queue_id} is paused")
 
             instance = db.query(Instance).filter(Instance.id == queue.instance_id).first()
             if not instance:
@@ -1065,6 +1067,13 @@ class SearchQueueManager:
             fetch_method, strategy_name, sort_key, sort_dir = self._get_strategy_params(
                 queue, instance
             )
+
+            # Validate custom strategy filters (same check as _execute_custom_strategy)
+            if queue.strategy == "custom" and queue.filters:
+                try:
+                    json.loads(queue.filters)
+                except json.JSONDecodeError as err:
+                    raise SearchQueueError("Invalid custom filters JSON") from err
 
             is_sonarr = instance.instance_type == "sonarr"
             max_items = getattr(queue, "max_items_per_run", 50) or 50
