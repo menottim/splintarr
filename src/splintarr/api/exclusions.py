@@ -24,6 +24,7 @@ from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db, get_session_factory
 from splintarr.models.instance import Instance
 from splintarr.models.user import User
+from splintarr.services.demo import is_demo_active
 from splintarr.services.exclusion import ExclusionService
 
 logger = structlog.get_logger()
@@ -111,6 +112,7 @@ async def exclusions_page(
             "instances": instances,
             "selected_instance_id": instance_id,
             "onboarding": get_onboarding_state(db, current_user.id),
+            "demo_mode": is_demo_active(db, current_user.id),
         },
     )
 

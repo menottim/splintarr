@@ -42,6 +42,7 @@ from splintarr.database import get_db, get_session_factory
 from splintarr.models.instance import Instance
 from splintarr.models.library import LibraryEpisode, LibraryItem
 from splintarr.models.user import User
+from splintarr.services.demo import get_demo_library_stats, is_demo_active
 from splintarr.services.exclusion import ExclusionService
 from splintarr.services.library_sync import get_sync_service
 
@@ -234,6 +235,7 @@ def _render_library_page(
             "selected_content_type": content_type,
             "excluded_set": excluded_set,
             "onboarding": get_onboarding_state(db, user.id),
+            "demo_mode": is_demo_active(db, user.id),
         },
     )
 
@@ -453,6 +455,7 @@ async def library_item_detail(
             "item": item,
             "seasons": dict(sorted(seasons.items())),
             "is_excluded": is_excluded,
+            "demo_mode": is_demo_active(db, current_user.id),
         },
     )
 
@@ -539,6 +542,9 @@ async def api_library_stats(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """Aggregate library statistics."""
+    if is_demo_active(db, current_user.id):
+        logger.debug("library_stats_demo", user_id=current_user.id)
+        return JSONResponse(content=get_demo_library_stats())
     stats = _get_library_stats(db, current_user)
     logger.debug("library_stats_retrieved", user_id=current_user.id, **stats)
     return JSONResponse(content=stats)

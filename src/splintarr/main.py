@@ -136,6 +136,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         logger.info("websocket_event_bus_wired", event_types=len(event_types))
 
+        # Start demo simulation (auto-disables when user has instance + queue)
+        from splintarr.services.demo import start_simulation
+
+        try:
+            start_simulation(get_session_factory())
+            logger.info("demo_simulation_scheduled")
+        except Exception as e:
+            logger.warning("demo_simulation_start_failed", error=str(e))
+
         logger.info("application_started")
 
     except Exception as e:
@@ -147,6 +156,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # --- Shutdown ---
     try:
         logger.info("application_shutting_down")
+
+        # Stop demo simulation
+        from splintarr.services.demo import stop_simulation
+
+        try:
+            await stop_simulation()
+            logger.info("demo_simulation_stopped")
+        except Exception as e:
+            logger.warning("demo_simulation_stop_failed", error=str(e))
 
         # Stop search scheduler
         try:

@@ -50,6 +50,13 @@ from splintarr.models.search_history import SearchHistory
 from splintarr.models.search_queue import SearchQueue
 from splintarr.models.user import User
 from splintarr.schemas.user import common_passwords
+from splintarr.services.demo import (
+    get_demo_activity,
+    get_demo_indexer_health,
+    get_demo_stats,
+    get_demo_system_status,
+    is_demo_active,
+)
 from splintarr.services.prowlarr import ProwlarrClient, ProwlarrError
 from splintarr.services.radarr import RadarrClient, RadarrError
 from splintarr.services.scheduler import get_scheduler_status
@@ -691,30 +698,35 @@ async def dashboard_index(
     """
     Main dashboard page with overview statistics.
     """
-    # Get statistics
-    stats = await get_dashboard_stats(db, current_user)
+    demo_mode = is_demo_active(db, current_user.id)
 
-    # Get recent activity (joinedload prevents N+1 lazy loads on search.instance.name)
-    recent_searches = (
-        db.query(SearchHistory)
-        .options(joinedload(SearchHistory.instance))
-        .join(Instance)
-        .filter(Instance.user_id == current_user.id)
-        .order_by(SearchHistory.started_at.desc())
-        .limit(5)
-        .all()
-    )
-
-    # Get instances for system status
-    instances = (
-        db.query(Instance)
-        .filter(Instance.user_id == current_user.id)
-        .order_by(Instance.created_at.desc())
-        .all()
-    )
-
-    integrations = _get_integration_status(db, current_user.id)
-    services = _get_service_status()
+    if demo_mode:
+        stats = get_demo_stats()
+        recent_searches: list[Any] = []
+        instances: list[Any] = []
+        _demo_status = get_demo_system_status()
+        integrations = _demo_status["integrations"]
+        services = _demo_status["services"]
+    else:
+        stats = await get_dashboard_stats(db, current_user)
+        # Get recent activity (joinedload prevents N+1 lazy loads on search.instance.name)
+        recent_searches = (
+            db.query(SearchHistory)
+            .options(joinedload(SearchHistory.instance))
+            .join(Instance)
+            .filter(Instance.user_id == current_user.id)
+            .order_by(SearchHistory.started_at.desc())
+            .limit(5)
+            .all()
+        )
+        instances = (
+            db.query(Instance)
+            .filter(Instance.user_id == current_user.id)
+            .order_by(Instance.created_at.desc())
+            .all()
+        )
+        integrations = _get_integration_status(db, current_user.id)
+        services = _get_service_status()
 
     return templates.TemplateResponse(
         "dashboard/index.html",
@@ -728,6 +740,7 @@ async def dashboard_index(
             "services": services,
             "active_page": "dashboard",
             "onboarding": get_onboarding_state(db, current_user.id),
+            "demo_mode": demo_mode,
         },
     )
 
@@ -755,6 +768,7 @@ async def dashboard_instances(
             "user": current_user,
             "instances": instances,
             "active_page": "instances",
+            "demo_mode": is_demo_active(db, current_user.id),
         },
     )
 
@@ -867,6 +881,7 @@ async def dashboard_search_queues(
             "instances": instances,
             "active_page": "queues",
             "onboarding": get_onboarding_state(db, current_user.id),
+            "demo_mode": is_demo_active(db, current_user.id),
         },
     )
 
@@ -974,6 +989,7 @@ async def dashboard_search_queue_detail(
             "history": history,
             "all_time_stats": all_time_stats,
             "active_page": "queues",
+            "demo_mode": is_demo_active(db, current_user.id),
         },
     )
 
@@ -1055,6 +1071,7 @@ async def dashboard_search_history(
                 "status": search_status,
             },
             "onboarding": get_onboarding_state(db, current_user.id),
+            "demo_mode": is_demo_active(db, current_user.id),
         },
     )
 
@@ -1063,6 +1080,7 @@ async def dashboard_search_history(
 async def dashboard_settings(
     request: Request,
     current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
 ) -> Response:
     """
     User settings page.
@@ -1073,6 +1091,7 @@ async def dashboard_settings(
             "request": request,
             "user": current_user,
             "active_page": "settings",
+            "demo_mode": is_demo_active(db, current_user.id),
         },
     )
 
@@ -1183,7 +1202,9 @@ async def get_dashboard_stats(db: Session, user: User) -> dict[str, Any]:
 
 
 @router.get("/api/dashboard/stats", include_in_schema=False)
+@limiter.limit("30/minute")
 async def api_dashboard_stats(
+    request: Request,
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
 ) -> JSONResponse:
@@ -1192,12 +1213,18 @@ async def api_dashboard_stats(
 
     Used for AJAX updates without page refresh.
     """
+    if is_demo_active(db, current_user.id):
+        logger.debug("dashboard_stats_demo", user_id=current_user.id)
+        return JSONResponse(content=get_demo_stats())
     stats = await get_dashboard_stats(db, current_user)
+    logger.debug("dashboard_stats_requested", user_id=current_user.id)
     return JSONResponse(content=stats)
 
 
 @router.get("/api/dashboard/activity", include_in_schema=False)
+@limiter.limit("30/minute")
 async def api_dashboard_activity(
+    request: Request,
     limit: int = Query(5, ge=1, le=100),
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
@@ -1207,6 +1234,10 @@ async def api_dashboard_activity(
 
     Used for AJAX updates without page refresh.
     """
+    if is_demo_active(db, current_user.id):
+        logger.debug("dashboard_activity_demo", user_id=current_user.id)
+        return JSONResponse(content=get_demo_activity())
+
     recent_searches = (
         db.query(SearchHistory)
         .options(joinedload(SearchHistory.instance))
@@ -1234,6 +1265,7 @@ async def api_dashboard_activity(
         for search in recent_searches
     ]
 
+    logger.debug("dashboard_activity_requested", user_id=current_user.id, count=len(activity))
     return JSONResponse(content={"activity": activity})
 
 
@@ -1252,6 +1284,10 @@ async def api_dashboard_system_status(
     - integrations: Discord and Prowlarr configuration/status
     - services: database and scheduler health
     """
+    if is_demo_active(db, current_user.id):
+        logger.debug("dashboard_system_status_demo", user_id=current_user.id)
+        return JSONResponse(content=get_demo_system_status())
+
     instances = (
         db.query(Instance)
         .filter(Instance.user_id == current_user.id)
@@ -1309,6 +1345,10 @@ async def api_indexer_health(
     Returns indexer names, query limits/usage, and disabled status.
     If Prowlarr is not configured or inactive, returns configured=False.
     """
+    if is_demo_active(db, current_user.id):
+        logger.debug("dashboard_indexer_health_demo", user_id=current_user.id)
+        return JSONResponse(content=get_demo_indexer_health())
+
     logger.debug("dashboard_indexer_health_requested", user_id=current_user.id)
 
     config = (

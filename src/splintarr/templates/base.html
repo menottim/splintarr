@@ -86,6 +86,16 @@
             <!-- Flash messages -->
             {% include "components/flash.html" %}
 
+            <!-- Demo mode banner -->
+            {% if demo_mode %}
+            <div class="demo-banner" id="demoBanner">
+                <span>&#9733; <strong>Demo Mode</strong> &mdash; You're viewing synthetic data.
+                <a href="/dashboard/instances">Connect an instance</a> and
+                <a href="/dashboard/search-queues">create a queue</a> to see your real data.</span>
+                <button class="demo-banner-dismiss" id="demoBannerDismiss" aria-label="Dismiss">&times;</button>
+            </div>
+            {% endif %}
+
             <!-- Page content -->
             {% block content %}{% endblock %}
 
@@ -164,6 +174,14 @@
                 headers: { 'Content-Type': 'application/json' }
             }).then(() => { window.location.href = '/login'; });
         }
+
+        // Demo banner dismiss
+        (function() {
+            var btn = document.getElementById('demoBannerDismiss');
+            if (btn) btn.addEventListener('click', function() {
+                document.getElementById('demoBanner').style.display = 'none';
+            });
+        })();
 
         // Clean up WebSocket on page unload
         window.addEventListener('beforeunload', function() {
