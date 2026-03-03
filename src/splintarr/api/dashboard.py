@@ -1214,6 +1214,7 @@ async def api_dashboard_stats(
     Used for AJAX updates without page refresh.
     """
     if is_demo_active(db, current_user.id):
+        logger.debug("dashboard_stats_demo", user_id=current_user.id)
         return JSONResponse(content=get_demo_stats())
     stats = await get_dashboard_stats(db, current_user)
     logger.debug("dashboard_stats_requested", user_id=current_user.id)
@@ -1234,6 +1235,7 @@ async def api_dashboard_activity(
     Used for AJAX updates without page refresh.
     """
     if is_demo_active(db, current_user.id):
+        logger.debug("dashboard_activity_demo", user_id=current_user.id)
         return JSONResponse(content=get_demo_activity())
 
     recent_searches = (
@@ -1283,6 +1285,7 @@ async def api_dashboard_system_status(
     - services: database and scheduler health
     """
     if is_demo_active(db, current_user.id):
+        logger.debug("dashboard_system_status_demo", user_id=current_user.id)
         return JSONResponse(content=get_demo_system_status())
 
     instances = (
@@ -1343,6 +1346,7 @@ async def api_indexer_health(
     If Prowlarr is not configured or inactive, returns configured=False.
     """
     if is_demo_active(db, current_user.id):
+        logger.debug("dashboard_indexer_health_demo", user_id=current_user.id)
         return JSONResponse(content=get_demo_indexer_health())
 
     logger.debug("dashboard_indexer_health_requested", user_id=current_user.id)

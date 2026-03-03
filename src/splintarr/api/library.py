@@ -543,6 +543,7 @@ async def api_library_stats(
 ) -> JSONResponse:
     """Aggregate library statistics."""
     if is_demo_active(db, current_user.id):
+        logger.debug("library_stats_demo", user_id=current_user.id)
         return JSONResponse(content=get_demo_library_stats())
     stats = _get_library_stats(db, current_user)
     logger.debug("library_stats_retrieved", user_id=current_user.id, **stats)
