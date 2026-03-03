@@ -23,6 +23,11 @@ class WebSocketManager:
     - Disconnection cleanup
     - Broadcasting messages to all connected clients
     - Automatic removal of dead connections on send failure
+
+    Security note: broadcasts reach ALL connected clients regardless of user.
+    This is acceptable for the single-admin homelab design. If multi-user
+    support is added, connections must be keyed by user_id and broadcasts
+    filtered to only the owning user's connections.
     """
 
     def __init__(self) -> None:
