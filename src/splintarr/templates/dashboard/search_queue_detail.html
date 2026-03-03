@@ -255,6 +255,37 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+// WebSocket search progress (supplements existing polling)
+(function() {
+    if (!Splintarr.ws) return;
+    Splintarr.ws.connect();
+
+    var currentQueueId = {{ queue.id }};
+
+    Splintarr.ws.on('search.started', function(data) {
+        if (data.queue_id != currentQueueId) return;
+        // Update UI to show execution started
+        var runBtn = document.querySelector('[data-action="run-now"]');
+        if (runBtn) {
+            runBtn.setAttribute('aria-busy', 'true');
+            runBtn.disabled = true;
+            runBtn.textContent = 'Running...';
+        }
+    });
+
+    Splintarr.ws.on('search.completed', function(data) {
+        if (data.queue_id != currentQueueId) return;
+        // Refresh the page to show results
+        window.location.reload();
+    });
+
+    Splintarr.ws.on('search.failed', function(data) {
+        if (data.queue_id != currentQueueId) return;
+        Splintarr.showNotification('Search failed: ' + (data.error || 'Unknown error'), 'error');
+        window.location.reload();
+    });
+})();
+
 document.addEventListener('click', function(e) {
     var target = e.target.closest('[data-action]');
     if (!target) return;

@@ -72,6 +72,51 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+// WebSocket sync progress (supplements existing polling)
+(function() {
+    if (!Splintarr.ws) return;
+    Splintarr.ws.connect();
+
+    // Track overlay elements created by syncLibrary() so WS can update them
+    var _syncOverlayDetail = null;
+    var _syncOverlayElapsed = null;
+    var _syncStartTime = null;
+
+    // Called by syncLibrary() to register overlay elements for WS updates
+    window._registerSyncOverlay = function(detail, elapsed, startTime) {
+        _syncOverlayDetail = detail;
+        _syncOverlayElapsed = elapsed;
+        _syncStartTime = startTime;
+    };
+
+    function formatElapsedWS(ms) {
+        var secs = Math.floor(ms / 1000);
+        if (secs < 60) return secs + 's';
+        var mins = Math.floor(secs / 60);
+        secs = secs % 60;
+        return mins + 'm ' + secs + 's';
+    }
+
+    Splintarr.ws.on('sync.progress', function(data) {
+        if (!data || !data.syncing || !_syncOverlayDetail) return;
+        // Update the sync overlay with real-time progress
+        var progressText = 'Instance ' + (data.instances_done + 1) + '/' + data.total_instances + ': ' + data.current_instance;
+        if (data.stage) {
+            progressText += '\n' + data.stage;
+        }
+        _syncOverlayDetail.textContent = progressText;
+        _syncOverlayDetail.style.whiteSpace = 'pre-line';
+        if (_syncOverlayElapsed && _syncStartTime) {
+            _syncOverlayElapsed.textContent = 'Elapsed: ' + formatElapsedWS(Date.now() - _syncStartTime);
+        }
+    });
+
+    Splintarr.ws.on('sync.completed', function(data) {
+        // Reload to show updated library
+        window.location.reload();
+    });
+})();
+
 function applyFilters() {
     var params = new URLSearchParams();
     var inst = document.getElementById('filter-instance').value;
@@ -141,6 +186,11 @@ async function syncLibrary() {
     article.appendChild(errorSection);
     overlay.appendChild(article);
     document.body.appendChild(overlay);
+
+    // Register overlay elements for WebSocket real-time updates
+    if (window._registerSyncOverlay) {
+        window._registerSyncOverlay(detail, elapsed, syncStartTime);
+    }
 
     function formatElapsed(ms) {
         var secs = Math.floor(ms / 1000);
