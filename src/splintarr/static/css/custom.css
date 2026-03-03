@@ -319,3 +319,22 @@ nav[aria-label="Pagination"] a[role="button"] {
 .live-progress .results-table table {
     margin: 0;
 }
+
+/* Bulk actions bar (queues page) */
+.bulk-actions-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    background: var(--card-background-color);
+    border: 1px solid var(--muted-border-color);
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+}
+
+.bulk-actions-bar button {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+    margin: 0;
+}

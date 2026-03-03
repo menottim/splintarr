@@ -12,13 +12,30 @@
     <a href="#create-queue" role="button">+ Create Queue</a>
 </div>
 
+<!-- Bulk Actions Bar -->
+{% if queues %}
+<div class="bulk-actions-bar" id="bulkActionsBar">
+    <label style="display: flex; align-items: center; gap: 0.5rem; margin: 0; cursor: pointer;">
+        <input type="checkbox" id="selectAllQueues">
+        <span id="bulkSelectionCount">0 selected</span>
+    </label>
+    <div style="display: flex; gap: 0.5rem; margin-left: auto;">
+        <button class="secondary" data-bulk="pause" disabled>Pause</button>
+        <button class="secondary" data-bulk="resume" disabled>Resume</button>
+        <button data-bulk="run" disabled>Run Now</button>
+        <button class="secondary" style="color: var(--del-color);" data-bulk="delete" disabled>Delete</button>
+    </div>
+</div>
+{% endif %}
+
 <!-- Queues List -->
 {% if queues %}
 <div class="grid">
     {% for queue in queues %}
     <article>
         <header>
-            <h3>
+            <h3 style="display: flex; align-items: center; gap: 0.5rem;">
+                <input type="checkbox" class="queue-select" data-queue-id="{{ queue.id }}" data-queue-name="{{ queue.name }}" style="margin: 0;">
                 <a href="/dashboard/search-queues/{{ queue.id }}" style="text-decoration: none; color: inherit;">{{ queue.name }}</a>
                 {% if not queue.is_active %}
                 <small style="color: var(--muted-color);">⏸ Paused</small>
@@ -736,5 +753,104 @@ document.querySelector('a[href="#create-queue"]').addEventListener('click', func
     applyPreset('weekly-cutoff');
     document.getElementById('create-queue').showModal();
 });
+
+// ======================================================================
+// Bulk Queue Operations
+// ======================================================================
+(function() {
+    var selectAll = document.getElementById('selectAllQueues');
+    var countLabel = document.getElementById('bulkSelectionCount');
+    var checkboxes = document.querySelectorAll('.queue-select');
+    var bulkButtons = document.querySelectorAll('[data-bulk]');
+
+    if (!selectAll || checkboxes.length === 0) return;
+
+    function getSelectedIds() {
+        var ids = [];
+        checkboxes.forEach(function(cb) { if (cb.checked) ids.push(parseInt(cb.dataset.queueId)); });
+        return ids;
+    }
+
+    function getSelectedNames() {
+        var names = [];
+        checkboxes.forEach(function(cb) { if (cb.checked) names.push(cb.dataset.queueName); });
+        return names;
+    }
+
+    function updateBulkUI() {
+        var selected = getSelectedIds();
+        var n = selected.length;
+        countLabel.textContent = n + ' selected';
+        bulkButtons.forEach(function(btn) { btn.disabled = n === 0; });
+        selectAll.checked = n === checkboxes.length && n > 0;
+        selectAll.indeterminate = n > 0 && n < checkboxes.length;
+    }
+
+    selectAll.addEventListener('change', function() {
+        checkboxes.forEach(function(cb) { cb.checked = selectAll.checked; });
+        updateBulkUI();
+    });
+
+    checkboxes.forEach(function(cb) {
+        cb.addEventListener('change', updateBulkUI);
+    });
+
+    async function bulkAction(action, ids) {
+        var results = { ok: 0, fail: 0 };
+        for (var i = 0; i < ids.length; i++) {
+            try {
+                var url = '/api/search-queues/' + ids[i] + '/' + action;
+                var method = action === 'delete' ? 'DELETE' : 'POST';
+                if (action === 'delete') url = '/api/search-queues/' + ids[i];
+                var response = await fetch(url, { method: method });
+                if (response.ok) results.ok++;
+                else results.fail++;
+            } catch (e) {
+                results.fail++;
+            }
+        }
+        return results;
+    }
+
+    document.addEventListener('click', function(e) {
+        var btn = e.target.closest('[data-bulk]');
+        if (!btn || btn.disabled) return;
+
+        var action = btn.dataset.bulk;
+        var ids = getSelectedIds();
+        if (ids.length === 0) return;
+
+        if (action === 'pause') {
+            if (!confirm('Pause ' + ids.length + ' queue(s)?')) return;
+            btn.setAttribute('aria-busy', 'true');
+            bulkAction('pause', ids).then(function(r) {
+                Splintarr.showNotification(r.ok + ' paused' + (r.fail ? ', ' + r.fail + ' failed' : ''), r.fail ? 'error' : 'success');
+                location.reload();
+            });
+        } else if (action === 'resume') {
+            if (!confirm('Resume ' + ids.length + ' queue(s)?')) return;
+            btn.setAttribute('aria-busy', 'true');
+            bulkAction('resume', ids).then(function(r) {
+                Splintarr.showNotification(r.ok + ' resumed' + (r.fail ? ', ' + r.fail + ' failed' : ''), r.fail ? 'error' : 'success');
+                location.reload();
+            });
+        } else if (action === 'run') {
+            if (!confirm('Run ' + ids.length + ' queue(s) now?')) return;
+            btn.setAttribute('aria-busy', 'true');
+            bulkAction('start', ids).then(function(r) {
+                Splintarr.showNotification(r.ok + ' started' + (r.fail ? ', ' + r.fail + ' failed' : ''), r.fail ? 'error' : 'success');
+                location.reload();
+            });
+        } else if (action === 'delete') {
+            var names = getSelectedNames();
+            if (!confirm('Delete ' + ids.length + ' queue(s)?\n\n' + names.join('\n'))) return;
+            btn.setAttribute('aria-busy', 'true');
+            bulkAction('delete', ids).then(function(r) {
+                Splintarr.showNotification(r.ok + ' deleted' + (r.fail ? ', ' + r.fail + ' failed' : ''), r.fail ? 'error' : 'success');
+                location.reload();
+            });
+        }
+    });
+})();
 </script>
 {% endblock %}
