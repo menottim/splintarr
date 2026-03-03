@@ -38,6 +38,7 @@ from splintarr.api import (
     prowlarr,
     search_history,
     search_queue,
+    ws,
 )
 from splintarr.config import settings
 from splintarr.core.rate_limit import rate_limit_key_func
@@ -108,6 +109,32 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("library_sync_service_ready")
         except Exception as e:
             logger.error("library_sync_init_failed", error=str(e))
+
+        # Wire event bus to WebSocket manager for real-time broadcasting
+        from splintarr.core.events import event_bus
+        from splintarr.core.websocket import ws_manager as _ws_manager
+
+        event_types = [
+            "search.started",
+            "search.item_result",
+            "search.completed",
+            "search.failed",
+            "stats.updated",
+            "activity.updated",
+            "status.updated",
+            "indexer_health.updated",
+            "sync.progress",
+            "sync.completed",
+        ]
+        for evt_type in event_types:
+            _evt = evt_type  # Capture for closure
+
+            async def _ws_handler(data: dict, event_type: str = _evt) -> None:
+                await _ws_manager.send_event(event_type, data)
+
+            event_bus.on(evt_type, _ws_handler)
+
+        logger.info("websocket_event_bus_wired", event_types=len(event_types))
 
         logger.info("application_started")
 
@@ -279,6 +306,7 @@ app.include_router(notifications.router)
 app.include_router(exclusions.router)
 app.include_router(prowlarr.router)
 app.include_router(config.router)
+app.include_router(ws.router)
 
 
 @app.get("/health", tags=["health"])
