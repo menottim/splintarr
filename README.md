@@ -6,9 +6,9 @@
 
 <p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.1.0">Version 1.1.0</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
 
-> **Status: Alpha Release -- Ready for Testing**
+> **Status: v1.1.0 -- Visibility Release**
 >
-> This is the first alpha release of Splintarr, ready for testing by homelab enthusiasts. It has been hand-tested on Docker Desktop for Windows. It should work on Linux and macOS Docker environments but has not been independently verified. **Radarr support is planned for a future release; this alpha supports Sonarr only.**
+> Splintarr is ready for use by homelab enthusiasts. Tested on Docker Desktop for Windows; Linux and macOS Docker environments are expected to work but have not been independently verified. **Radarr support is planned for a future release; currently supports Sonarr only.** This is AI-generated code (Claude Code) — treat accordingly.
 
 ---
 
@@ -37,15 +37,19 @@ This tool is designed for **homelab enthusiasts** running personal Sonarr instan
 
 - **Intelligent Search Scheduling** -- Multiple strategies (missing, cutoff unmet, recent) with customizable intervals
 - **Search Intelligence** -- Adaptive prioritization, per-episode cooldowns, and search result feedback
+- **Real-Time WebSocket Updates** -- Single connection replaces polling, with auto-reconnect and fallback
+- **Live Search Progress** -- Progress bar and streaming results on queue detail, running indicator on dashboard
+- **Dry Run / Preview Mode** -- See what would be searched before running, with scores and reasons
+- **Search Analytics** -- Last 7 days dashboard card with trends and top searched series
+- **Bulk Queue Operations** -- Multi-select with bulk pause, resume, run, and delete
+- **Demo Mode** -- Synthetic data on new installs so the dashboard looks alive before setup
 - **Season Pack Detection** -- Automatically searches for season packs with individual episode fallback
 - **Prowlarr Integration** -- Indexer-aware rate limiting to prevent bans
 - **Library Overview** -- Visual poster grid with episode-level completion tracking
 - **Content Exclusion Lists** -- Exclude specific titles from automated searches
 - **Discord Notifications** -- Alerts for search activity, instance health, and queue events
 - **Multi-Instance Support** -- Manage multiple Sonarr instances from one interface
-- **Local Authentication** -- Secure password storage with Argon2id hashing and optional TOTP 2FA
 - **Encrypted Database** -- AES-256 encryption via SQLCipher with Fernet-encrypted API keys
-- **Config Export** -- Export your configuration for backup (import coming in a future release)
 
 ---
 
@@ -103,8 +107,8 @@ Documentation is organized following the [Diataxis](https://diataxis.fr/) framew
 
 ### Release Information
 
-- **[Release Notes v1.0.0-alpha](RELEASE_NOTES.md)** -- What's in this alpha release
-- **[Changelog](CHANGELOG.md)** -- Complete version history
+- **[Release Notes v1.1.0](RELEASE_NOTES.md)** -- What's in the current release
+- **[Release History](https://github.com/menottim/splintarr/wiki/Release-History)** -- Complete version history
 
 ### Screenshots
 

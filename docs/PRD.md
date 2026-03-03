@@ -74,7 +74,7 @@ Huntarr was the most popular tool in this space until critical security vulnerab
 
 ## Feature Status
 
-All features below shipped in **v1.0.0-alpha** (Sonarr only; Radarr support deferred to post-alpha). Tested on Docker Desktop for Windows.
+Feature status across all releases (Sonarr only; Radarr support deferred to post-v1.1). Tested on Docker Desktop for Windows.
 
 | # | Feature | Status | Release | Notes |
 |---|---------|--------|---------|-------|
@@ -84,7 +84,7 @@ All features below shipped in **v1.0.0-alpha** (Sonarr only; Radarr support defe
 | - | [v0.2.0 Bug Fixes & UX Polish](#bug-fixes-from-v020-e2e-testing) | **Done** | v0.2.1 | PRs #70, #72; issues #65-#67 closed |
 | 3 | [Health Monitoring & Auto-Recovery](#3-health-monitoring--auto-recovery) | **Done** | v0.2.1 | PR #74 |
 | 4 | [Clone Queue & Presets](#4-clone-queue--presets) | **Done** | v0.2.1 | PR #75 |
-| 5 | [Enhanced Activity Polling](#5-enhanced-activity-polling) | **Done** | v0.2.1 | PR #77; WebSocket deferred to post-alpha |
+| 5 | [Enhanced Activity Polling](#5-enhanced-activity-polling) | **Done** | v0.2.1 | PR #77; replaced by WebSocket in v1.1.0 |
 | 6 | [Config Export & Integrity Check](#6-config-export--integrity-check) | **Done** | v0.2.1 | PR #76 |
 | 10 | [Adaptive Search Prioritization](#10-adaptive-search-prioritization) | **Done** | v0.3.0 | PR #78 |
 | 11 | [Search Cooldown Intelligence](#11-search-cooldown-intelligence) | **Done** | v0.3.0 | PR #79 |
@@ -93,8 +93,8 @@ All features below shipped in **v1.0.0-alpha** (Sonarr only; Radarr support defe
 | 9 | [Season Pack Intelligence](#9-season-pack-intelligence) | **Done** | v0.4.0 | PR #89; Sonarr only |
 | - | [v0.5.0 UX Overhaul](#v050) | **Done** | v0.5.0 | PR #94; Setup wizard, onboarding, filters |
 | - | [v0.5.1 Bug Fixes](#v051) | **Done** | v0.5.1 | PR #97; Progress bars, Docker version |
-| 13 | [Search Analytics Dashboard](#13-search-analytics-dashboard) | Deferred | Post-alpha | |
-| 14 | [Config Import](#14-config-import) | Deferred | Post-alpha | Companion to Config Export |
+| 13 | [Search Analytics Dashboard](#13-search-analytics-dashboard) | Deferred | v1.3.0 | Superseded by mini analytics (#18) |
+| 14 | [Config Import](#14-config-import) | Planned | v1.3.0 | Companion to Config Export |
 | 15 | [WebSocket Activity Feed](#15-websocket-real-time-activity-feed) | **Done** | v1.1.0 | PR #111 |
 | - | [Synthetic Demo Mode](#synthetic-demo-mode) | **Done** | v1.1.0 | PR #112 |
 | 16 | [Search Progress & Live Queue View](#16-search-progress--live-queue-view) | **Done** | v1.1.0 | PR #113 |
@@ -294,7 +294,7 @@ All three bugs identified during E2E testing are closed:
 
 **Priority:** Medium | **Effort:** Low | **Status: Done** (PR #77, 2026-02-28)
 
-*Simplified from the original "Real-Time Activity Feed" feature. Full WebSocket deferred to [Feature 15](#15-websocket-real-time-activity-feed).*
+*Simplified from the original "Real-Time Activity Feed" feature. Replaced by WebSocket in v1.1.0 ([Feature 15](#15-websocket-real-time-activity-feed)).*
 
 **Problem:** Dashboard uses AJAX polling (30s) for stats and system status, but the Recent Search Activity table is server-rendered and never updates without a page refresh. The `/api/dashboard/activity` endpoint exists but is unused.
 
@@ -423,7 +423,7 @@ The core differentiator: making searches smarter, not just scheduled.
 ## v1.1.0 — Visibility
 
 > **Theme:** Make everything visible. See what's happening, what will happen, and what has happened — in real time.
-> **Delivery:** PR per feature, merge as ready. Tag v1.1.0 when all complete.
+> **Shipped:** 2026-03-03. All 6 features delivered (PRs #111-#116).
 > **Full proposal:** `docs/plans/2026-03-02-next-features-proposal.md`
 
 ### 15. WebSocket Real-Time Activity Feed
