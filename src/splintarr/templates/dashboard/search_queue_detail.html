@@ -126,6 +126,7 @@
     <button class="secondary" data-action="pause-queue" data-id="{{ queue.id }}">Pause</button>
     {% endif %}
     <button class="secondary" data-action="run-now" data-id="{{ queue.id }}" {% if queue.status == 'in_progress' %}disabled aria-busy="true"{% endif %}>{% if queue.status == 'in_progress' %}Running...{% else %}Run Now{% endif %}</button>
+    <button class="secondary outline" data-action="preview-queue" data-id="{{ queue.id }}">Preview Next Run</button>
     <button class="secondary" style="color: var(--del-color);" data-action="delete-queue" data-id="{{ queue.id }}" data-name="{{ queue.name }}">Delete</button>
     <a href="/dashboard/search-queues" role="button" class="secondary" style="margin-left: auto;">Back to Queues</a>
 </div>
@@ -148,6 +149,31 @@
                 </tr>
             </thead>
             <tbody id="liveResultsBody"></tbody>
+        </table>
+    </div>
+</article>
+
+<!-- Preview Results (shown after Preview Next Run) -->
+<article id="previewResults" style="display: none;">
+    <header>
+        <h3>Preview — Next Run</h3>
+        <small id="previewSummary" style="color: var(--muted-color);"></small>
+    </header>
+    <div id="previewSeasonPacks" style="display: none; margin-bottom: 0.75rem;">
+        <small style="color: var(--muted-color); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em;">Season Packs</small>
+        <div id="previewSeasonPackList"></div>
+    </div>
+    <div style="max-height: 400px; overflow-y: auto;">
+        <table role="grid" style="font-size: 0.8rem; margin: 0;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th data-tooltip="Search priority score">Score</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody id="previewItemsBody"></tbody>
         </table>
     </div>
 </article>
@@ -383,6 +409,7 @@ document.addEventListener('click', function(e) {
     else if (action === 'run-now') openRunNowDialog(parseInt(target.dataset.id));
     else if (action === 'close-run-dialog') document.getElementById('run-now-dialog').close();
     else if (action === 'confirm-run-now') confirmRunNow();
+    else if (action === 'preview-queue') previewQueue(parseInt(target.dataset.id));
     else if (action === 'delete-queue') deleteQueue(parseInt(target.dataset.id), target.dataset.name);
 });
 
@@ -507,6 +534,102 @@ async function deleteQueue(queueId, name) {
         }
     } catch (error) {
         showNotification('Delete failed: ' + error.message);
+    }
+}
+
+async function previewQueue(queueId) {
+    var btn = document.querySelector('[data-action="preview-queue"]');
+    if (btn) {
+        btn.setAttribute('aria-busy', 'true');
+        btn.disabled = true;
+    }
+
+    try {
+        var response = await fetch('/api/search-queues/' + queueId + '/preview', { method: 'POST' });
+        var data = {};
+        try { data = await response.json(); } catch (_) {}
+
+        if (!response.ok) {
+            showNotification('Preview failed: ' + (data.detail || 'Server error (' + response.status + ')'), 'error');
+            return;
+        }
+
+        // Show preview panel
+        var panel = document.getElementById('previewResults');
+        panel.style.display = 'block';
+
+        // Summary line
+        var summary = document.getElementById('previewSummary');
+        summary.textContent = data.total_eligible + ' eligible \u2192 '
+            + data.excluded_count + ' excluded, '
+            + data.cooldown_count + ' in cooldown, '
+            + data.scored_count + ' scored \u2192 '
+            + data.batch_size + ' would be searched (max ' + data.max_items + ')';
+
+        // Season packs
+        var packSection = document.getElementById('previewSeasonPacks');
+        var packList = document.getElementById('previewSeasonPackList');
+        while (packList.firstChild) packList.removeChild(packList.firstChild);
+        if (data.season_packs && data.season_packs.length > 0) {
+            packSection.style.display = 'block';
+            data.season_packs.forEach(function(p) {
+                var div = document.createElement('div');
+                div.style.fontSize = '0.8125rem';
+                div.textContent = p.series + ' S' + String(p.season).padStart(2, '0')
+                    + ' (' + p.episodes + ' episodes \u2192 season pack search)';
+                packList.appendChild(div);
+            });
+        } else {
+            packSection.style.display = 'none';
+        }
+
+        // Items table
+        var tbody = document.getElementById('previewItemsBody');
+        while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+        data.items.forEach(function(item, idx) {
+            var tr = document.createElement('tr');
+
+            var tdNum = document.createElement('td');
+            tdNum.style.color = 'var(--muted-color)';
+            tdNum.textContent = idx + 1;
+            tr.appendChild(tdNum);
+
+            var tdItem = document.createElement('td');
+            tdItem.textContent = item.item;
+            tr.appendChild(tdItem);
+
+            var tdScore = document.createElement('td');
+            tdScore.textContent = item.score;
+            tr.appendChild(tdScore);
+
+            var tdReason = document.createElement('td');
+            tdReason.style.color = 'var(--muted-color)';
+            tdReason.style.fontSize = '0.75rem';
+            tdReason.textContent = item.score_reason;
+            tr.appendChild(tdReason);
+
+            tbody.appendChild(tr);
+        });
+
+        if (data.items.length === 0) {
+            var tr = document.createElement('tr');
+            var td = document.createElement('td');
+            td.setAttribute('colspan', '4');
+            td.style.textAlign = 'center';
+            td.style.color = 'var(--muted-color)';
+            td.textContent = 'No items would be searched (all excluded or in cooldown)';
+            tr.appendChild(td);
+            tbody.appendChild(tr);
+        }
+
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+        showNotification('Preview failed: ' + error.message, 'error');
+    } finally {
+        if (btn) {
+            btn.removeAttribute('aria-busy');
+            btn.disabled = false;
+        }
     }
 }
 </script>
