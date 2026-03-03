@@ -276,33 +276,6 @@
     }
 })();
 
-// Auto-refresh stats every 30 seconds
-setInterval(async () => {
-    try {
-        const response = await fetch('/api/dashboard/stats');
-        if (response.ok) {
-            const stats = await response.json();
-            const qTotal = document.getElementById('stat-queues-total');
-            const qActive = document.getElementById('stat-queues-active');
-            const sToday = document.getElementById('stat-searches-today');
-            const sDetail = document.getElementById('stat-searches-detail');
-            if (qTotal) qTotal.textContent = stats.search_queues.total;
-            if (qActive) qActive.textContent = stats.search_queues.active + ' active';
-            if (sToday) sToday.textContent = stats.searches.today;
-            if (sDetail) {
-                var searchText = stats.searches.this_week + ' this week \u00b7 ' + stats.searches.success_rate + '% success rate';
-                if (stats.searches.grab_rate !== undefined && stats.searches.grab_rate > 0) {
-                    searchText += ' \u00b7 ' + stats.searches.grab_rate + '% grab rate';
-                }
-                sDetail.textContent = searchText;
-            }
-        }
-    } catch (error) {
-        console.error('Failed to refresh stats:', error);
-    }
-}, 30000);
-
-// Auto-refresh system status every 60 seconds
 var statusLastChecked = Date.now();
 
 function updateTimestamp() {
@@ -439,63 +412,7 @@ function buildSectionLabel(text) {
     return label;
 }
 
-setInterval(async () => {
-    try {
-        const response = await fetch('/api/dashboard/system-status');
-        if (response.ok) {
-            const data = await response.json();
-            statusLastChecked = Date.now();
-
-            // Instances section
-            var instSection = document.getElementById('system-status-instances');
-            if (instSection) {
-                instSection.replaceChildren();
-                instSection.appendChild(buildSectionLabel('Instances'));
-                if (data.instances && data.instances.length) {
-                    data.instances.forEach(function(inst) {
-                        instSection.appendChild(buildStatusRow(inst));
-                    });
-                } else {
-                    var empty = document.createElement('div');
-                    empty.style.cssText = 'color: var(--muted-color); margin-bottom: 0.5rem;';
-                    empty.textContent = 'No instances configured. ';
-                    var addLink = document.createElement('a');
-                    addLink.href = '/dashboard/instances';
-                    addLink.textContent = 'Add one';
-                    empty.appendChild(addLink);
-                    instSection.appendChild(empty);
-                }
-            }
-
-            // Integrations section
-            var intSection = document.getElementById('system-status-integrations');
-            if (intSection && data.integrations) {
-                intSection.replaceChildren();
-                intSection.appendChild(buildSectionLabel('Integrations'));
-                intSection.appendChild(buildIntegrationRow('Discord', '/dashboard/settings#notifications', data.integrations.discord));
-                intSection.appendChild(buildIntegrationRow('Prowlarr', '/dashboard/settings#prowlarr', data.integrations.prowlarr));
-            }
-
-            // Services section
-            var svcSection = document.getElementById('system-status-services');
-            if (svcSection && data.services) {
-                svcSection.replaceChildren();
-                svcSection.appendChild(buildSectionLabel('Internal Services'));
-                svcSection.appendChild(buildServiceRow('Database', data.services.database.status));
-                var schedStatus = data.services.scheduler.status;
-                var schedExtra = schedStatus;
-                if (data.services.scheduler.jobs_count) {
-                    schedExtra += ' \u00b7 ' + data.services.scheduler.jobs_count + ' job' + (data.services.scheduler.jobs_count !== 1 ? 's' : '');
-                }
-                svcSection.appendChild(buildServiceRow('Scheduler', schedStatus, schedExtra));
-            }
-        }
-    } catch (error) {
-        console.error('Failed to refresh system status:', error);
-    }
-}, 30000);
-
-// Activity feed — poll every 15s
+// Activity feed
 async function refreshActivity() {
     try {
         var response = await fetch('/api/dashboard/activity?limit=5');
@@ -604,10 +521,7 @@ function updateActivityTable(activities) {
     });
 }
 
-setInterval(refreshActivity, 15000);
-refreshActivity();
-
-// Indexer Health — poll every 60s
+// Indexer Health
 var indexerHealthExpanded = false;
 var INDEXER_TRUNCATE_LIMIT = 5;
 
@@ -739,7 +653,160 @@ async function refreshIndexerHealth() {
     }
 }
 
-setInterval(refreshIndexerHealth, 60000);
-refreshIndexerHealth();
+// ===== WebSocket Integration =====
+
+// Extract polling logic into named functions (reuse existing fetch+DOM code)
+async function pollStats() {
+    try {
+        var response = await fetch('/api/dashboard/stats');
+        if (!response.ok) return;
+        var stats = response.ok ? await response.json() : null;
+        if (stats) updateDashboardStats(stats);
+    } catch (e) { /* silent */ }
+}
+
+async function pollSystemStatus() {
+    try {
+        var response = await fetch('/api/dashboard/system-status');
+        if (!response.ok) return;
+        var data = await response.json();
+        statusLastChecked = Date.now();
+        updateSystemStatusDOM(data);
+    } catch (e) { /* silent */ }
+}
+
+async function pollActivity() {
+    try {
+        var response = await fetch('/api/dashboard/activity?limit=5');
+        if (!response.ok) return;
+        var data = await response.json();
+        updateActivityTable(data.activity);
+    } catch (e) { /* silent */ }
+}
+
+// Wrap existing stats update logic
+function updateDashboardStats(stats) {
+    var qTotal = document.getElementById('stat-queues-total');
+    var qActive = document.getElementById('stat-queues-active');
+    var sToday = document.getElementById('stat-searches-today');
+    var sDetail = document.getElementById('stat-searches-detail');
+    if (qTotal) qTotal.textContent = stats.search_queues.total;
+    if (qActive) qActive.textContent = stats.search_queues.active + ' active';
+    if (sToday) sToday.textContent = stats.searches.today;
+    if (sDetail) {
+        var searchText = stats.searches.this_week + ' this week \u00b7 ' + stats.searches.success_rate + '% success rate';
+        if (stats.searches.grab_rate !== undefined && stats.searches.grab_rate > 0) {
+            searchText += ' \u00b7 ' + stats.searches.grab_rate + '% grab rate';
+        }
+        sDetail.textContent = searchText;
+    }
+}
+
+// Wrap existing system status update logic into a function
+function updateSystemStatusDOM(data) {
+    // Instances section
+    var instSection = document.getElementById('system-status-instances');
+    if (instSection) {
+        instSection.replaceChildren();
+        instSection.appendChild(buildSectionLabel('Instances'));
+        if (data.instances && data.instances.length) {
+            data.instances.forEach(function(inst) {
+                instSection.appendChild(buildStatusRow(inst));
+            });
+        } else {
+            var empty = document.createElement('div');
+            empty.style.cssText = 'color: var(--muted-color); margin-bottom: 0.5rem;';
+            empty.textContent = 'No instances configured. ';
+            var addLink = document.createElement('a');
+            addLink.href = '/dashboard/instances';
+            addLink.textContent = 'Add one';
+            empty.appendChild(addLink);
+            instSection.appendChild(empty);
+        }
+    }
+
+    // Integrations section
+    var intSection = document.getElementById('system-status-integrations');
+    if (intSection && data.integrations) {
+        intSection.replaceChildren();
+        intSection.appendChild(buildSectionLabel('Integrations'));
+        intSection.appendChild(buildIntegrationRow('Discord', '/dashboard/settings#notifications', data.integrations.discord));
+        intSection.appendChild(buildIntegrationRow('Prowlarr', '/dashboard/settings#prowlarr', data.integrations.prowlarr));
+    }
+
+    // Services section
+    var svcSection = document.getElementById('system-status-services');
+    if (svcSection && data.services) {
+        svcSection.replaceChildren();
+        svcSection.appendChild(buildSectionLabel('Internal Services'));
+        svcSection.appendChild(buildServiceRow('Database', data.services.database.status));
+        var schedStatus = data.services.scheduler.status;
+        var schedExtra = schedStatus;
+        if (data.services.scheduler.jobs_count) {
+            schedExtra += ' \u00b7 ' + data.services.scheduler.jobs_count + ' job' + (data.services.scheduler.jobs_count !== 1 ? 's' : '');
+        }
+        svcSection.appendChild(buildServiceRow('Scheduler', schedStatus, schedExtra));
+    }
+}
+
+// Polling fallback management
+var pollingTimers = [];
+
+function startPolling() {
+    stopPolling();
+    pollingTimers.push(setInterval(pollStats, 30000));
+    pollingTimers.push(setInterval(pollSystemStatus, 30000));
+    pollingTimers.push(setInterval(pollActivity, 15000));
+    pollingTimers.push(setInterval(refreshIndexerHealth, 60000));
+    pollActivity();
+    refreshIndexerHealth();
+}
+
+function stopPolling() {
+    pollingTimers.forEach(function(t) { clearInterval(t); });
+    pollingTimers = [];
+}
+
+// WebSocket event handlers
+Splintarr.ws.on('stats.updated', function(data) {
+    if (data && data.search_queues) updateDashboardStats(data);
+    else pollStats();  // Empty payload = trigger a fetch
+});
+
+Splintarr.ws.on('status.updated', function(data) {
+    statusLastChecked = Date.now();
+    if (data && data.instances) updateSystemStatusDOM(data);
+    else pollSystemStatus();  // Empty payload = trigger a fetch
+});
+
+Splintarr.ws.on('activity.updated', function(data) {
+    if (data && data.activity) updateActivityTable(data.activity);
+    else pollActivity();  // Empty payload = trigger a fetch
+});
+
+Splintarr.ws.on('indexer_health.updated', function(data) {
+    if (data && data.indexers !== undefined) refreshIndexerHealthFromData(data);
+    else refreshIndexerHealth();  // Empty payload = trigger a fetch
+});
+
+// WS lifecycle
+Splintarr.ws.onConnected = function() {
+    stopPolling();
+    // WS connected — do initial fetches since server may send light initial state
+    pollStats();
+    pollSystemStatus();
+    pollActivity();
+    refreshIndexerHealth();
+};
+
+Splintarr.ws.onFallback = startPolling;
+
+// Start WebSocket
+Splintarr.ws.connect();
+
+// Safety net: if WS doesn't connect in 2s, start polling
+setTimeout(function() {
+    if (!Splintarr.ws.connected) startPolling();
+}, 2000);
 </script>
 {% endblock %}
