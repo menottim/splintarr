@@ -25,6 +25,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.orm import Session
 
 from splintarr.config import settings
+from splintarr.core.events import event_bus
 from splintarr.models import SearchQueue
 from splintarr.services.health_check import HealthCheckService
 from splintarr.services.search_queue import SearchQueueManager
@@ -462,6 +463,7 @@ class SearchScheduler:
             for result in results:
                 if result["status_changed"]:
                     await self._notify_health_change(db, result)
+            await event_bus.emit("status.updated", {})
         except Exception as e:
             logger.error("health_check_execution_failed", error=str(e))
         finally:

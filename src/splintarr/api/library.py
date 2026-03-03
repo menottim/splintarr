@@ -35,6 +35,7 @@ from sqlalchemy.orm import Session
 from splintarr.api.onboarding import get_onboarding_state
 from splintarr.api.template_filters import templates
 from splintarr.core.auth import get_current_user_from_cookie
+from splintarr.core.events import event_bus
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db, get_session_factory
 from splintarr.models.instance import Instance
@@ -96,6 +97,10 @@ async def _run_sync_all_background() -> None:
         )
         if result.get("errors"):
             _sync_state["errors"] = [str(e) for e in result["errors"]]
+        await event_bus.emit("sync.completed", {
+            "total_items": result.get("total_items", 0) if isinstance(result, dict) else 0,
+        })
+        await event_bus.emit("stats.updated", {})
     except Exception as e:
         logger.error(
             "library_sync_background_failed",
@@ -128,6 +133,13 @@ def _update_sync_progress(
             "instances_done": instances_done,
         }
     )
+    import asyncio
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(event_bus.emit("sync.progress", dict(_sync_state)))
+    except RuntimeError:
+        pass  # No event loop — skip WS broadcast
 
 
 def _base_library_query(db: Session, user: User):  # type: ignore[return]
