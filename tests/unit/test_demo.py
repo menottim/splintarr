@@ -233,6 +233,38 @@ class TestDemoIndexerHealth:
         assert len(disabled) >= 1
 
 
+class TestDemoAnalytics:
+    """Verify get_demo_analytics matches /api/dashboard/analytics shape."""
+
+    def test_shape(self):
+        from splintarr.services.demo import get_demo_analytics
+
+        data = get_demo_analytics()
+        assert "current" in data
+        assert "previous" in data
+        assert "trends" in data
+        assert "top_series" in data
+        assert data["demo"] is True
+
+    def test_period_keys(self):
+        from splintarr.services.demo import get_demo_analytics
+
+        data = get_demo_analytics()
+        for period in ["current", "previous"]:
+            assert "searches" in data[period]
+            assert "items_found" in data[period]
+            assert "grabs" in data[period]
+
+    def test_top_series_structure(self):
+        from splintarr.services.demo import get_demo_analytics
+
+        data = get_demo_analytics()
+        assert len(data["top_series"]) == 3
+        for s in data["top_series"]:
+            assert "title" in s
+            assert "search_count" in s
+
+
 # ---------------------------------------------------------------------------
 # Simulation lifecycle tests
 # ---------------------------------------------------------------------------

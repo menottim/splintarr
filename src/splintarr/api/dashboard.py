@@ -1332,6 +1332,113 @@ async def api_dashboard_system_status(
     )
 
 
+@router.get("/api/dashboard/analytics", include_in_schema=False)
+@limiter.limit("30/minute")
+async def api_dashboard_analytics(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """Last 7 days analytics with trend comparison vs prior 7 days."""
+    if is_demo_active(db, current_user.id):
+        from splintarr.services.demo import get_demo_analytics
+
+        logger.debug("dashboard_analytics_demo", user_id=current_user.id)
+        return JSONResponse(content=get_demo_analytics())
+
+    logger.debug("dashboard_analytics_requested", user_id=current_user.id)
+
+    now = datetime.utcnow()
+    current_start = now - timedelta(days=7)
+    previous_start = now - timedelta(days=14)
+
+    def _period_stats(start: datetime, end: datetime) -> dict[str, int]:
+        row = (
+            db.query(
+                func.count(SearchHistory.id).label("searches"),
+                func.coalesce(func.sum(SearchHistory.items_found), 0).label("items_found"),
+                func.coalesce(func.sum(SearchHistory.searches_triggered), 0).label("grabs"),
+            )
+            .join(Instance)
+            .filter(
+                Instance.user_id == current_user.id,
+                SearchHistory.started_at >= start,
+                SearchHistory.started_at < end,
+            )
+            .one()
+        )
+        return {
+            "searches": row.searches or 0,
+            "items_found": int(row.items_found),
+            "grabs": int(row.grabs),
+        }
+
+    current = _period_stats(current_start, now)
+    previous = _period_stats(previous_start, current_start)
+
+    # Trend percentages (positive = improvement)
+    def _trend(cur: int, prev: int) -> float:
+        if prev == 0:
+            return 100.0 if cur > 0 else 0.0
+        return round((cur - prev) / prev * 100, 1)
+
+    trends = {
+        "searches": _trend(current["searches"], previous["searches"]),
+        "items_found": _trend(current["items_found"], previous["items_found"]),
+        "grabs": _trend(current["grabs"], previous["grabs"]),
+    }
+
+    # Top 3 most-searched series (from search_metadata JSON in last 7 days)
+    top_series: list[dict[str, Any]] = []
+    history_rows = (
+        db.query(SearchHistory.search_metadata)
+        .join(Instance)
+        .filter(
+            Instance.user_id == current_user.id,
+            SearchHistory.started_at >= current_start,
+            SearchHistory.search_metadata.isnot(None),
+        )
+        .all()
+    )
+
+    series_counts: dict[str, int] = {}
+    for (metadata_json,) in history_rows:
+        try:
+            entries = json.loads(metadata_json) if metadata_json else []
+        except (json.JSONDecodeError, TypeError):
+            continue
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
+            item_name = entry.get("item", "")
+            # Extract series name: "Breaking Bad S01E01 - Pilot" -> "Breaking Bad"
+            if " S" in item_name and "E" in item_name:
+                series_name = item_name.split(" S")[0]
+            elif " - " in item_name:
+                series_name = item_name.split(" - ")[0].strip()
+            else:
+                series_name = item_name
+            if series_name:
+                series_counts[series_name] = series_counts.get(series_name, 0) + 1
+
+    sorted_series = sorted(series_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+    top_series = [{"title": name, "search_count": count} for name, count in sorted_series]
+
+    logger.debug(
+        "dashboard_analytics_completed",
+        user_id=current_user.id,
+        current_searches=current["searches"],
+        top_series_count=len(top_series),
+    )
+
+    return JSONResponse(content={
+        "current": current,
+        "previous": previous,
+        "trends": trends,
+        "top_series": top_series,
+    })
+
+
 @router.get("/api/dashboard/indexer-health", include_in_schema=False)
 @limiter.limit("30/minute")
 async def api_indexer_health(

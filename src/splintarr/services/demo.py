@@ -207,6 +207,21 @@ def get_demo_indexer_health() -> dict[str, Any]:
     }
 
 
+def get_demo_analytics() -> dict[str, Any]:
+    """Synthetic analytics matching ``/api/dashboard/analytics`` shape."""
+    return {
+        "current": {"searches": 34, "items_found": 12, "grabs": 5},
+        "previous": {"searches": 22, "items_found": 8, "grabs": 3},
+        "trends": {"searches": 54.5, "items_found": 50.0, "grabs": 66.7},
+        "top_series": [
+            {"title": "Breaking Bad", "search_count": 8},
+            {"title": "The Wire", "search_count": 5},
+            {"title": "Severance", "search_count": 3},
+        ],
+        "demo": True,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Simulation loop
 # ---------------------------------------------------------------------------

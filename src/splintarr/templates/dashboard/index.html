@@ -125,6 +125,34 @@
     </footer>
 </article>
 
+<!-- Last 7 Days Analytics -->
+<article id="analytics-card">
+    <header>
+        <h3>Last 7 Days</h3>
+    </header>
+    <div class="grid" id="analytics-metrics" style="text-align: center;">
+        <div>
+            <div id="analytics-searches" style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">-</div>
+            <small style="color: var(--muted-color); text-transform: uppercase; font-size: 0.6875rem; letter-spacing: 0.5px;">Searches Run</small>
+            <div id="analytics-searches-trend" style="font-size: 0.75rem;"></div>
+        </div>
+        <div>
+            <div id="analytics-found" style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">-</div>
+            <small style="color: var(--muted-color); text-transform: uppercase; font-size: 0.6875rem; letter-spacing: 0.5px;">Items Found</small>
+            <div id="analytics-found-trend" style="font-size: 0.75rem;"></div>
+        </div>
+        <div>
+            <div id="analytics-grabs" style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">-</div>
+            <small style="color: var(--muted-color); text-transform: uppercase; font-size: 0.6875rem; letter-spacing: 0.5px;">Grabs Confirmed</small>
+            <div id="analytics-grabs-trend" style="font-size: 0.75rem;"></div>
+        </div>
+    </div>
+    <div id="analytics-top-series" style="display: none; margin-top: 0.75rem; border-top: 1px solid var(--muted-border-color); padding-top: 0.75rem;">
+        <small style="color: var(--muted-color); text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em;">Most Searched</small>
+        <div id="analytics-top-series-list" style="margin-top: 0.25rem;"></div>
+    </div>
+</article>
+
 <!-- Indexer Health (only shown if Prowlarr configured) -->
 <div id="indexer-health-section" style="display: none;">
     <article>
@@ -760,14 +788,76 @@ function updateSystemStatusDOM(data) {
 // Polling fallback management
 var pollingTimers = [];
 
+// Analytics
+async function refreshAnalytics() {
+    try {
+        var response = await fetch('/api/dashboard/analytics');
+        if (!response.ok) return;
+        var data = await response.json();
+        updateAnalyticsDOM(data);
+    } catch (e) {}
+}
+
+function updateAnalyticsDOM(data) {
+    document.getElementById('analytics-searches').textContent = data.current.searches;
+    document.getElementById('analytics-found').textContent = data.current.items_found;
+    document.getElementById('analytics-grabs').textContent = data.current.grabs;
+
+    function renderTrend(el, pct) {
+        if (pct > 0) {
+            el.style.color = 'var(--ins-color)';
+            el.textContent = '\u25B2 +' + pct + '% vs prior 7d';
+        } else if (pct < 0) {
+            el.style.color = 'var(--del-color)';
+            el.textContent = '\u25BC ' + pct + '% vs prior 7d';
+        } else {
+            el.style.color = 'var(--muted-color)';
+            el.textContent = '\u2014 no change';
+        }
+    }
+
+    renderTrend(document.getElementById('analytics-searches-trend'), data.trends.searches);
+    renderTrend(document.getElementById('analytics-found-trend'), data.trends.items_found);
+    renderTrend(document.getElementById('analytics-grabs-trend'), data.trends.grabs);
+
+    // Top series
+    var section = document.getElementById('analytics-top-series');
+    var list = document.getElementById('analytics-top-series-list');
+    while (list.firstChild) list.removeChild(list.firstChild);
+    if (data.top_series && data.top_series.length > 0) {
+        section.style.display = 'block';
+        data.top_series.forEach(function(s, i) {
+            var div = document.createElement('div');
+            div.style.fontSize = '0.8125rem';
+            div.style.padding = '0.125rem 0';
+            var num = document.createElement('span');
+            num.style.color = 'var(--muted-color)';
+            num.textContent = (i + 1) + '. ';
+            div.appendChild(num);
+            var name = document.createTextNode(s.title);
+            div.appendChild(name);
+            var count = document.createElement('span');
+            count.style.color = 'var(--muted-color)';
+            count.style.marginLeft = '0.5rem';
+            count.textContent = '(' + s.search_count + ')';
+            div.appendChild(count);
+            list.appendChild(div);
+        });
+    } else {
+        section.style.display = 'none';
+    }
+}
+
 function startPolling() {
     stopPolling();
     pollingTimers.push(setInterval(pollStats, 30000));
     pollingTimers.push(setInterval(pollSystemStatus, 30000));
     pollingTimers.push(setInterval(pollActivity, 15000));
     pollingTimers.push(setInterval(refreshIndexerHealth, 60000));
+    pollingTimers.push(setInterval(refreshAnalytics, 60000));
     pollActivity();
     refreshIndexerHealth();
+    refreshAnalytics();
 }
 
 function stopPolling() {
@@ -779,6 +869,7 @@ function stopPolling() {
 Splintarr.ws.on('stats.updated', function(data) {
     if (data && data.search_queues) updateDashboardStats(data);
     else pollStats();  // Empty payload = trigger a fetch
+    refreshAnalytics();  // Analytics may have changed too
 });
 
 Splintarr.ws.on('status.updated', function(data) {
@@ -840,6 +931,7 @@ Splintarr.ws.onConnected = function() {
     pollSystemStatus();
     pollActivity();
     refreshIndexerHealth();
+    refreshAnalytics();
 };
 
 Splintarr.ws.onFallback = startPolling;
