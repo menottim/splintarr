@@ -1019,6 +1019,206 @@ class SearchQueueManager:
             override_cooldowns=override_cooldowns,
         )
 
+    def _get_strategy_params(
+        self, queue: SearchQueue, instance: Instance
+    ) -> tuple[str, str, str | None, str | None]:
+        """Return (fetch_method, strategy_name, sort_key, sort_dir) for a queue's strategy."""
+        if queue.strategy == "missing":
+            return ("get_wanted_missing", "missing", None, None)
+        elif queue.strategy == "cutoff_unmet":
+            return ("get_wanted_cutoff", "cutoff", None, None)
+        elif queue.strategy == "recent":
+            if instance.instance_type == "sonarr":
+                return ("get_wanted_missing", "recent", "airDateUtc", "descending")
+            else:
+                return ("get_wanted_missing", "recent", "added", "descending")
+        elif queue.strategy == "custom":
+            return ("get_wanted_missing", "missing", None, None)
+        else:
+            raise SearchQueueError(f"Unknown strategy: {queue.strategy}")
+
+    async def preview_queue(
+        self, queue_id: int
+    ) -> dict[str, Any]:
+        """Run the scoring/filtering pipeline without executing searches.
+
+        Returns the item list in priority order with scores, reasons,
+        season pack groupings, and skip counts.
+        """
+        db = self.db_session_factory()
+        try:
+            queue = db.query(SearchQueue).filter(SearchQueue.id == queue_id).first()
+            if not queue:
+                raise SearchQueueError(f"Queue {queue_id} not found")
+
+            instance = db.query(Instance).filter(Instance.id == queue.instance_id).first()
+            if not instance:
+                raise SearchQueueError("Instance not found")
+
+            logger.info(
+                "search_preview_started",
+                queue_id=queue_id,
+                strategy=queue.strategy,
+                instance_id=instance.id,
+            )
+
+            fetch_method, strategy_name, sort_key, sort_dir = self._get_strategy_params(
+                queue, instance
+            )
+
+            is_sonarr = instance.instance_type == "sonarr"
+            max_items = getattr(queue, "max_items_per_run", 50) or 50
+
+            api_key = decrypt_api_key(instance.api_key)
+            client_cls = SonarrClient if is_sonarr else RadarrClient
+
+            async with client_cls(
+                url=instance.url,
+                api_key=api_key,
+                verify_ssl=instance.verify_ssl,
+                rate_limit_per_second=instance.rate_limit_per_second or 5,
+            ) as client:
+                all_records = await self._fetch_all_records(
+                    client, fetch_method, sort_key=sort_key, sort_dir=sort_dir
+                )
+
+            # Load library data and exclusions
+            library_items = self._load_library_items(db, instance.id)
+            exclusion_service = ExclusionService(self.db_session_factory)
+            excluded_keys = exclusion_service.get_active_exclusion_keys(
+                user_id=instance.user_id, instance_id=instance.id
+            )
+
+            content_type = "series" if is_sonarr else "movie"
+            cooldown_mode = getattr(queue, "cooldown_mode", "adaptive") or "adaptive"
+            cooldown_hours = getattr(queue, "cooldown_hours", None)
+
+            # Build label function
+            if is_sonarr:
+                def label_fn(rec: dict[str, Any]) -> str:
+                    return _episode_label(rec, library_items=library_items)
+            else:
+                label_fn = _movie_label
+
+            # Load per-episode tracking (Sonarr)
+            episode_tracking: dict[tuple[int, int, int], Any] = {}
+            if is_sonarr and library_items:
+                from splintarr.models.library import LibraryEpisode
+
+                item_ids = [li.id for li in library_items.values()]
+                if item_ids:
+                    db_episodes = (
+                        db.query(LibraryEpisode)
+                        .filter(LibraryEpisode.library_item_id.in_(item_ids))
+                        .all()
+                    )
+                    for ep in db_episodes:
+                        if ep.library_item:
+                            episode_tracking[
+                                (ep.library_item.external_id, ep.season_number, ep.episode_number)
+                            ] = ep
+
+            # Score, filter, sort — same pipeline as _search_paginated_records Steps 3-7
+            scored_records: list[tuple[dict[str, Any], float, str]] = []
+            excluded_count = 0
+            cooldown_count = 0
+
+            for record in all_records:
+                item_id = record.get("id")
+                if not item_id:
+                    continue
+
+                ext_id = (
+                    record.get("seriesId") or record.get("series", {}).get("id")
+                    if is_sonarr
+                    else item_id
+                )
+
+                if ext_id and (ext_id, content_type) in excluded_keys:
+                    excluded_count += 1
+                    continue
+
+                library_item = library_items.get(ext_id)
+                if is_in_cooldown(library_item, record, cooldown_mode, cooldown_hours):
+                    cooldown_count += 1
+                    continue
+
+                score, reason = compute_score(record, library_item, strategy_name)
+
+                # Per-episode deprioritization
+                if is_sonarr:
+                    s_id = record.get("seriesId") or record.get("series", {}).get("id")
+                    s_num = record.get("seasonNumber")
+                    e_num = record.get("episodeNumber")
+                    if s_id and s_num is not None and e_num is not None:
+                        ep_rec = episode_tracking.get((s_id, s_num, e_num))
+                        if ep_rec and ep_rec.last_searched_at:
+                            hours = (
+                                datetime.utcnow() - ep_rec.last_searched_at
+                            ).total_seconds() / 3600
+                            if hours < 24:
+                                penalty = 50.0 * (1.0 - hours / 24.0)
+                                score = max(0, score - penalty)
+                                reason += f" (ep searched {hours:.0f}h ago: -{penalty:.0f})"
+
+                scored_records.append((record, score, reason))
+
+            scored_records.sort(key=lambda x: x[1], reverse=True)
+            truncated = scored_records[:max_items]
+
+            # Build preview items
+            items = []
+            for record, score, reason in truncated:
+                label = label_fn(record)
+                items.append({
+                    "item": label,
+                    "score": round(score, 1),
+                    "score_reason": reason,
+                })
+
+            # Season pack groupings (Sonarr only)
+            season_packs: list[dict[str, Any]] = []
+            season_pack_enabled = getattr(queue, "season_pack_enabled", False) and is_sonarr
+            if season_pack_enabled:
+                threshold = getattr(queue, "season_pack_threshold", 3) or 3
+                truncated_records = [rec for rec, _s, _r in truncated]
+                groups = _group_by_season(truncated_records)
+                for (series_id, season_num), episodes in groups.items():
+                    if len(episodes) >= threshold:
+                        first = episodes[0]
+                        series_title = first.get("series", {}).get("title", f"Series {series_id}")
+                        season_packs.append({
+                            "series": series_title,
+                            "season": season_num,
+                            "episodes": len(episodes),
+                        })
+
+            logger.info(
+                "search_preview_completed",
+                queue_id=queue_id,
+                total_records=len(all_records),
+                excluded=excluded_count,
+                cooldown=cooldown_count,
+                scored=len(scored_records),
+                batch_size=len(truncated),
+                season_packs=len(season_packs),
+            )
+
+            return {
+                "queue_id": queue_id,
+                "strategy": strategy_name,
+                "total_eligible": len(all_records),
+                "excluded_count": excluded_count,
+                "cooldown_count": cooldown_count,
+                "scored_count": len(scored_records),
+                "batch_size": len(truncated),
+                "max_items": max_items,
+                "items": items,
+                "season_packs": season_packs,
+            }
+        finally:
+            db.close()
+
     async def _check_rate_limit(self, instance_id: int, tokens_per_second: float = 5.0) -> bool:
         """
         Check if rate limit allows a new request (token bucket algorithm).

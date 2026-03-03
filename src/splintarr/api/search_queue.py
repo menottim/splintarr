@@ -26,6 +26,7 @@ from splintarr.schemas import (
     SearchQueueUpdate,
 )
 from splintarr.services import SearchQueueManager, get_history_service, get_scheduler
+from splintarr.services.search_queue import SearchQueueError
 
 logger = structlog.get_logger()
 
@@ -467,6 +468,38 @@ async def start_search_queue(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to start search queue",
         )
+
+
+@router.post(
+    "/{queue_id}/preview",
+    summary="Preview next run",
+    description="Dry run: score and filter items without executing searches",
+)
+@limiter.limit("5/minute")
+async def preview_search_queue(
+    request: Request,
+    queue_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Any:
+    """Preview what would be searched in the next run."""
+    try:
+        _get_user_queue(db, queue_id, current_user.id)
+        queue_manager = SearchQueueManager(get_session_factory())
+        result = await queue_manager.preview_queue(queue_id)
+        logger.debug("search_queue_preview_completed", queue_id=queue_id, user_id=current_user.id)
+        return result
+    except SearchQueueError as e:
+        logger.warning("search_queue_preview_failed", error=str(e), queue_id=queue_id)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
+        ) from None
+    except Exception as e:
+        logger.error("search_queue_preview_error", error=str(e), queue_id=queue_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Preview failed — check instance connectivity",
+        ) from None
 
 
 @router.post(
