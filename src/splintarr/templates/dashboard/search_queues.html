@@ -812,44 +812,31 @@ document.querySelector('a[href="#create-queue"]').addEventListener('click', func
         return results;
     }
 
+    var BULK_CONFIG = {
+        pause:  { apiAction: 'pause',  verb: 'paused',  prompt: function(n) { return 'Pause ' + n + ' queue(s)?'; } },
+        resume: { apiAction: 'resume', verb: 'resumed', prompt: function(n) { return 'Resume ' + n + ' queue(s)?'; } },
+        run:    { apiAction: 'start',  verb: 'started', prompt: function(n) { return 'Run ' + n + ' queue(s) now?'; } },
+        delete: { apiAction: 'delete', verb: 'deleted', prompt: function(n, names) { return 'Delete ' + n + ' queue(s)?\n\n' + names.join('\n'); } },
+    };
+
     document.addEventListener('click', function(e) {
         var btn = e.target.closest('[data-bulk]');
         if (!btn || btn.disabled) return;
 
-        var action = btn.dataset.bulk;
+        var cfg = BULK_CONFIG[btn.dataset.bulk];
+        if (!cfg) return;
+
         var ids = getSelectedIds();
         if (ids.length === 0) return;
 
-        if (action === 'pause') {
-            if (!confirm('Pause ' + ids.length + ' queue(s)?')) return;
-            btn.setAttribute('aria-busy', 'true');
-            bulkAction('pause', ids).then(function(r) {
-                Splintarr.showNotification(r.ok + ' paused' + (r.fail ? ', ' + r.fail + ' failed' : ''), r.fail ? 'error' : 'success');
-                location.reload();
-            });
-        } else if (action === 'resume') {
-            if (!confirm('Resume ' + ids.length + ' queue(s)?')) return;
-            btn.setAttribute('aria-busy', 'true');
-            bulkAction('resume', ids).then(function(r) {
-                Splintarr.showNotification(r.ok + ' resumed' + (r.fail ? ', ' + r.fail + ' failed' : ''), r.fail ? 'error' : 'success');
-                location.reload();
-            });
-        } else if (action === 'run') {
-            if (!confirm('Run ' + ids.length + ' queue(s) now?')) return;
-            btn.setAttribute('aria-busy', 'true');
-            bulkAction('start', ids).then(function(r) {
-                Splintarr.showNotification(r.ok + ' started' + (r.fail ? ', ' + r.fail + ' failed' : ''), r.fail ? 'error' : 'success');
-                location.reload();
-            });
-        } else if (action === 'delete') {
-            var names = getSelectedNames();
-            if (!confirm('Delete ' + ids.length + ' queue(s)?\n\n' + names.join('\n'))) return;
-            btn.setAttribute('aria-busy', 'true');
-            bulkAction('delete', ids).then(function(r) {
-                Splintarr.showNotification(r.ok + ' deleted' + (r.fail ? ', ' + r.fail + ' failed' : ''), r.fail ? 'error' : 'success');
-                location.reload();
-            });
-        }
+        var msg = cfg.prompt(ids.length, getSelectedNames());
+        if (!confirm(msg)) return;
+
+        btn.setAttribute('aria-busy', 'true');
+        bulkAction(cfg.apiAction, ids).then(function(r) {
+            Splintarr.showNotification(r.ok + ' ' + cfg.verb + (r.fail ? ', ' + r.fail + ' failed' : ''), r.fail ? 'error' : 'success');
+            location.reload();
+        });
     });
 })();
 </script>

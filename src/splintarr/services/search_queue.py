@@ -17,7 +17,7 @@ across configured instances.
 import json
 from collections import defaultdict
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
@@ -1019,23 +1019,24 @@ class SearchQueueManager:
             override_cooldowns=override_cooldowns,
         )
 
+    _STRATEGY_PARAMS: dict[str, tuple[str, str, str | None, str | None]] = {
+        "missing": ("get_wanted_missing", "missing", None, None),
+        "cutoff_unmet": ("get_wanted_cutoff", "cutoff", None, None),
+        "custom": ("get_wanted_missing", "missing", None, None),
+    }
+
     def _get_strategy_params(
         self, queue: SearchQueue, instance: Instance
     ) -> tuple[str, str, str | None, str | None]:
         """Return (fetch_method, strategy_name, sort_key, sort_dir) for a queue's strategy."""
-        if queue.strategy == "missing":
-            return ("get_wanted_missing", "missing", None, None)
-        elif queue.strategy == "cutoff_unmet":
-            return ("get_wanted_cutoff", "cutoff", None, None)
-        elif queue.strategy == "recent":
-            if instance.instance_type == "sonarr":
-                return ("get_wanted_missing", "recent", "airDateUtc", "descending")
-            else:
-                return ("get_wanted_missing", "recent", "added", "descending")
-        elif queue.strategy == "custom":
-            return ("get_wanted_missing", "missing", None, None)
-        else:
+        if queue.strategy == "recent":
+            sort_key = "airDateUtc" if instance.instance_type == "sonarr" else "added"
+            return ("get_wanted_missing", "recent", sort_key, "descending")
+
+        params = self._STRATEGY_PARAMS.get(queue.strategy)
+        if params is None:
             raise SearchQueueError(f"Unknown strategy: {queue.strategy}")
+        return params
 
     async def preview_queue(
         self, queue_id: int
@@ -1162,13 +1163,13 @@ class SearchQueueManager:
                     if s_id and s_num is not None and e_num is not None:
                         ep_rec = episode_tracking.get((s_id, s_num, e_num))
                         if ep_rec and ep_rec.last_searched_at:
-                            hours = (
-                                datetime.utcnow() - ep_rec.last_searched_at
+                            hours_since = (
+                                datetime.now(UTC) - ep_rec.last_searched_at.replace(tzinfo=UTC)
                             ).total_seconds() / 3600
-                            if hours < 24:
-                                penalty = 50.0 * (1.0 - hours / 24.0)
+                            if hours_since < 24:
+                                penalty = 50.0 * (1.0 - hours_since / 24.0)
                                 score = max(0, score - penalty)
-                                reason += f" (ep searched {hours:.0f}h ago: -{penalty:.0f})"
+                                reason += f" (ep searched {hours_since:.0f}h ago: -{penalty:.0f})"
 
                 scored_records.append((record, score, reason))
 

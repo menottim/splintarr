@@ -331,7 +331,7 @@
         bar.removeAttribute('max');
         count.textContent = 'Starting ' + (data.strategy || '') + ' search...';
         currentItem.textContent = '';
-        while (resultsBody.firstChild) resultsBody.removeChild(resultsBody.firstChild);
+        resultsBody.replaceChildren();
     });
 
     Splintarr.ws.on('search.item_result', function(data) {
@@ -569,7 +569,7 @@ async function previewQueue(queueId) {
         // Season packs
         var packSection = document.getElementById('previewSeasonPacks');
         var packList = document.getElementById('previewSeasonPackList');
-        while (packList.firstChild) packList.removeChild(packList.firstChild);
+        packList.replaceChildren();
         if (data.season_packs && data.season_packs.length > 0) {
             packSection.style.display = 'block';
             data.season_packs.forEach(function(p) {
@@ -585,7 +585,7 @@ async function previewQueue(queueId) {
 
         // Items table
         var tbody = document.getElementById('previewItemsBody');
-        while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+        tbody.replaceChildren();
         data.items.forEach(function(item, idx) {
             var tr = document.createElement('tr');
 

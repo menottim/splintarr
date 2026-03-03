@@ -448,18 +448,6 @@ function buildSectionLabel(text) {
     return label;
 }
 
-// Activity feed
-async function refreshActivity() {
-    try {
-        var response = await fetch('/api/dashboard/activity?limit=5');
-        if (!response.ok) return;
-        var data = await response.json();
-        updateActivityTable(data.activity);
-    } catch (e) {
-        // silent fail — table keeps last known state
-    }
-}
-
 function updateActivityTable(activities) {
     var tbody = document.getElementById('activity-tbody');
     if (!tbody || !activities) return;
@@ -696,8 +684,8 @@ async function pollStats() {
     try {
         var response = await fetch('/api/dashboard/stats');
         if (!response.ok) return;
-        var stats = response.ok ? await response.json() : null;
-        if (stats) updateDashboardStats(stats);
+        var stats = await response.json();
+        updateDashboardStats(stats);
     } catch (e) { /* silent */ }
 }
 
@@ -823,7 +811,7 @@ function updateAnalyticsDOM(data) {
     // Top series
     var section = document.getElementById('analytics-top-series');
     var list = document.getElementById('analytics-top-series-list');
-    while (list.firstChild) list.removeChild(list.firstChild);
+    list.replaceChildren();
     if (data.top_series && data.top_series.length > 0) {
         section.style.display = 'block';
         data.top_series.forEach(function(s, i) {

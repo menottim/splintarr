@@ -56,16 +56,9 @@ _DEMO_SERIES = [
 ]
 
 
-def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
-
-
-def _minutes_ago(minutes: int) -> str:
-    return (datetime.now(UTC) - timedelta(minutes=minutes)).isoformat()
-
-
-def _hours_ago(hours: int) -> str:
-    return (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
+def _time_offset(**kwargs: int) -> str:
+    """Return an ISO timestamp offset from now (e.g. minutes=5, hours=1)."""
+    return (datetime.now(UTC) - timedelta(**kwargs)).isoformat()
 
 
 def get_demo_stats() -> dict[str, Any]:
@@ -83,38 +76,36 @@ def get_demo_stats() -> dict[str, Any]:
     }
 
 
+_DEMO_ACTIVITY_ENTRIES = [
+    # (name, strategy, status, items_searched, items_found, searches_triggered, offset_min)
+    ("Demo Missing Search", "missing", "success", 12, 4, 4, 5),
+    ("Demo Cutoff Unmet", "cutoff_unmet", "success", 8, 2, 2, 25),
+    ("Demo Missing Search", "missing", "partial_success", 5, 1, 1, 60),
+    ("Demo Recent Additions", "recent", "success", 3, 1, 1, 120),
+    ("Demo Missing Search", "missing", "failed", 10, 0, 0, 180),
+]
+
+
 def get_demo_activity() -> dict[str, Any]:
     """Synthetic activity matching ``/api/dashboard/activity`` shape."""
-    strategies = ["missing", "cutoff_unmet", "missing", "recent", "missing"]
-    statuses = ["success", "success", "partial_success", "success", "failed"]
-    items_searched = [12, 8, 5, 3, 10]
-    items_found = [4, 2, 1, 1, 0]
-    searches_triggered = [4, 2, 1, 1, 0]
-    names = [
-        "Demo Missing Search",
-        "Demo Cutoff Unmet",
-        "Demo Missing Search",
-        "Demo Recent Additions",
-        "Demo Missing Search",
-    ]
-    offsets_min = [5, 25, 60, 120, 180]
-
     activity = []
-    for i in range(5):
-        started = datetime.now(UTC) - timedelta(minutes=offsets_min[i])
+    for i, (name, strategy, act_status, searched, found, triggered, offset) in enumerate(
+        _DEMO_ACTIVITY_ENTRIES
+    ):
+        started = datetime.now(UTC) - timedelta(minutes=offset)
         completed = started + timedelta(seconds=random.randint(30, 90))  # noqa: S311
         activity.append({
             "id": 9000 + i,
             "instance_name": "Demo Sonarr",
-            "strategy": strategies[i],
-            "status": statuses[i],
-            "items_searched": items_searched[i],
-            "items_found": items_found[i],
-            "searches_triggered": searches_triggered[i],
+            "strategy": strategy,
+            "status": act_status,
+            "items_searched": searched,
+            "items_found": found,
+            "searches_triggered": triggered,
             "started_at": started.isoformat(),
             "completed_at": completed.isoformat(),
             "search_queue_id": 9000,
-            "search_name": names[i],
+            "search_name": name,
         })
 
     return {"activity": activity, "demo": True}
@@ -130,7 +121,7 @@ def get_demo_system_status() -> dict[str, Any]:
                 "instance_type": "sonarr",
                 "url": "http://sonarr.local:8989",
                 "connection_status": "healthy",
-                "last_connection_test": _minutes_ago(2),
+                "last_connection_test": _time_offset(minutes=2),
                 "consecutive_failures": 0,
                 "response_time_ms": 142,
                 "connection_error": None,
@@ -140,12 +131,12 @@ def get_demo_system_status() -> dict[str, Any]:
             "discord": {
                 "configured": True,
                 "active": True,
-                "last_sent_at": _hours_ago(1),
+                "last_sent_at": _time_offset(hours=1),
             },
             "prowlarr": {
                 "configured": True,
                 "active": True,
-                "last_sync_at": _minutes_ago(15),
+                "last_sync_at": _time_offset(minutes=15),
             },
         },
         "services": {
@@ -306,7 +297,7 @@ async def _run_simulation_cycle() -> None:
             "total_instances": 1,
             "instances_done": 0,
             "errors": [],
-            "started_at": _now_iso(),
+            "started_at": _time_offset(),
             "demo": True,
         }),
         (55, "sync.progress", {
@@ -318,7 +309,7 @@ async def _run_simulation_cycle() -> None:
             "total_instances": 1,
             "instances_done": 0,
             "errors": [],
-            "started_at": _now_iso(),
+            "started_at": _time_offset(),
             "demo": True,
         }),
         (60, "sync.completed", {"total_items": 47, "demo": True}),

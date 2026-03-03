@@ -52,6 +52,7 @@ from splintarr.models.user import User
 from splintarr.schemas.user import common_passwords
 from splintarr.services.demo import (
     get_demo_activity,
+    get_demo_analytics,
     get_demo_indexer_health,
     get_demo_stats,
     get_demo_system_status,
@@ -1341,8 +1342,6 @@ async def api_dashboard_analytics(
 ) -> JSONResponse:
     """Last 7 days analytics with trend comparison vs prior 7 days."""
     if is_demo_active(db, current_user.id):
-        from splintarr.services.demo import get_demo_analytics
-
         logger.debug("dashboard_analytics_demo", user_id=current_user.id)
         return JSONResponse(content=get_demo_analytics())
 
