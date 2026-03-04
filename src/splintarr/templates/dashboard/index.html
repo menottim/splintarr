@@ -177,14 +177,13 @@
             <thead>
                 <tr>
                     <th>Indexer</th>
-                    <th data-tooltip="Maximum queries allowed per day by the indexer">Query Limit</th>
-                    <th data-tooltip="Number of queries consumed today">Queries Used</th>
+                    <th data-tooltip="API query usage relative to indexer limit">Usage</th>
                     <th>Status</th>
                 </tr>
             </thead>
             <tbody id="indexer-health-body">
                 <tr>
-                    <td colspan="4" style="text-align: center; color: var(--muted-color);">Loading...</td>
+                    <td colspan="3" style="text-align: center; color: var(--muted-color);">Loading...</td>
                 </tr>
             </tbody>
         </table>
@@ -671,28 +670,39 @@ function buildIndexerRow(idx) {
     nameCell.textContent = idx.name;
     row.appendChild(nameCell);
 
-    // Query Limit (e.g. "100/day", "50/hour", or "No limit")
-    var limitCell = document.createElement('td');
+    // Usage (progress bar + text)
+    var usageCell = document.createElement('td');
     if (idx.query_limit) {
+        var pct = Math.min(100, Math.round((idx.queries_used / idx.query_limit) * 100));
         var unit = idx.limits_unit || 'day';
-        limitCell.textContent = idx.query_limit + '/' + unit;
-    } else {
-        limitCell.style.color = 'var(--muted-color)';
-        limitCell.textContent = 'No limit';
-    }
-    row.appendChild(limitCell);
 
-    // Queries Used (e.g. "42 of 100" or just "7")
-    var usedCell = document.createElement('td');
-    if (idx.query_limit) {
-        usedCell.textContent = idx.queries_used + ' of ' + idx.query_limit;
-        if (idx.queries_used >= idx.query_limit * 0.9) {
-            usedCell.style.color = 'var(--del-color)';
-        }
+        // Color based on usage percentage
+        var barColor;
+        if (pct >= 80) barColor = 'var(--del-color)';
+        else if (pct >= 60) barColor = 'var(--mark-background-color)';
+        else barColor = 'var(--ins-color)';
+
+        // Progress bar container
+        var barOuter = document.createElement('div');
+        barOuter.style.cssText = 'background:var(--muted-border-color);border-radius:4px;height:8px;width:100%;margin-bottom:2px;';
+
+        var barInner = document.createElement('div');
+        barInner.style.cssText = 'height:100%;border-radius:4px;transition:width 0.3s;';
+        barInner.style.width = pct + '%';
+        barInner.style.backgroundColor = barColor;
+        barOuter.appendChild(barInner);
+        usageCell.appendChild(barOuter);
+
+        // Text label below bar
+        var label = document.createElement('small');
+        label.style.color = 'var(--muted-color)';
+        label.textContent = idx.queries_used + ' / ' + idx.query_limit + ' per ' + unit + ' (' + pct + '%)';
+        usageCell.appendChild(label);
     } else {
-        usedCell.textContent = String(idx.queries_used);
+        usageCell.style.color = 'var(--muted-color)';
+        usageCell.textContent = idx.queries_used + ' queries (no limit)';
     }
-    row.appendChild(usedCell);
+    row.appendChild(usageCell);
 
     // Status
     var statusCell = document.createElement('td');
@@ -732,7 +742,7 @@ async function refreshIndexerHealth() {
         if (data.error) {
             var errRow = document.createElement('tr');
             var errCell = document.createElement('td');
-            errCell.colSpan = 4;
+            errCell.colSpan = 3;
             errCell.style.textAlign = 'center';
             errCell.style.color = 'var(--del-color)';
             errCell.textContent = data.error;
@@ -744,7 +754,7 @@ async function refreshIndexerHealth() {
         if (!data.indexers || data.indexers.length === 0) {
             var emptyRow = document.createElement('tr');
             var emptyCell = document.createElement('td');
-            emptyCell.colSpan = 4;
+            emptyCell.colSpan = 3;
             emptyCell.style.textAlign = 'center';
             emptyCell.style.color = 'var(--muted-color)';
             emptyCell.textContent = 'No enabled indexers found';
@@ -767,7 +777,7 @@ async function refreshIndexerHealth() {
         if (needsTruncation) {
             var toggleRow = document.createElement('tr');
             var toggleCell = document.createElement('td');
-            toggleCell.colSpan = 4;
+            toggleCell.colSpan = 3;
             toggleCell.style.textAlign = 'center';
             var toggleLink = document.createElement('a');
             toggleLink.href = '#';
