@@ -198,6 +198,44 @@ def _base_library_query(db: Session, user: User):  # type: ignore[return]
     )
 
 
+def _get_completion_data(items: list) -> dict[str, list[dict]]:
+    """Build sorted completion lists from LibraryItem objects."""
+
+    def _item_dict(item) -> dict:
+        return {
+            "id": item.id,
+            "title": item.title,
+            "year": item.year,
+            "episode_count": item.episode_count,
+            "episode_have": item.episode_have,
+            "completion_pct": round(item.completion_pct, 1),
+            "poster_path": item.poster_path,
+            "status": item.status,
+        }
+
+    incomplete = [
+        i for i in items if i.episode_count > 0 and i.episode_have < i.episode_count
+    ]
+
+    most_incomplete = sorted(incomplete, key=lambda i: i.completion_pct)[:10]
+    closest_to_complete = sorted(
+        [i for i in incomplete if i.completion_pct >= 50],
+        key=lambda i: i.completion_pct,
+        reverse=True,
+    )[:10]
+    recently_aired = sorted(
+        incomplete,
+        key=lambda i: i.added_at or "",
+        reverse=True,
+    )[:10]
+
+    return {
+        "most_incomplete": [_item_dict(i) for i in most_incomplete],
+        "closest_to_complete": [_item_dict(i) for i in closest_to_complete],
+        "recently_aired": [_item_dict(i) for i in recently_aired],
+    }
+
+
 def _apply_filters(
     query: Any,
     instance_id: int | None = None,
@@ -594,6 +632,35 @@ async def api_library_stats(
     stats = _get_library_stats(db, current_user)
     logger.debug("library_stats_retrieved", user_id=current_user.id, **stats)
     return JSONResponse(content=stats)
+
+
+@router.get("/api/library/completion", include_in_schema=False)
+@limiter.limit("30/minute")
+async def api_library_completion(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """Completion progress data for dashboard and library page."""
+    from splintarr.services.demo import is_demo_active
+
+    if is_demo_active(db, current_user.id):
+        try:
+            from splintarr.services.demo import get_demo_completion
+
+            return JSONResponse(content=get_demo_completion())
+        except ImportError:
+            pass  # Demo completion not implemented yet, fall through to real data
+
+    items = _base_library_query(db, current_user).all()
+
+    logger.debug(
+        "library_completion_data_requested",
+        user_id=current_user.id,
+        total_items=len(items),
+    )
+
+    return JSONResponse(content=_get_completion_data(items))
 
 
 @router.get("/api/library/items", include_in_schema=False)
