@@ -1110,6 +1110,7 @@ async def dashboard_settings(
             "user": current_user,
             "active_page": "settings",
             "demo_mode": is_demo_active(db, current_user.id),
+            "update_check_enabled": current_user.update_check_enabled,
         },
     )
 

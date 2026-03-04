@@ -225,6 +225,25 @@
     </article>
 </details>
 
+<!-- Update Notifications -->
+<details>
+    <summary><strong>Update Notifications</strong></summary>
+    <article>
+        <p>Splintarr can automatically check GitHub for new releases and show a banner on the dashboard when an update is available.</p>
+
+        <label>
+            <input type="checkbox" id="updateCheckEnabled" {% if update_check_enabled %}checked{% endif %}>
+            Check for updates automatically
+        </label>
+        <small>Checks once every 24 hours. No data is sent — only a read from GitHub's public API.</small>
+
+        <div style="margin-top: 1rem;">
+            <button type="button" id="checkNowBtn" class="secondary">Check Now</button>
+            <small id="updateCheckStatus" style="display: none; margin-left: 0.5rem;"></small>
+        </div>
+    </article>
+</details>
+
 <!-- System -->
 <details>
     <summary><strong>System</strong></summary>
@@ -884,6 +903,53 @@ document.querySelectorAll('.copy-url').forEach(function(el) {
             }, 1200);
         });
     });
+});
+
+// ---------------------------------------------------------------
+// Update Notifications
+// ---------------------------------------------------------------
+
+// Update check toggle
+document.getElementById('updateCheckEnabled').addEventListener('change', async function() {
+    try {
+        const response = await fetch('/api/updates/toggle', { method: 'POST' });
+        const data = await response.json();
+        Splintarr.showNotification(
+            data.enabled ? 'Update checks enabled' : 'Update checks disabled',
+            'success'
+        );
+    } catch (e) {
+        Splintarr.showNotification('Failed to toggle update checks');
+    }
+});
+
+// Check now button
+document.getElementById('checkNowBtn').addEventListener('click', async function() {
+    var status = document.getElementById('updateCheckStatus');
+    var btn = this;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    status.style.display = 'none';
+
+    try {
+        const response = await fetch('/api/updates/status');
+        const data = await response.json();
+        status.style.display = 'inline';
+        if (data.update_available) {
+            status.textContent = 'Update available: v' + data.latest_version;
+            status.style.color = 'var(--brand-primary)';
+        } else {
+            status.textContent = 'You are running the latest version.';
+            status.style.color = 'var(--ins-color)';
+        }
+    } catch (e) {
+        status.style.display = 'inline';
+        status.textContent = 'Check failed — GitHub may be unreachable.';
+        status.style.color = 'var(--del-color)';
+    } finally {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+    }
 });
 </script>
 {% endblock %}
