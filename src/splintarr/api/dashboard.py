@@ -27,6 +27,7 @@ from sqlalchemy import case, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
+from splintarr import __version__
 from splintarr.api.auth import set_auth_cookies
 from splintarr.api.onboarding import get_onboarding_state
 from splintarr.api.template_filters import templates
@@ -729,6 +730,18 @@ async def dashboard_index(
         integrations = _get_integration_status(db, current_user.id)
         services = _get_service_status()
 
+    # Update checker
+    from splintarr.services.update_checker import get_update_state, is_update_available
+
+    update_state = get_update_state()
+    latest = update_state.get("latest_version")
+    update_available = (
+        latest
+        and is_update_available(__version__, latest)
+        and current_user.dismissed_update_version != latest
+        and current_user.update_check_enabled
+    )
+
     return templates.TemplateResponse(
         "dashboard/index.html",
         {
@@ -742,6 +755,10 @@ async def dashboard_index(
             "active_page": "dashboard",
             "onboarding": get_onboarding_state(db, current_user.id),
             "demo_mode": demo_mode,
+            "update_available": update_available,
+            "update_latest_version": latest,
+            "update_release_url": update_state.get("release_url", ""),
+            "update_release_name": update_state.get("release_name", ""),
         },
     )
 
