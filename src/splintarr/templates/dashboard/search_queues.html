@@ -241,6 +241,12 @@
                 </label>
             </div>
 
+            <label>
+                <input type="checkbox" id="budget_aware" name="budget_aware" checked>
+                Adjust batch size based on indexer budget
+                <small style="display:block;color:var(--muted-color);">When enabled, reduces items per run when indexer API budget is low</small>
+            </label>
+
             <label for="name">
                 Queue Name
                 <input type="text" id="name" name="name" required placeholder="Auto-generated from selections above">
@@ -358,6 +364,14 @@
                     <small>Minimum missing episodes per season to trigger pack search</small>
                 </label>
             </div>
+
+            <fieldset>
+                <label>
+                    <input type="checkbox" id="edit-budget-aware" checked>
+                    Adjust batch size based on indexer budget
+                    <small style="display:block;color:var(--muted-color);">When enabled, reduces items per run when indexer API budget is low</small>
+                </label>
+            </fieldset>
 
             <footer>
                 <button type="button" class="secondary" data-action="close-edit-dialog">Cancel</button>
@@ -531,6 +545,7 @@ function getFormData() {
         season_pack_threshold: seasonPackEnabled
             ? parseInt(document.getElementById('season_pack_threshold').value) || 3
             : 3,
+        budget_aware: document.getElementById('budget_aware').checked,
     };
 
     // Serialize custom filters when strategy is custom
@@ -802,6 +817,9 @@ async function cloneQueue(queueId) {
         document.getElementById('season_pack_threshold').value = queue.season_pack_threshold;
     }
 
+    // Budget-aware
+    document.getElementById('budget_aware').checked = queue.budget_aware !== false;
+
     // Custom filters
     if (queue.strategy === 'custom') {
         document.getElementById('customFiltersSection').style.display = '';
@@ -818,9 +836,9 @@ async function cloneQueue(queueId) {
 }
 
 var PRESETS = {
-    'aggressive-missing': { strategy: 'missing', recurring: true, interval_hours: 1, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, nameSuffix: 'Aggressive Missing' },
-    'weekly-cutoff': { strategy: 'cutoff_unmet', recurring: true, interval_hours: 168, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, nameSuffix: 'Weekly Cutoff Unmet' },
-    'new-releases': { strategy: 'recent', recurring: true, interval_hours: 4, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, nameSuffix: 'New Releases' }
+    'aggressive-missing': { strategy: 'missing', recurring: true, interval_hours: 1, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, budget_aware: true, nameSuffix: 'Aggressive Missing' },
+    'weekly-cutoff': { strategy: 'cutoff_unmet', recurring: true, interval_hours: 168, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, budget_aware: true, nameSuffix: 'Weekly Cutoff Unmet' },
+    'new-releases': { strategy: 'recent', recurring: true, interval_hours: 4, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, budget_aware: true, nameSuffix: 'New Releases' }
 };
 
 function applyPreset(presetKey) {
@@ -846,6 +864,8 @@ function applyPreset(presetKey) {
     document.getElementById('season_pack_enabled').checked = preset.season_pack_enabled || false;
     document.getElementById('season_pack_threshold').value = 3;
     toggleSeasonPack();
+
+    document.getElementById('budget_aware').checked = preset.budget_aware !== false;
 
     nameManuallyEdited = false;
     updateSuggestedName();
@@ -924,6 +944,8 @@ async function editQueue(queueId, instanceName) {
         document.getElementById('edit-season-threshold').value = queue.season_pack_threshold || 3;
         document.getElementById('edit-season-threshold-row').style.display =
             queue.season_pack_enabled ? '' : 'none';
+
+        document.getElementById('edit-budget-aware').checked = queue.budget_aware !== false;
 
         // Pre-populate custom filters
         if (queue.strategy === 'custom') {
@@ -1066,6 +1088,7 @@ document.getElementById('edit-queue-form').addEventListener('submit', async func
         season_pack_threshold: seasonPackEnabled
             ? parseInt(document.getElementById('edit-season-threshold').value)
             : 3,
+        budget_aware: document.getElementById('edit-budget-aware').checked,
     };
 
     // Serialize custom filters for edit
