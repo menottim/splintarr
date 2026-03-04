@@ -3,12 +3,13 @@ Unit tests for update checker API endpoints.
 
 Tests cover:
 - GET /api/updates/status — returns update state and availability
+- POST /api/updates/check — triggers a fresh update check
 - POST /api/updates/dismiss — sets dismissed_update_version on user
-- POST /api/updates/toggle — toggles update_check_enabled on user
+- POST /api/updates/toggle — sets update_check_enabled on user
 - Authentication enforcement on all endpoints
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -108,6 +109,33 @@ class TestUpdateStatusEndpoint:
         assert response.status_code == 401
 
 
+class TestCheckNowEndpoint:
+    """Tests for POST /api/updates/check."""
+
+    def test_triggers_fresh_check(self, authed_client: TestClient):
+        """Check endpoint triggers a fresh update check."""
+        mock_state = {
+            "latest_version": "2.0.0",
+            "release_url": "https://github.com/menottim/splintarr/releases/tag/v2.0.0",
+            "release_name": "v2.0.0",
+            "checked_at": "2026-03-03T00:00:00+00:00",
+        }
+        with patch("splintarr.api.updates.check_for_updates", new_callable=AsyncMock,
+                    return_value=mock_state), \
+             patch("splintarr.api.updates.is_update_available", return_value=True):
+            response = authed_client.post("/api/updates/check")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["latest_version"] == "2.0.0"
+        assert data["update_available"] is True
+
+    def test_check_requires_auth(self, client: TestClient):
+        """Check endpoint requires authentication."""
+        response = client.post("/api/updates/check")
+        assert response.status_code == 401
+
+
 class TestDismissUpdateEndpoint:
     """Tests for POST /api/updates/dismiss."""
 
@@ -153,7 +181,35 @@ class TestToggleUpdateCheckEndpoint:
     """Tests for POST /api/updates/toggle."""
 
     def test_toggle_disables(self, authed_client: TestClient, user, mock_db):
-        """Toggle disables update checking when currently enabled."""
+        """Toggle disables update checking with explicit body."""
+        assert user.update_check_enabled is True
+
+        response = authed_client.post(
+            "/api/updates/toggle", json={"enabled": False}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["enabled"] is False
+        assert user.update_check_enabled is False
+        mock_db.commit.assert_called_once()
+
+    def test_toggle_enables(self, authed_client: TestClient, user, mock_db):
+        """Toggle enables update checking with explicit body."""
+        user.update_check_enabled = False
+
+        response = authed_client.post(
+            "/api/updates/toggle", json={"enabled": True}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["enabled"] is True
+        assert user.update_check_enabled is True
+        mock_db.commit.assert_called_once()
+
+    def test_toggle_fallback_without_body(self, authed_client: TestClient, user, mock_db):
+        """Toggle falls back to inverting when no body provided."""
         assert user.update_check_enabled is True
 
         response = authed_client.post("/api/updates/toggle")
@@ -161,42 +217,7 @@ class TestToggleUpdateCheckEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["enabled"] is False
-
-        # Verify user attribute was toggled
         assert user.update_check_enabled is False
-        mock_db.commit.assert_called_once()
-
-    def test_toggle_enables(self, authed_client: TestClient, user, mock_db):
-        """Toggle enables update checking when currently disabled."""
-        user.update_check_enabled = False
-
-        response = authed_client.post("/api/updates/toggle")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["enabled"] is True
-
-        # Verify user attribute was toggled
-        assert user.update_check_enabled is True
-        mock_db.commit.assert_called_once()
-
-    def test_toggle_idempotent_double_toggle(
-        self, authed_client: TestClient, user, mock_db
-    ):
-        """Double toggle returns to original state."""
-        assert user.update_check_enabled is True
-
-        # First toggle: True -> False
-        authed_client.post("/api/updates/toggle")
-        assert user.update_check_enabled is False
-
-        # Second toggle: False -> True
-        response = authed_client.post("/api/updates/toggle")
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["enabled"] is True
-        assert user.update_check_enabled is True
 
     def test_toggle_requires_auth(self, client: TestClient):
         """Toggle endpoint requires authentication."""

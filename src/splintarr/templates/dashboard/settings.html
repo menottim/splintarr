@@ -912,7 +912,11 @@ document.querySelectorAll('.copy-url').forEach(function(el) {
 // Update check toggle
 document.getElementById('updateCheckEnabled').addEventListener('change', async function() {
     try {
-        const response = await fetch('/api/updates/toggle', { method: 'POST' });
+        const response = await fetch('/api/updates/toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: this.checked }),
+        });
         const data = await response.json();
         Splintarr.showNotification(
             data.enabled ? 'Update checks enabled' : 'Update checks disabled',
@@ -932,7 +936,7 @@ document.getElementById('checkNowBtn').addEventListener('click', async function(
     status.style.display = 'none';
 
     try {
-        const response = await fetch('/api/updates/status');
+        const response = await fetch('/api/updates/check', { method: 'POST' });
         const data = await response.json();
         status.style.display = 'inline';
         if (data.update_available) {

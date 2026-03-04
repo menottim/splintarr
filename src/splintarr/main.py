@@ -123,18 +123,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         # Schedule recurring update check (every 24 hours)
         try:
-            from splintarr.services.scheduler import _scheduler_instance
+            from splintarr.services.scheduler import get_scheduler_status
 
-            if _scheduler_instance and _scheduler_instance.scheduler:
-                _scheduler_instance.scheduler.add_job(
-                    check_for_updates,
-                    "interval",
-                    hours=24,
-                    id="update_checker",
-                    name="Update Checker",
-                    replace_existing=True,
-                )
-                logger.info("update_checker_scheduled", interval_hours=24)
+            status = get_scheduler_status()
+            if status.get("status") != "stopped":
+                from splintarr.services.scheduler import _scheduler_instance
+
+                if _scheduler_instance and _scheduler_instance.scheduler:
+                    _scheduler_instance.scheduler.add_job(
+                        check_for_updates,
+                        "interval",
+                        hours=24,
+                        id="update_checker",
+                        name="Update Checker",
+                        replace_existing=True,
+                    )
+                    logger.info("update_checker_scheduled", interval_hours=24)
         except Exception as e:
             logger.error("update_checker_schedule_failed", error=str(e))
 
