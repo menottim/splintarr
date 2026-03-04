@@ -155,13 +155,45 @@
                     <option value="missing">Missing - Find missing items</option>
                     <option value="cutoff_unmet">Cutoff Unmet - Below quality cutoff</option>
                     <option value="recent">Recent - Newest items first</option>
+                    <option value="custom">Custom - Advanced filters</option>
                 </select>
                 <small>
                     <strong>Missing</strong> — Searches for items not yet downloaded, prioritizing gaps in your library<br>
                     <strong>Cutoff Unmet</strong> — Searches for items below your quality profile cutoff, honoring Custom Formats<br>
-                    <strong>Recent</strong> — Searches newest additions first, prioritizing recently added items
+                    <strong>Recent</strong> — Searches newest additions first, prioritizing recently added items<br>
+                    <strong>Custom</strong> — Combine multiple sources with year, status, and quality profile filters
                 </small>
             </label>
+
+            <!-- Custom Filters (shown when strategy = custom) -->
+            <div id="customFiltersSection" style="display: none;">
+                <fieldset>
+                    <legend>Custom Filters</legend>
+
+                    <label><strong>Search Sources</strong> <small>(at least one required)</small></label>
+                    <label><input type="checkbox" id="filterSourceMissing" checked> Missing episodes</label>
+                    <label><input type="checkbox" id="filterSourceCutoff"> Cutoff unmet (upgrades)</label>
+
+                    <div class="grid">
+                        <label>Year From
+                            <input type="number" id="filterYearMin" min="1900" max="2100" placeholder="Any">
+                        </label>
+                        <label>Year To
+                            <input type="number" id="filterYearMax" min="1900" max="2100" placeholder="Any">
+                        </label>
+                    </div>
+
+                    <label><strong>Series Status</strong></label>
+                    <label><input type="checkbox" id="filterStatusContinuing" checked> Continuing</label>
+                    <label><input type="checkbox" id="filterStatusEnded" checked> Ended</label>
+                    <label><input type="checkbox" id="filterStatusUpcoming"> Upcoming</label>
+
+                    <label><strong>Quality Profile</strong></label>
+                    <div id="qualityProfileCheckboxes">
+                        <small style="color: var(--muted-color);">Select an instance to load quality profiles</small>
+                    </div>
+                </fieldset>
+            </div>
 
             <label for="recurring">
                 <input type="checkbox" id="recurring" name="recurring">
@@ -321,6 +353,51 @@ document.getElementById('cooldown_mode').addEventListener('change', function() {
 document.getElementById('instance_id').addEventListener('change', toggleSeasonPack);
 document.getElementById('season_pack_enabled').addEventListener('change', toggleSeasonPackThreshold);
 
+// Show/hide custom filters section based on strategy
+document.getElementById('strategy').addEventListener('change', function() {
+    document.getElementById('customFiltersSection').style.display =
+        this.value === 'custom' ? '' : 'none';
+});
+
+// Load quality profiles when instance changes
+document.getElementById('instance_id').addEventListener('change', async function() {
+    var container = document.getElementById('qualityProfileCheckboxes');
+    while (container.firstChild) container.removeChild(container.firstChild);
+    if (!this.value) {
+        var hint = document.createElement('small');
+        hint.style.color = 'var(--muted-color)';
+        hint.textContent = 'Select an instance to load quality profiles';
+        container.appendChild(hint);
+        return;
+    }
+    try {
+        var response = await fetch('/api/instances/' + this.value + '/quality-profiles');
+        var data = await response.json();
+        if (data.profiles.length === 0) {
+            var hint = document.createElement('small');
+            hint.style.color = 'var(--muted-color)';
+            hint.textContent = 'No profiles found. Sync your library first.';
+            container.appendChild(hint);
+        } else {
+            data.profiles.forEach(function(p) {
+                var label = document.createElement('label');
+                var cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.className = 'quality-profile-cb';
+                cb.value = p;
+                label.appendChild(cb);
+                label.appendChild(document.createTextNode(' ' + p));
+                container.appendChild(label);
+            });
+        }
+    } catch (e) {
+        var errHint = document.createElement('small');
+        errHint.style.color = 'var(--del-color)';
+        errHint.textContent = 'Failed to load profiles';
+        container.appendChild(errHint);
+    }
+});
+
 function toggleSeasonPack() {
     var instanceId = document.getElementById('instance_id').value;
     var isSonarr = instanceId && INSTANCE_TYPES[instanceId] === 'sonarr';
@@ -404,10 +481,11 @@ document.getElementById('strategy').addEventListener('change', updateSuggestedNa
 function getFormData() {
     var cooldownMode = document.getElementById('cooldown_mode').value;
     var seasonPackEnabled = document.getElementById('season_pack_enabled').checked;
-    return {
+    var strategy = document.getElementById('strategy').value;
+    var data = {
         instance_id: parseInt(document.getElementById('instance_id').value),
         name: document.getElementById('name').value,
-        strategy: document.getElementById('strategy').value,
+        strategy: strategy,
         recurring: document.getElementById('recurring').checked,
         interval_hours: document.getElementById('recurring').checked
             ? parseInt(document.getElementById('interval_hours').value)
@@ -422,9 +500,50 @@ function getFormData() {
             ? parseInt(document.getElementById('season_pack_threshold').value) || 3
             : 3,
     };
+
+    // Serialize custom filters when strategy is custom
+    if (strategy === 'custom') {
+        var sources = [];
+        if (document.getElementById('filterSourceMissing').checked) sources.push('missing');
+        if (document.getElementById('filterSourceCutoff').checked) sources.push('cutoff_unmet');
+
+        var statuses = [];
+        if (document.getElementById('filterStatusContinuing').checked) statuses.push('continuing');
+        if (document.getElementById('filterStatusEnded').checked) statuses.push('ended');
+        if (document.getElementById('filterStatusUpcoming').checked) statuses.push('upcoming');
+
+        var profiles = [];
+        document.querySelectorAll('.quality-profile-cb:checked').forEach(function(cb) {
+            profiles.push(cb.value);
+        });
+
+        data.filters = {
+            sources: sources.length > 0 ? sources : ['missing'],
+            year_min: document.getElementById('filterYearMin').value ? parseInt(document.getElementById('filterYearMin').value) : null,
+            year_max: document.getElementById('filterYearMax').value ? parseInt(document.getElementById('filterYearMax').value) : null,
+            quality_profiles: profiles,
+            statuses: statuses,
+        };
+    } else {
+        data.filters = null;
+    }
+
+    return data;
+}
+
+function validateCustomFilters() {
+    if (document.getElementById('strategy').value !== 'custom') return true;
+    var hasMissing = document.getElementById('filterSourceMissing').checked;
+    var hasCutoff = document.getElementById('filterSourceCutoff').checked;
+    if (!hasMissing && !hasCutoff) {
+        Splintarr.showNotification('Custom strategy requires at least one search source (Missing or Cutoff Unmet).');
+        return false;
+    }
+    return true;
 }
 
 async function createQueue() {
+    if (!validateCustomFilters()) return null;
     try {
         const response = await fetch('/api/search-queues', {
             method: 'POST',
@@ -538,6 +657,77 @@ async function deleteQueue(queueId, name) {
     }
 }
 
+function resetCreateCustomFilters() {
+    document.getElementById('filterSourceMissing').checked = true;
+    document.getElementById('filterSourceCutoff').checked = false;
+    document.getElementById('filterYearMin').value = '';
+    document.getElementById('filterYearMax').value = '';
+    document.getElementById('filterStatusContinuing').checked = true;
+    document.getElementById('filterStatusEnded').checked = true;
+    document.getElementById('filterStatusUpcoming').checked = false;
+    var container = document.getElementById('qualityProfileCheckboxes');
+    while (container.firstChild) container.removeChild(container.firstChild);
+    var hint = document.createElement('small');
+    hint.style.color = 'var(--muted-color)';
+    hint.textContent = 'Select an instance to load quality profiles';
+    container.appendChild(hint);
+}
+
+async function populateCreateCustomFilters(filtersRaw, instanceId) {
+    var filters = {};
+    if (typeof filtersRaw === 'string') {
+        try { filters = JSON.parse(filtersRaw); } catch (e) { filters = {}; }
+    } else if (filtersRaw && typeof filtersRaw === 'object') {
+        filters = filtersRaw;
+    }
+
+    var sources = filters.sources || ['missing'];
+    document.getElementById('filterSourceMissing').checked = sources.indexOf('missing') !== -1;
+    document.getElementById('filterSourceCutoff').checked = sources.indexOf('cutoff_unmet') !== -1;
+
+    document.getElementById('filterYearMin').value = filters.year_min || '';
+    document.getElementById('filterYearMax').value = filters.year_max || '';
+
+    var statuses = filters.statuses || [];
+    document.getElementById('filterStatusContinuing').checked = statuses.length === 0 || statuses.indexOf('continuing') !== -1;
+    document.getElementById('filterStatusEnded').checked = statuses.length === 0 || statuses.indexOf('ended') !== -1;
+    document.getElementById('filterStatusUpcoming').checked = statuses.indexOf('upcoming') !== -1;
+
+    // Load quality profiles and pre-check
+    if (instanceId) {
+        var container = document.getElementById('qualityProfileCheckboxes');
+        while (container.firstChild) container.removeChild(container.firstChild);
+        try {
+            var response = await fetch('/api/instances/' + instanceId + '/quality-profiles');
+            var data = await response.json();
+            var selectedProfiles = filters.quality_profiles || [];
+            if (data.profiles.length === 0) {
+                var hint = document.createElement('small');
+                hint.style.color = 'var(--muted-color)';
+                hint.textContent = 'No profiles found. Sync your library first.';
+                container.appendChild(hint);
+            } else {
+                data.profiles.forEach(function(p) {
+                    var label = document.createElement('label');
+                    var cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.className = 'quality-profile-cb';
+                    cb.value = p;
+                    cb.checked = selectedProfiles.indexOf(p) !== -1;
+                    label.appendChild(cb);
+                    label.appendChild(document.createTextNode(' ' + p));
+                    container.appendChild(label);
+                });
+            }
+        } catch (e) {
+            var errHint = document.createElement('small');
+            errHint.style.color = 'var(--del-color)';
+            errHint.textContent = 'Failed to load profiles';
+            container.appendChild(errHint);
+        }
+    }
+}
+
 async function cloneQueue(queueId) {
     var result = await Splintarr.apiCall('/api/search-queues/' + queueId);
     if (!result.success) {
@@ -578,6 +768,15 @@ async function cloneQueue(queueId) {
     }
     if (queue.season_pack_threshold) {
         document.getElementById('season_pack_threshold').value = queue.season_pack_threshold;
+    }
+
+    // Custom filters
+    if (queue.strategy === 'custom') {
+        document.getElementById('customFiltersSection').style.display = '';
+        populateCreateCustomFilters(queue.filters, queue.instance_id);
+    } else {
+        document.getElementById('customFiltersSection').style.display = 'none';
+        resetCreateCustomFilters();
     }
 
     document.getElementById('name').value = queue.name + ' (copy)';
