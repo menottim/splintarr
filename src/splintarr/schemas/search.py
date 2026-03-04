@@ -8,12 +8,12 @@ This module defines request and response models for search operations:
 """
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # Search strategies
-SearchStrategy = Literal["missing", "cutoff_unmet", "recent"]
+SearchStrategy = Literal["missing", "cutoff_unmet", "recent", "custom"]
 
 # Includes "custom" for backwards compatibility with existing DB records
 SearchStrategyRead = Literal["missing", "cutoff_unmet", "recent", "custom"]
@@ -33,6 +33,27 @@ def _validate_search_name(v: str) -> str:
     if len(stripped) < 3:
         raise ValueError("Search name must be at least 3 characters long")
     return stripped
+
+
+class CustomFilterConfig(BaseModel):
+    """Configuration for custom strategy filters."""
+
+    sources: list[Literal["missing", "cutoff_unmet"]] = Field(
+        ..., min_length=1, description="Data sources to fetch from"
+    )
+    year_min: int | None = Field(None, ge=1900, le=2100)
+    year_max: int | None = Field(None, ge=1900, le=2100)
+    quality_profiles: list[str] = Field(default_factory=list)
+    statuses: list[Literal["continuing", "ended", "upcoming", "deleted"]] = Field(
+        default_factory=list
+    )
+
+    @model_validator(mode="after")
+    def validate_year_range(self) -> "CustomFilterConfig":
+        """Validate that year_min is not greater than year_max."""
+        if self.year_min and self.year_max and self.year_min > self.year_max:
+            raise ValueError("year_min must be <= year_max")
+        return self
 
 
 class SearchQueueCreate(BaseModel):
@@ -67,9 +88,9 @@ class SearchQueueCreate(BaseModel):
         le=168,
         description="Interval between searches in hours (1-168, required if recurring)",
     )
-    filters: dict[str, Any] | None = Field(
+    filters: CustomFilterConfig | None = Field(
         default=None,
-        description="JSON filters for custom search strategy",
+        description="Filter configuration for custom search strategy",
     )
     cooldown_mode: Literal["adaptive", "flat"] = Field(
         default="adaptive",
@@ -127,6 +148,15 @@ class SearchQueueCreate(BaseModel):
                 raise ValueError("interval_hours must be between 1 and 168 hours (7 days)")
         return v
 
+    @model_validator(mode="after")
+    def validate_custom_strategy_filters(self) -> "SearchQueueCreate":
+        """Validate that custom strategy has filters and non-custom strategies do not."""
+        if self.strategy == "custom" and self.filters is None:
+            raise ValueError("Custom strategy requires filters")
+        if self.strategy != "custom" and self.filters is not None:
+            raise ValueError("Filters only allowed with custom strategy")
+        return self
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -182,9 +212,9 @@ class SearchQueueUpdate(BaseModel):
         default=None,
         description="Whether this search is active (inactive searches won't run)",
     )
-    filters: dict[str, Any] | None = Field(
+    filters: CustomFilterConfig | None = Field(
         default=None,
-        description="JSON filters for custom search strategy",
+        description="Filter configuration for custom search strategy",
     )
     cooldown_mode: Literal["adaptive", "flat"] | None = Field(
         default=None,
@@ -218,6 +248,19 @@ class SearchQueueUpdate(BaseModel):
     def validate_name(cls, v: str | None) -> str | None:
         """Validate search queue name format if provided."""
         return _validate_search_name(v) if v is not None else None
+
+    @model_validator(mode="after")
+    def validate_custom_strategy_filters(self) -> "SearchQueueUpdate":
+        """Validate custom strategy / filters consistency when both are provided.
+
+        For partial updates, only enforce the constraint when both strategy and
+        filters are explicitly set. When only one is provided, the API layer
+        will validate against the existing DB record.
+        """
+        if self.strategy is not None and self.filters is not None:
+            if self.strategy != "custom":
+                raise ValueError("Filters only allowed with custom strategy")
+        return self
 
     model_config = {
         "json_schema_extra": {
