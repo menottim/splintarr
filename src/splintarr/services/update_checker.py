@@ -88,15 +88,18 @@ async def check_for_updates() -> dict[str, Any]:
             update_available=update_found,
         )
 
-        # Send Discord notification once per new version detected
+        # Send Discord notification once per new version detected (fire-and-forget)
         global _notified_version
         if update_found and latest_version != _notified_version:
-            _notified_version = latest_version
-            await _notify_update_available(
-                current_version=__version__,
-                latest_version=latest_version,
-                release_url=_update_state.get("release_url", ""),
-            )
+            try:
+                _notified_version = latest_version
+                await _notify_update_available(
+                    current_version=__version__,
+                    latest_version=latest_version,
+                    release_url=_update_state.get("release_url", ""),
+                )
+            except Exception as notify_err:
+                logger.warning("update_notification_failed", error=str(notify_err))
 
         return dict(_update_state)
 
