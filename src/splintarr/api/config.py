@@ -4,6 +4,8 @@ Config API endpoints for Splintarr.
 JSON API routes (cookie auth, rate-limited):
   GET  /api/config/export           - Export configuration as JSON
   POST /api/config/integrity-check  - Run database integrity check
+  POST /api/config/import/preview   - Validate import file and return preview
+  POST /api/config/import/apply     - Apply imported configuration
 """
 
 from datetime import UTC, datetime
@@ -15,6 +17,7 @@ from slowapi import Limiter
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from splintarr import __version__
 from splintarr.core.auth import get_current_user_from_cookie
 from splintarr.core.rate_limit import rate_limit_key_func
 from splintarr.database import get_db, get_engine
@@ -120,7 +123,7 @@ async def export_config(
         }
 
     export_payload = {
-        "splintarr_version": "0.2.1",
+        "splintarr_version": __version__,
         "exported_at": datetime.now(UTC).isoformat(),
         "instances": instances_data,
         "search_queues": queues_data,
@@ -187,4 +190,88 @@ async def integrity_check(
                 "status": "error",
                 "details": ["Database integrity check could not be completed"],
             },
+        )
+
+
+@router.post("/import/preview", include_in_schema=False)
+@limiter.limit("10/minute")
+async def import_preview(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """Validate import file and return preview of what will be imported."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(
+            status_code=400,
+            content={"valid": False, "errors": ["Invalid JSON"]},
+        )
+
+    existing_names = {
+        inst.name
+        for inst in db.query(Instance).filter(Instance.user_id == current_user.id).all()
+    }
+    existing_notif = (
+        db.query(NotificationConfig)
+        .filter(NotificationConfig.user_id == current_user.id)
+        .first()
+    )
+
+    from splintarr.services.config_import import validate_import_data
+
+    result = validate_import_data(
+        body,
+        existing_instance_names=existing_names,
+        existing_has_notifications=existing_notif is not None,
+    )
+
+    logger.info(
+        "config_import_preview_generated",
+        user_id=current_user.id,
+        valid=result["valid"],
+    )
+
+    return JSONResponse(content=result)
+
+
+@router.post("/import/apply", include_in_schema=False)
+@limiter.limit("5/minute")
+async def import_apply(
+    request: Request,
+    current_user: User = Depends(get_current_user_from_cookie),
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """Apply an imported configuration with user-provided secrets."""
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
+
+    config_data = body.get("config")
+    secrets = body.get("secrets", {})
+
+    if not config_data:
+        return JSONResponse(status_code=400, content={"error": "Missing config data"})
+
+    from splintarr.services.config_import import apply_import
+
+    try:
+        result = apply_import(
+            data=config_data,
+            secrets=secrets,
+            user_id=current_user.id,
+            db=db,
+        )
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(
+            "config_import_apply_failed",
+            user_id=current_user.id,
+            error=str(e),
+        )
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Import failed. All changes have been rolled back."},
         )

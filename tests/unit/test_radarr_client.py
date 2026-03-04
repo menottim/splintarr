@@ -265,6 +265,7 @@ class TestRadarrAPIRequests:
                     "pageSize": 50,
                     "sortKey": "title",
                     "sortDirection": "ascending",
+                    "includeSeries": "true",
                 },
             )
 
@@ -297,6 +298,7 @@ class TestRadarrAPIRequests:
                     "pageSize": 50,
                     "sortKey": "title",
                     "sortDirection": "ascending",
+                    "includeSeries": "true",
                 },
             )
 
