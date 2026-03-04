@@ -17,7 +17,7 @@ from splintarr import __version__
 logger = structlog.get_logger()
 
 GITHUB_RELEASES_URL = "https://api.github.com/repos/menottim/splintarr/releases/latest"
-REQUEST_TIMEOUT = 5.0
+REQUEST_TIMEOUT = 10.0
 
 # Module-level cache (same pattern as _sync_state in api/library.py)
 _update_state: dict[str, Any] = {}

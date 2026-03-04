@@ -46,6 +46,7 @@ async def update_status(
         **state,
         "current_version": __version__,
         "update_available": is_update_available(__version__, latest) if latest else False,
+        "check_succeeded": bool(latest),
     })
 
 
@@ -63,6 +64,7 @@ async def check_now(
         **state,
         "current_version": __version__,
         "update_available": is_update_available(__version__, latest) if latest else False,
+        "check_succeeded": bool(latest),
     })
 
 

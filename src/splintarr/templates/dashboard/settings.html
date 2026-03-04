@@ -939,7 +939,10 @@ document.getElementById('checkNowBtn').addEventListener('click', async function(
         const response = await fetch('/api/updates/check', { method: 'POST' });
         const data = await response.json();
         status.style.display = 'inline';
-        if (data.update_available) {
+        if (!data.check_succeeded) {
+            status.textContent = 'Check failed \u2014 GitHub may be unreachable.';
+            status.style.color = 'var(--del-color)';
+        } else if (data.update_available) {
             status.textContent = 'Update available: v' + data.latest_version;
             status.style.color = 'var(--brand-primary)';
         } else {

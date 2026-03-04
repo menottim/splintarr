@@ -75,6 +75,7 @@ class TestUpdateStatusEndpoint:
         assert data["checked_at"] == "2026-03-03T00:00:00+00:00"
         assert data["current_version"] is not None
         assert data["update_available"] is True
+        assert data["check_succeeded"] is True
 
     def test_no_update_available(self, authed_client: TestClient):
         """Status endpoint returns update_available=False when versions match."""
@@ -91,6 +92,7 @@ class TestUpdateStatusEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["update_available"] is False
+        assert data["check_succeeded"] is True
 
     def test_no_latest_version(self, authed_client: TestClient):
         """Status endpoint handles empty state (no check done yet)."""
@@ -101,6 +103,7 @@ class TestUpdateStatusEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["update_available"] is False
+        assert data["check_succeeded"] is False
         assert "current_version" in data
 
     def test_requires_auth(self, client: TestClient):
@@ -129,6 +132,18 @@ class TestCheckNowEndpoint:
         data = response.json()
         assert data["latest_version"] == "2.0.0"
         assert data["update_available"] is True
+        assert data["check_succeeded"] is True
+
+    def test_check_failure_returns_check_succeeded_false(self, authed_client: TestClient):
+        """Check endpoint returns check_succeeded=False when GitHub is unreachable."""
+        with patch("splintarr.api.updates.check_for_updates", new_callable=AsyncMock,
+                    return_value={}):
+            response = authed_client.post("/api/updates/check")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["check_succeeded"] is False
+        assert data["update_available"] is False
 
     def test_check_requires_auth(self, client: TestClient):
         """Check endpoint requires authentication."""
