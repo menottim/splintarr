@@ -21,6 +21,8 @@ DEFAULT_EVENTS: dict[str, bool] = {
     "queue_failed": True,
     "instance_health": True,
     "library_sync": True,
+    "update_available": True,
+    "grab_confirmed": True,
 }
 
 

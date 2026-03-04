@@ -195,6 +195,138 @@ class DiscordNotificationService:
 
         return await self._send_embed(embed)
 
+    async def send_library_sync(
+        self,
+        items_synced: int,
+        instance_count: int,
+        error_count: int,
+    ) -> bool:
+        """
+        Send a library sync completion embed.
+
+        Colour is green for clean sync, orange for partial errors, red for all-error.
+
+        Args:
+            items_synced: Total items synced across all instances
+            instance_count: Number of instances synced
+            error_count: Number of errors during sync
+
+        Returns:
+            bool: True if the webhook accepted the message
+        """
+        if error_count == 0:
+            color = COLOR_GREEN
+        elif error_count < instance_count:
+            color = COLOR_ORANGE
+        else:
+            color = COLOR_RED
+
+        embed: dict = {
+            "title": "Library Sync Complete",
+            "description": (
+                f"**Instances:** {instance_count}\n"
+                f"**Items synced:** {items_synced}\n"
+                f"**Errors:** {error_count}"
+            ),
+            "color": color,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "footer": {"text": "Splintarr"},
+        }
+
+        logger.info(
+            "discord_notification_library_sync",
+            items_synced=items_synced,
+            instance_count=instance_count,
+            error_count=error_count,
+        )
+
+        return await self._send_embed(embed)
+
+    async def send_update_available(
+        self,
+        current_version: str,
+        latest_version: str,
+        release_url: str,
+    ) -> bool:
+        """
+        Send an update-available notification (blue embed).
+
+        Args:
+            current_version: Currently running version
+            latest_version: Newest available version
+            release_url: URL to the GitHub release page
+
+        Returns:
+            bool: True if the webhook accepted the message
+        """
+        description = (
+            f"**Current:** v{current_version}\n"
+            f"**Latest:** v{latest_version}"
+        )
+        if release_url:
+            description += f"\n[View release]({release_url})"
+
+        embed: dict = {
+            "title": "Splintarr Update Available",
+            "description": description,
+            "color": COLOR_BLUE,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "footer": {"text": "Splintarr"},
+        }
+
+        logger.info(
+            "discord_notification_update_available",
+            current_version=current_version,
+            latest_version=latest_version,
+        )
+
+        return await self._send_embed(embed)
+
+    async def send_grab_confirmed(
+        self,
+        search_name: str,
+        instance_name: str,
+        checked: int,
+        grabs: int,
+    ) -> bool:
+        """
+        Send a grab confirmation result embed.
+
+        Green if grabs were detected, orange if none found.
+
+        Args:
+            search_name: Name of the search queue
+            instance_name: Name of the instance
+            checked: Number of items checked for grabs
+            grabs: Number of grabs detected
+
+        Returns:
+            bool: True if the webhook accepted the message
+        """
+        color = COLOR_GREEN if grabs > 0 else COLOR_ORANGE
+
+        embed: dict = {
+            "title": f"Grab Check: {search_name}",
+            "description": (
+                f"**Instance:** {instance_name}\n"
+                f"**Items checked:** {checked}\n"
+                f"**Grabs detected:** {grabs}"
+            ),
+            "color": color,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "footer": {"text": "Splintarr"},
+        }
+
+        logger.info(
+            "discord_notification_grab_confirmed",
+            search_name=search_name,
+            instance_name=instance_name,
+            checked=checked,
+            grabs=grabs,
+        )
+
+        return await self._send_embed(embed)
+
     async def send_test_message(self) -> bool:
         """
         Send a test notification to verify webhook configuration.

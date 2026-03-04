@@ -127,7 +127,7 @@
     <summary><strong>Notifications</strong></summary>
     <article>
         <p>
-            <small>Receive Discord notifications for search events, queue failures, and instance health changes.</small>
+            <small>Receive Discord notifications for search events, queue failures, health changes, library sync, updates, and grabs.</small>
         </p>
 
         <form id="notificationForm">
@@ -141,7 +141,7 @@
                 <legend>Events</legend>
                 <label>
                     <input type="checkbox" id="evt_search_triggered" name="search_triggered" checked>
-                    Search completed (items found)
+                    Search completed
                 </label>
                 <label>
                     <input type="checkbox" id="evt_queue_failed" name="queue_failed" checked>
@@ -154,6 +154,14 @@
                 <label>
                     <input type="checkbox" id="evt_library_sync" name="library_sync" checked>
                     Library sync completed
+                </label>
+                <label>
+                    <input type="checkbox" id="evt_update_available" name="update_available" checked>
+                    Update available
+                </label>
+                <label>
+                    <input type="checkbox" id="evt_grab_confirmed" name="grab_confirmed" checked>
+                    Grab confirmed
                 </label>
             </fieldset>
 
@@ -484,6 +492,8 @@ function showNotificationStatus(message, isError) {
             document.getElementById('evt_queue_failed').checked = data.events_enabled.queue_failed || false;
             document.getElementById('evt_instance_health').checked = data.events_enabled.instance_health || false;
             document.getElementById('evt_library_sync').checked = data.events_enabled.library_sync || false;
+            document.getElementById('evt_update_available').checked = data.events_enabled.update_available !== false;
+            document.getElementById('evt_grab_confirmed').checked = data.events_enabled.grab_confirmed !== false;
             document.getElementById('notifications_active').checked = data.is_active;
         }
         // 404 is fine — means no config yet
@@ -512,7 +522,9 @@ document.getElementById('notificationForm').addEventListener('submit', async fun
             search_triggered: document.getElementById('evt_search_triggered').checked,
             queue_failed: document.getElementById('evt_queue_failed').checked,
             instance_health: document.getElementById('evt_instance_health').checked,
-            library_sync: document.getElementById('evt_library_sync').checked
+            library_sync: document.getElementById('evt_library_sync').checked,
+            update_available: document.getElementById('evt_update_available').checked,
+            grab_confirmed: document.getElementById('evt_grab_confirmed').checked
         },
         is_active: document.getElementById('notifications_active').checked
     };
@@ -563,7 +575,9 @@ document.getElementById('testNotificationBtn').addEventListener('click', async f
             search_triggered: document.getElementById('evt_search_triggered').checked,
             queue_failed: document.getElementById('evt_queue_failed').checked,
             instance_health: document.getElementById('evt_instance_health').checked,
-            library_sync: document.getElementById('evt_library_sync').checked
+            library_sync: document.getElementById('evt_library_sync').checked,
+            update_available: document.getElementById('evt_update_available').checked,
+            grab_confirmed: document.getElementById('evt_grab_confirmed').checked
         },
         is_active: document.getElementById('notifications_active').checked
     };

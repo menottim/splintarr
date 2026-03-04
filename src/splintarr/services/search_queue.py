@@ -285,18 +285,17 @@ class SearchQueueManager:
                 await event_bus.emit("stats.updated", {})
                 await event_bus.emit("activity.updated", {})
 
-                # Fire-and-forget: send Discord notification on successful search
-                if result["items_found"] > 0:
-                    await self._notify_search_summary(
-                        db=db,
-                        user_id=instance.user_id,
-                        search_name=queue.name,
-                        instance_name=instance.name,
-                        strategy=queue.strategy,
-                        items_searched=result["items_searched"],
-                        items_found=result["items_found"],
-                        duration_seconds=0.0,  # duration not tracked yet
-                    )
+                # Fire-and-forget: send Discord notification for search results
+                await self._notify_search_summary(
+                    db=db,
+                    user_id=instance.user_id,
+                    search_name=queue.name,
+                    instance_name=instance.name,
+                    strategy=queue.strategy,
+                    items_searched=result["items_searched"],
+                    items_found=result["items_found"],
+                    duration_seconds=0.0,  # duration not tracked yet
+                )
 
                 # Schedule feedback check to detect grabs after delay
                 if result.get("searches_triggered", 0) > 0:

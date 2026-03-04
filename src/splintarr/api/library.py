@@ -103,6 +103,13 @@ async def _run_sync_all_background() -> None:
             "total_items": result.get("total_items", 0) if isinstance(result, dict) else 0,
         })
         await event_bus.emit("stats.updated", {})
+
+        # Fire-and-forget: send Discord notification for library sync
+        await _notify_library_sync(
+            items_synced=result.get("items_synced", 0),
+            instance_count=result.get("instance_count", 0),
+            error_count=len(result.get("errors", [])),
+        )
     except Exception as e:
         logger.error(
             "library_sync_background_failed",
@@ -141,6 +148,44 @@ def _update_sync_progress(
         loop.create_task(event_bus.emit("sync.progress", dict(_sync_state)))
     except RuntimeError:
         pass  # No event loop — skip WS broadcast
+
+
+async def _notify_library_sync(
+    items_synced: int,
+    instance_count: int,
+    error_count: int,
+) -> None:
+    """Send Discord notification for library sync completion if configured."""
+    try:
+        from splintarr.core.security import decrypt_field
+        from splintarr.models.notification import NotificationConfig
+        from splintarr.services.discord import DiscordNotificationService
+
+        db = get_session_factory()()
+        try:
+            config = (
+                db.query(NotificationConfig)
+                .filter(NotificationConfig.is_active.is_(True))
+                .first()
+            )
+            if not config or not config.is_event_enabled("library_sync"):
+                return
+
+            webhook_url = decrypt_field(config.webhook_url)
+            service = DiscordNotificationService(webhook_url)
+            await service.send_library_sync(
+                items_synced=items_synced,
+                instance_count=instance_count,
+                error_count=error_count,
+            )
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning(
+            "discord_notification_send_failed",
+            event="library_sync",
+            error=str(e),
+        )
 
 
 def _base_library_query(db: Session, user: User):  # type: ignore[return]

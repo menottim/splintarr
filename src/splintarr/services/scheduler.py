@@ -447,6 +447,10 @@ class SearchScheduler:
             service = FeedbackCheckService(db)
             result = await service.check_search_results(history_id, instance_id)
             logger.info("feedback_check_execution_completed", history_id=history_id, **result)
+
+            # Send Discord notification if grabs were checked
+            if result.get("checked", 0) > 0:
+                await self._notify_grab_confirmed(db, history_id, instance_id, result)
         except Exception as e:
             logger.error("feedback_check_execution_failed", history_id=history_id, error=str(e))
         finally:
@@ -468,6 +472,44 @@ class SearchScheduler:
             logger.error("health_check_execution_failed", error=str(e))
         finally:
             db.close()
+
+    async def _notify_grab_confirmed(
+        self, db: Session, history_id: int, instance_id: int, result: dict
+    ) -> None:
+        """Send Discord notification for grab confirmation results."""
+        try:
+            from splintarr.core.security import decrypt_field
+            from splintarr.models.notification import NotificationConfig
+            from splintarr.services.discord import DiscordNotificationService
+
+            config = (
+                db.query(NotificationConfig)
+                .filter(NotificationConfig.is_active.is_(True))
+                .first()
+            )
+            if not config or not config.is_event_enabled("grab_confirmed"):
+                return
+
+            # Look up search name and instance name for the notification
+            from splintarr.models.instance import Instance
+            from splintarr.models.search import SearchHistory
+
+            history = db.query(SearchHistory).filter(SearchHistory.id == history_id).first()
+            instance = db.query(Instance).filter(Instance.id == instance_id).first()
+
+            search_name = history.search_name if history else f"Search #{history_id}"
+            instance_name = instance.name if instance else f"Instance #{instance_id}"
+
+            webhook_url = decrypt_field(config.webhook_url)
+            discord = DiscordNotificationService(webhook_url)
+            await discord.send_grab_confirmed(
+                search_name=search_name,
+                instance_name=instance_name,
+                checked=result.get("checked", 0),
+                grabs=result.get("grabs", 0),
+            )
+        except Exception as e:
+            logger.warning("grab_confirmed_notification_failed", error=str(e))
 
     async def _notify_health_change(self, db: Session, result: dict) -> None:
         """Send Discord notification for health status change."""
