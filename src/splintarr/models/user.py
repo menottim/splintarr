@@ -103,6 +103,19 @@ class User(Base):
         comment="TOTP time-step counter of last used code (replay protection)",
     )
 
+    # Update notifications
+    dismissed_update_version = Column(
+        String(32),
+        nullable=True,
+        comment="Version string dismissed by user (e.g. '1.2.0')",
+    )
+    update_check_enabled = Column(
+        Boolean,
+        default=True,
+        nullable=False,
+        comment="Whether automatic update checking is enabled",
+    )
+
     # Timestamps
     created_at = Column(
         DateTime,

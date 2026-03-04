@@ -38,6 +38,7 @@ from splintarr.api import (
     prowlarr,
     search_history,
     search_queue,
+    updates,
     ws,
 )
 from splintarr.config import settings
@@ -109,6 +110,37 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.info("library_sync_service_ready")
         except Exception as e:
             logger.error("library_sync_init_failed", error=str(e))
+
+        # Start update checker (initial check + schedule recurring)
+        try:
+            from splintarr.services.update_checker import check_for_updates
+
+            await check_for_updates()
+            logger.info("update_checker_initial_check_completed")
+        except Exception as e:
+            logger.error("update_checker_start_failed", error=str(e))
+            # Don't fail startup if update checker fails
+
+        # Schedule recurring update check (every 24 hours)
+        try:
+            from splintarr.services.scheduler import get_scheduler_status
+
+            status = get_scheduler_status()
+            if status.get("status") != "stopped":
+                from splintarr.services.scheduler import _scheduler_instance
+
+                if _scheduler_instance and _scheduler_instance.scheduler:
+                    _scheduler_instance.scheduler.add_job(
+                        check_for_updates,
+                        "interval",
+                        hours=24,
+                        id="update_checker",
+                        name="Update Checker",
+                        replace_existing=True,
+                    )
+                    logger.info("update_checker_scheduled", interval_hours=24)
+        except Exception as e:
+            logger.error("update_checker_schedule_failed", error=str(e))
 
         # Wire event bus to WebSocket manager for real-time broadcasting
         from splintarr.core.events import event_bus
@@ -324,6 +356,7 @@ app.include_router(notifications.router)
 app.include_router(exclusions.router)
 app.include_router(prowlarr.router)
 app.include_router(config.router)
+app.include_router(updates.router)
 app.include_router(ws.router)
 
 

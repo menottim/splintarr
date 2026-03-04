@@ -48,6 +48,20 @@
     </a>
 </div>
 
+<!-- Update Available Banner -->
+{% if update_available %}
+<div class="update-banner" id="updateBanner">
+    <span style="font-size: 1.1rem;">&#9650;</span>
+    <span>
+        <strong>Update Available:</strong> v{{ update_latest_version }}
+        {% if update_release_name %}<small style="opacity: 0.8;"> &mdash; {{ update_release_name }}</small>{% endif %}
+    </span>
+    <span style="flex: 1;"></span>
+    <a href="{{ update_release_url }}" target="_blank" rel="noopener" style="color: inherit; font-weight: 500;">View release notes</a>
+    <button class="update-banner-dismiss" id="updateBannerDismiss" aria-label="Dismiss" title="Dismiss">&times;</button>
+</div>
+{% endif %}
+
 <!-- Search Running Indicator (shown via WebSocket) -->
 <div class="search-running-banner" id="searchRunningBanner">
     <span style="font-size: 1.1rem;">&#10227;</span>
@@ -293,6 +307,22 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+// Update banner dismiss
+(function() {
+    var btn = document.getElementById('updateBannerDismiss');
+    if (btn) btn.addEventListener('click', async function() {
+        var banner = document.getElementById('updateBanner');
+        banner.style.opacity = '0';
+        banner.style.transition = 'opacity 0.3s';
+        setTimeout(function() { banner.style.display = 'none'; }, 300);
+        try {
+            await fetch('/api/updates/dismiss', { method: 'POST' });
+        } catch (e) {
+            // Silent fail — banner is already hidden client-side
+        }
+    });
+})();
+
 // Load library stats on page load
 (async function() {
     try {

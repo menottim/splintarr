@@ -283,6 +283,53 @@ nav[aria-label="Pagination"] a[role="button"] {
     max-width: 200px;
 }
 
+/* Update available banner (dashboard) */
+.update-banner {
+    background: rgba(212, 160, 23, 0.15);
+    border: 1px solid rgba(212, 160, 23, 0.40);
+    border-radius: var(--border-radius);
+    padding: 0.5rem 1rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--brand-primary);
+    animation: slideDown 0.3s ease-out;
+}
+
+.update-banner a:hover {
+    text-decoration: underline;
+}
+
+.update-banner-dismiss {
+    background: none;
+    border: none;
+    color: var(--brand-primary);
+    cursor: pointer;
+    font-size: 1.25rem;
+    padding: 0 0.25rem;
+    line-height: 1;
+    opacity: 0.7;
+    margin: 0;
+    width: auto;
+}
+
+.update-banner-dismiss:hover {
+    opacity: 1;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-0.5rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* Live progress panel (queue detail) */
 .live-progress {
     display: none;
