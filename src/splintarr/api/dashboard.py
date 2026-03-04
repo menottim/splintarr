@@ -718,6 +718,7 @@ async def dashboard_index(
     # (instance exists but library hasn't been synced yet)
     # Runs before demo_mode check — demo is active until user has instance+queue,
     # but we want to start syncing as soon as there's an instance.
+    auto_sync_active = False
     if onboarding["has_instances"] and not onboarding["has_library"]:
         from splintarr.api.library import _run_sync_all_background, _sync_in_progress
 
@@ -728,6 +729,7 @@ async def dashboard_index(
                 user_id=current_user.id,
                 trigger="first_dashboard_visit",
             )
+        auto_sync_active = True  # Show overlay whether we just started or it was already running
 
     demo_mode = is_demo_active(db, current_user.id)
 
@@ -786,6 +788,7 @@ async def dashboard_index(
             "demo_mode": demo_mode,
             "update_available": update_available,
             "update_latest_version": latest,
+            "auto_sync_active": auto_sync_active,
             "update_release_url": update_state.get("release_url", ""),
             "update_release_name": update_state.get("release_name", ""),
         },

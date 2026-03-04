@@ -307,6 +307,90 @@
 
 {% block extra_scripts %}
 <script nonce="{{ request.state.csp_nonce }}">
+{% if auto_sync_active %}
+// Auto-sync progress overlay (same UI as Library page manual sync)
+(function() {
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;';
+
+    var article = document.createElement('article');
+    article.setAttribute('aria-busy', 'true');
+    article.style.cssText = 'max-width:400px;width:90%;text-align:center;margin:0;';
+
+    var heading = document.createElement('p');
+    heading.textContent = 'Syncing library...';
+    heading.style.cssText = 'font-size:1.25rem;font-weight:600;margin-bottom:0.5rem;';
+
+    var detail = document.createElement('small');
+    detail.textContent = 'Starting sync...';
+    detail.style.display = 'block';
+
+    var elapsed = document.createElement('small');
+    elapsed.style.cssText = 'display:block;margin-top:0.5rem;color:var(--muted-color);';
+    var syncStartTime = Date.now();
+
+    article.appendChild(heading);
+    article.appendChild(detail);
+    article.appendChild(elapsed);
+    overlay.appendChild(article);
+    document.body.appendChild(overlay);
+
+    function formatElapsed(ms) {
+        var secs = Math.floor(ms / 1000);
+        if (secs < 60) return secs + 's';
+        var mins = Math.floor(secs / 60);
+        secs = secs % 60;
+        return mins + 'm ' + secs + 's';
+    }
+
+    var pollInterval = setInterval(async function() {
+        try {
+            elapsed.textContent = 'Elapsed: ' + formatElapsed(Date.now() - syncStartTime);
+            var resp = await fetch('/api/library/sync-status');
+            if (resp.ok) {
+                var s = await resp.json();
+                if (s.syncing && s.current_instance) {
+                    var text = 'Instance ' + (s.instances_done + 1) + '/' + s.total_instances + ': ' + s.current_instance;
+                    if (s.stage) text += '\n' + s.stage;
+                    detail.textContent = text;
+                    detail.style.whiteSpace = 'pre-line';
+                } else if (s.syncing) {
+                    detail.textContent = 'Preparing sync...';
+                }
+                if (!s.syncing) {
+                    clearInterval(pollInterval);
+                    heading.textContent = 'Library synced!';
+                    article.removeAttribute('aria-busy');
+                    detail.textContent = 'Reloading dashboard...';
+                    setTimeout(function() { window.location.reload(); }, 1000);
+                }
+            }
+        } catch (e) { /* ignore poll errors */ }
+    }, 2000);
+
+    // WebSocket updates for real-time progress
+    if (typeof Splintarr !== 'undefined' && Splintarr.ws) {
+        Splintarr.ws.on('sync.progress', function(data) {
+            if (!data || !data.syncing) return;
+            if (data.current_instance) {
+                var text = 'Instance ' + (data.instances_done + 1) + '/' + data.total_instances + ': ' + data.current_instance;
+                if (data.stage) text += '\n' + data.stage;
+                detail.textContent = text;
+                detail.style.whiteSpace = 'pre-line';
+            }
+            elapsed.textContent = 'Elapsed: ' + formatElapsed(Date.now() - syncStartTime);
+        });
+        Splintarr.ws.on('sync.completed', function() {
+            clearInterval(pollInterval);
+            heading.textContent = 'Library synced!';
+            article.removeAttribute('aria-busy');
+            detail.textContent = 'Reloading dashboard...';
+            setTimeout(function() { window.location.reload(); }, 1000);
+        });
+    }
+})();
+{% endif %}
+
 // Update banner dismiss
 (function() {
     var btn = document.getElementById('updateBannerDismiss');
