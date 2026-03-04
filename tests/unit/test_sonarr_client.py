@@ -267,6 +267,7 @@ class TestSonarrAPIRequests:
                     "pageSize": 50,
                     "sortKey": "airDateUtc",
                     "sortDirection": "descending",
+                    "includeSeries": "true",
                 },
             )
 
@@ -299,6 +300,7 @@ class TestSonarrAPIRequests:
                     "pageSize": 50,
                     "sortKey": "airDateUtc",
                     "sortDirection": "descending",
+                    "includeSeries": "true",
                 },
             )
 

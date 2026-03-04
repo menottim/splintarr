@@ -1429,8 +1429,11 @@ async def api_dashboard_analytics(
                 continue
             item_name = entry.get("item", "")
             # Extract series name: "Breaking Bad S01E01 - Pilot" -> "Breaking Bad"
-            if " S" in item_name and "E" in item_name:
-                series_name = item_name.split(" S")[0]
+            # Use regex to find the actual SxxExx pattern, not naive split on " S"
+            # which breaks titles containing " S" (e.g., "Unknown Series", "The Simpsons")
+            season_match = re.search(r"\sS\d{1,3}E\d{1,4}", item_name)
+            if season_match:
+                series_name = item_name[:season_match.start()]
             elif " - " in item_name:
                 series_name = item_name.split(" - ")[0].strip()
             else:

@@ -493,6 +493,7 @@ class BaseArrClient:
             "pageSize": min(page_size, 100),
             "sortKey": sort_key or self._wanted_missing_sort_key,
             "sortDirection": sort_dir or self._wanted_missing_sort_dir,
+            "includeSeries": "true",
         }
 
         result = await self._request("GET", "/api/v3/wanted/missing", params=params)
@@ -530,6 +531,7 @@ class BaseArrClient:
             "pageSize": min(page_size, 100),
             "sortKey": sort_key or self._wanted_cutoff_sort_key,
             "sortDirection": sort_dir or self._wanted_cutoff_sort_dir,
+            "includeSeries": "true",
         }
 
         result = await self._request("GET", "/api/v3/wanted/cutoff", params=params)
