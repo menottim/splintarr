@@ -79,9 +79,7 @@ def validate_import_data(
         inst_name = export_id_to_name.get(q.get("instance_id"))
         if inst_name and inst_name in existing_instance_names and inst_name not in new_instance_names:
             status = "skip_instance_conflict"
-        elif inst_name and inst_name in new_instance_names:
-            status = "new"
-        elif inst_name and inst_name in existing_instance_names:
+        elif inst_name and (inst_name in new_instance_names or inst_name in existing_instance_names):
             status = "new"
         else:
             status = "skip_no_instance"
@@ -155,6 +153,14 @@ def apply_import(
             if "id" in inst:
                 export_id_to_name[inst["id"]] = inst.get("name", "")
 
+        # Pre-load all existing instance names in one query (avoids N+1)
+        existing_instances = {
+            row.name: row.id
+            for row in db.query(Instance.name, Instance.id)
+            .filter(Instance.user_id == user_id)
+            .all()
+        }
+
         # Track name -> new DB id for linking queues and exclusions.
         name_to_id: dict[str, int] = {}
         instance_api_keys = secrets.get("instances", {})
@@ -162,13 +168,8 @@ def apply_import(
         # --- Instances ---
         for inst_data in data.get("instances", []):
             name = inst_data.get("name", "")
-            existing = (
-                db.query(Instance)
-                .filter(Instance.user_id == user_id, Instance.name == name)
-                .first()
-            )
-            if existing:
-                name_to_id[name] = existing.id
+            if name in existing_instances:
+                name_to_id[name] = existing_instances[name]
                 skipped["instances"] += 1
                 continue
 
@@ -205,8 +206,13 @@ def apply_import(
                 strategy=q_data.get("strategy", "missing"),
                 is_recurring=q_data.get("is_recurring", False),
                 interval_hours=q_data.get("interval_hours"),
+                schedule_mode=q_data.get("schedule_mode", "interval"),
+                schedule_time=q_data.get("schedule_time"),
+                schedule_days=q_data.get("schedule_days"),
+                jitter_minutes=q_data.get("jitter_minutes", 0),
                 is_active=q_data.get("is_active", True),
                 filters=q_data.get("filters"),
+                budget_aware=q_data.get("budget_aware", True),
             )
             db.add(queue)
             imported["queues"] += 1

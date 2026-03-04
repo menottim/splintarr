@@ -777,7 +777,8 @@ async def dashboard_index(
             )
         auto_sync_active = True  # Show overlay whether we just started or it was already running
 
-    demo_mode = is_demo_active(db, current_user.id)
+    # Derive demo_mode from onboarding state (avoids duplicate get_onboarding_state call)
+    demo_mode = not (onboarding["has_instances"] and onboarding["has_queues"])
 
     if demo_mode:
         stats = get_demo_stats()
@@ -1643,7 +1644,10 @@ async def api_indexer_health(
 
             notif_config = (
                 db.query(NotificationConfig)
-                .filter(NotificationConfig.is_active.is_(True))
+                .filter(
+                    NotificationConfig.user_id == current_user.id,
+                    NotificationConfig.is_active.is_(True),
+                )
                 .first()
             )
             if notif_config and notif_config.is_event_enabled("budget_alert"):

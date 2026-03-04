@@ -43,24 +43,22 @@ def _build_trigger_kwargs(
     """Build APScheduler trigger kwargs based on schedule mode."""
     jitter_seconds = jitter_minutes * 60 if jitter_minutes else 0
 
-    if schedule_mode == "daily" and schedule_time:
-        hour, minute = int(schedule_time.split(":")[0]), int(schedule_time.split(":")[1])
-        kwargs: dict[str, Any] = {"trigger": "cron", "hour": hour, "minute": minute}
-        if jitter_seconds:
-            kwargs["jitter"] = jitter_seconds
-        return kwargs
-
-    if schedule_mode == "weekly" and schedule_time and schedule_days:
-        hour, minute = int(schedule_time.split(":")[0]), int(schedule_time.split(":")[1])
-        kwargs = {
+    if schedule_mode in ("daily", "weekly") and schedule_time:
+        h_str, m_str = schedule_time.split(":")
+        kwargs: dict[str, Any] = {
             "trigger": "cron",
-            "day_of_week": schedule_days,
-            "hour": hour,
-            "minute": minute,
+            "hour": int(h_str),
+            "minute": int(m_str),
         }
-        if jitter_seconds:
-            kwargs["jitter"] = jitter_seconds
-        return kwargs
+        if schedule_mode == "weekly" and schedule_days:
+            kwargs["day_of_week"] = schedule_days
+        elif schedule_mode == "weekly":
+            # Weekly without days falls through to interval below
+            pass
+        if kwargs.get("trigger") == "cron":
+            if jitter_seconds:
+                kwargs["jitter"] = jitter_seconds
+            return kwargs
 
     # Default: interval mode (also used as fallback for misconfigured daily/weekly)
     if schedule_mode and schedule_mode != "interval":

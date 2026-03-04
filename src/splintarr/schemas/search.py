@@ -204,17 +204,14 @@ class SearchQueueCreate(BaseModel):
                     "interval_hours is required for interval mode. "
                     "Specify how often the search should run (1-168 hours)."
                 )
-        elif self.schedule_mode == "daily":
+        elif self.schedule_mode in ("daily", "weekly"):
             if not self.schedule_time:
-                raise ValueError("schedule_time (HH:MM) is required for daily mode")
+                raise ValueError(f"schedule_time (HH:MM) is required for {self.schedule_mode} mode")
             _validate_schedule_time(self.schedule_time)
-        elif self.schedule_mode == "weekly":
-            if not self.schedule_time:
-                raise ValueError("schedule_time (HH:MM) is required for weekly mode")
-            _validate_schedule_time(self.schedule_time)
-            if not self.schedule_days:
-                raise ValueError("schedule_days is required for weekly mode")
-            _validate_schedule_days(self.schedule_days)
+            if self.schedule_mode == "weekly":
+                if not self.schedule_days:
+                    raise ValueError("schedule_days is required for weekly mode")
+                _validate_schedule_days(self.schedule_days)
         return self
 
     model_config = {

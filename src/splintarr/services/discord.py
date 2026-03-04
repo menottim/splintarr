@@ -349,7 +349,6 @@ class DiscordNotificationService:
             "title": f"Indexer Budget Alert: {indexer_name}",
             "description": (
                 f"**Usage:** {queries_used} / {query_limit} ({percent_used}%)\n"
-                f"**Indexer:** {indexer_name}\n"
                 f"API budget is running low. Search batch sizes may be reduced automatically."
             ),
             "color": COLOR_RED,
