@@ -4,9 +4,9 @@
 
 <h1 align="center">Splintarr</h1>
 
-<p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.1.0">Version 1.1.0</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
+<p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.1.1">Version 1.1.1</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
 
-> **Status: v1.1.0 -- Visibility Release**
+> **Status: v1.1.1 -- Update Checker**
 >
 > Splintarr is ready for use by homelab enthusiasts. Tested on Docker Desktop for Windows; Linux and macOS Docker environments are expected to work but have not been independently verified. **Radarr support is planned for a future release; currently supports Sonarr only.** This is AI-generated code (Claude Code) — treat accordingly.
 
@@ -49,6 +49,7 @@ This tool is designed for **homelab enthusiasts** running personal Sonarr instan
 - **Content Exclusion Lists** -- Exclude specific titles from automated searches
 - **Discord Notifications** -- Alerts for search activity, instance health, and queue events
 - **Multi-Instance Support** -- Manage multiple Sonarr instances from one interface
+- **Automatic Update Checker** -- Checks GitHub for new releases daily, dismissible dashboard banner
 - **Encrypted Database** -- AES-256 encryption via SQLCipher with Fernet-encrypted API keys
 
 ---
@@ -107,7 +108,7 @@ Documentation is organized following the [Diataxis](https://diataxis.fr/) framew
 
 ### Release Information
 
-- **[Release Notes v1.1.0](RELEASE_NOTES.md)** -- What's in the current release
+- **[Release Notes v1.1.1](RELEASE_NOTES.md)** -- What's in the current release
 - **[Release History](https://github.com/menottim/splintarr/wiki/Release-History)** -- Complete version history
 
 ### Screenshots

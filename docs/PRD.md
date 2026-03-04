@@ -2,7 +2,7 @@
 
 > **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. This is the sole source of truth; versioned PRDs have been retired.
 
-**Last updated:** 2026-03-03 (v1.1.0: Visibility release — all 6 features shipped)
+**Last updated:** 2026-03-04 (v1.1.1: Update Checker)
 
 ---
 
@@ -101,6 +101,7 @@ Feature status across all releases (Sonarr only; Radarr support deferred to post
 | 17 | [Search Dry Run / Preview Mode](#17-search-dry-run--preview-mode) | **Done** | v1.1.0 | PR #114 |
 | 18 | [Search History Analytics (Mini)](#18-search-history-analytics-mini) | **Done** | v1.1.0 | PR #115 |
 | 19 | [Bulk Queue Operations](#19-bulk-queue-operations) | **Done** | v1.1.0 | PR #116 |
+| - | [Automatic Update Checker](#automatic-update-checker) | **Done** | v1.1.1 | PRs #117, #118; GitHub Releases API |
 | - | Radarr Support | Deferred | Post-v1.1 | Backend code exists, UI gated |
 
 ---
@@ -188,6 +189,10 @@ Feature status across all releases (Sonarr only; Radarr support deferred to post
 - **Search History Analytics** (PR #115) — "Last 7 Days" dashboard card with trend arrows and top 3 most-searched series. [Spec →](#18-search-history-analytics-mini)
 - **Bulk Queue Operations** (PR #116) — Multi-select checkboxes with bulk pause/resume/run/delete and confirmation dialogs. [Spec →](#19-bulk-queue-operations)
 - **Security Hardening** — WebSocket user-active check, error logging, single-admin broadcast documentation. Security audit: 0 Critical, 0 High, 3 Medium (all addressed).
+
+### v1.1.1
+
+- **Automatic Update Checker** (PRs #117, #118) — Background job checks GitHub Releases API every 24 hours. Dismissible gold banner on dashboard when newer version available. Per-version dismissal stored on User model. Settings page toggle and "Check Now" button. 38 tests. [Spec →](#automatic-update-checker)
 
 ---
 
@@ -613,3 +618,4 @@ Companion to Config Export (v0.2.1). Upload JSON to restore instances, queues, e
 | 2026-03-02 | v1.0.2-alpha: Code simplification (PR #109), security hardening — removed dead redirect param + innerHTML (PR #110), UI fixes (stat card alignment, inline grab rate). |
 | 2026-03-03 | v1.1.0–v1.3.0 roadmap: 12 features across 3 releases. Research-backed proposal based on Sonarr ecosystem analysis, competitor review (Scoutarr), and community pain points. Features #15-26 added. API spike confirmed quality data availability for Feature #22. |
 | 2026-03-03 | v1.1.0: All 6 Visibility features shipped (PRs #111-#116). WebSocket, Demo Mode, Search Progress, Dry Run Preview, Mini Analytics, Bulk Queue Ops. Code simplification (-34 lines). Security audit: 0 Critical, 0 High, 3 Medium (all addressed). |
+| 2026-03-04 | v1.1.1: Automatic Update Checker (PRs #117-#118). GitHub Releases API check every 24h, dismissible dashboard banner, Settings toggle. 38 tests. |

@@ -139,15 +139,30 @@ docker run -d \
 - All existing data compatible
 - Secrets remain unchanged
 
-### Upgrading to v1.1.0 (Future)
+### Upgrading to v1.1.1
+
+**From:** v1.1.0
+
+**Breaking Changes:** None
+
+**New Features:** Automatic update checker with dashboard banner, Settings toggle
+
+**Steps:**
+1. Pull latest image: `docker-compose pull`
+2. Restart: `docker-compose up -d`
+3. New User model columns are added automatically on startup
+
+### Upgrading to v1.1.0
 
 **From:** v1.0.x
 
-**Breaking Changes:** TBD
+**Breaking Changes:** None
 
-**New Features:** TBD
+**New Features:** WebSocket real-time updates, demo mode, search progress, dry run preview, analytics, bulk queue operations
 
-**Steps:** TBD
+**Steps:**
+1. Pull latest image: `docker-compose pull`
+2. Restart: `docker-compose up -d`
 
 ---
 
