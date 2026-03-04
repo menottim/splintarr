@@ -263,7 +263,28 @@
         <h4>Config Export</h4>
         <p>Download your configuration (instances, queues, exclusions, notification settings) as JSON. API keys and webhook URLs are redacted.</p>
         <button id="exportConfigBtn" class="secondary">Download Config Export</button>
-        <small style="display: block; margin-top: 0.5rem; color: var(--muted-color);">Config import will be available in a future release.</small>
+        <hr>
+
+        <h4>Config Import</h4>
+        <p>Upload a previously exported configuration file to restore your setup. You'll need to re-enter API keys and webhook URLs.</p>
+        <input type="file" id="importConfigFile" accept=".json" style="margin-bottom: 0.5rem;">
+        <button id="importConfigBtn" class="secondary" disabled>Upload & Preview</button>
+        <small id="importConfigStatus" style="display: block; margin-top: 0.5rem;"></small>
+
+        <!-- Import Preview Modal -->
+        <dialog id="importPreviewModal">
+            <article style="max-width: 600px; margin: auto;">
+                <header>
+                    <button aria-label="Close" rel="prev" onclick="document.getElementById('importPreviewModal').close()"></button>
+                    <h3>Import Preview</h3>
+                </header>
+                <div id="importPreviewContent"></div>
+                <footer>
+                    <button class="secondary" onclick="document.getElementById('importPreviewModal').close()">Cancel</button>
+                    <button id="importApplyBtn">Import</button>
+                </footer>
+            </article>
+        </dialog>
 
         <hr>
 
@@ -881,6 +902,207 @@ document.getElementById('exportConfigBtn').addEventListener('click', async funct
         Splintarr.showNotification('Export failed: ' + err.message);
     } finally {
         this.removeAttribute('aria-busy');
+    }
+});
+
+// ---------------------------------------------------------------
+// System — Config Import
+// ---------------------------------------------------------------
+
+document.getElementById('importConfigFile').addEventListener('change', function() {
+    document.getElementById('importConfigBtn').disabled = !this.files.length;
+    document.getElementById('importConfigStatus').textContent = '';
+});
+
+document.getElementById('importConfigBtn').addEventListener('click', async function() {
+    var fileInput = document.getElementById('importConfigFile');
+    if (!fileInput.files.length) return;
+
+    var btn = this;
+    btn.setAttribute('aria-busy', 'true');
+    btn.disabled = true;
+
+    try {
+        var text = await fileInput.files[0].text();
+        var configData = JSON.parse(text);
+
+        var response = await fetch('/api/config/import/preview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: text,
+        });
+        var preview = await response.json();
+
+        if (!preview.valid) {
+            document.getElementById('importConfigStatus').textContent = 'Invalid file: ' + (preview.errors || []).join(', ');
+            return;
+        }
+
+        window._importConfigData = configData;
+
+        var content = document.getElementById('importPreviewContent');
+        content.textContent = '';
+
+        // Instances
+        if (preview.instances.length > 0) {
+            var h = document.createElement('h5');
+            h.textContent = 'Instances';
+            content.appendChild(h);
+
+            preview.instances.forEach(function(inst) {
+                var div = document.createElement('div');
+                div.style.cssText = 'margin-bottom: 0.75rem; padding: 0.5rem; border: 1px solid var(--muted-border-color); border-radius: 4px;';
+
+                var label = document.createElement('div');
+                label.style.cssText = 'display: flex; justify-content: space-between; align-items: center;';
+                var nameSpan = document.createElement('strong');
+                nameSpan.textContent = inst.name + ' (' + inst.type + ')';
+                label.appendChild(nameSpan);
+
+                var badge = document.createElement('small');
+                if (inst.status === 'new') {
+                    badge.textContent = 'New';
+                    badge.style.color = 'var(--ins-color)';
+                } else {
+                    badge.textContent = 'Skip (exists)';
+                    badge.style.color = 'var(--muted-color)';
+                }
+                label.appendChild(badge);
+                div.appendChild(label);
+
+                if (inst.needs_api_key) {
+                    var input = document.createElement('input');
+                    input.type = 'password';
+                    input.placeholder = 'API Key for ' + inst.name;
+                    input.dataset.instanceName = inst.name;
+                    input.classList.add('import-api-key');
+                    input.style.marginTop = '0.5rem';
+                    div.appendChild(input);
+                }
+
+                content.appendChild(div);
+            });
+        }
+
+        // Queues summary
+        var newQueues = preview.queues.filter(function(q) { return q.status === 'new'; });
+        if (newQueues.length > 0) {
+            var qh = document.createElement('h5');
+            qh.textContent = 'Search Queues (' + newQueues.length + ' new)';
+            content.appendChild(qh);
+            newQueues.forEach(function(q) {
+                var p = document.createElement('div');
+                p.style.cssText = 'font-size: 0.85rem; margin-bottom: 0.25rem;';
+                p.textContent = q.name + ' \u2192 ' + q.instance_name;
+                content.appendChild(p);
+            });
+        }
+        var skippedQueues = preview.queues.filter(function(q) { return q.status !== 'new'; });
+        if (skippedQueues.length > 0) {
+            var sq = document.createElement('small');
+            sq.style.color = 'var(--muted-color)';
+            sq.textContent = skippedQueues.length + ' queue(s) will be skipped (instance conflict)';
+            sq.style.display = 'block';
+            sq.style.marginBottom = '0.5rem';
+            content.appendChild(sq);
+        }
+
+        // Exclusions
+        if (preview.exclusions_count > 0) {
+            var eh = document.createElement('h5');
+            eh.textContent = 'Exclusions (' + preview.exclusions_count + ')';
+            content.appendChild(eh);
+        }
+
+        // Notifications
+        if (preview.notifications && preview.notifications.has_config && preview.notifications.needs_webhook) {
+            var nh = document.createElement('h5');
+            nh.textContent = 'Notifications';
+            content.appendChild(nh);
+            var webhookInput = document.createElement('input');
+            webhookInput.type = 'password';
+            webhookInput.id = 'importWebhookUrl';
+            webhookInput.placeholder = 'Discord Webhook URL';
+            content.appendChild(webhookInput);
+        } else if (preview.notifications && preview.notifications.has_config && !preview.notifications.needs_webhook) {
+            var ns = document.createElement('small');
+            ns.style.color = 'var(--muted-color)';
+            ns.textContent = 'Notification config will be skipped (already configured)';
+            ns.style.display = 'block';
+            content.appendChild(ns);
+        }
+
+        // Show empty state if nothing to import
+        if (preview.instances.length === 0 && preview.queues.length === 0 && preview.exclusions_count === 0) {
+            var empty = document.createElement('p');
+            empty.style.color = 'var(--muted-color)';
+            empty.textContent = 'No importable data found in this file.';
+            content.appendChild(empty);
+            document.getElementById('importApplyBtn').disabled = true;
+        } else {
+            document.getElementById('importApplyBtn').disabled = false;
+        }
+
+        document.getElementById('importPreviewModal').showModal();
+
+    } catch (err) {
+        document.getElementById('importConfigStatus').textContent = 'Error: ' + err.message;
+    } finally {
+        btn.removeAttribute('aria-busy');
+        btn.disabled = false;
+    }
+});
+
+// Apply import
+document.getElementById('importApplyBtn').addEventListener('click', async function() {
+    var btn = this;
+    btn.setAttribute('aria-busy', 'true');
+
+    var instanceSecrets = {};
+    document.querySelectorAll('.import-api-key').forEach(function(input) {
+        if (input.value) instanceSecrets[input.dataset.instanceName] = input.value;
+    });
+    var webhookInput = document.getElementById('importWebhookUrl');
+    var webhookUrl = webhookInput ? webhookInput.value : null;
+
+    try {
+        var response = await fetch('/api/config/import/apply', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                config: window._importConfigData,
+                secrets: { instances: instanceSecrets, webhook_url: webhookUrl },
+            }),
+        });
+        var result = await response.json();
+
+        if (response.ok) {
+            document.getElementById('importPreviewModal').close();
+            var msg = 'Import complete: ' + result.imported.instances + ' instances, ' +
+                      result.imported.queues + ' queues, ' + result.imported.exclusions + ' exclusions.';
+            if (typeof Splintarr !== 'undefined' && Splintarr.showNotification) {
+                Splintarr.showNotification(msg);
+            } else {
+                alert(msg);
+            }
+            setTimeout(function() { window.location.reload(); }, 1500);
+        } else {
+            var errMsg = result.error || 'Import failed';
+            if (typeof Splintarr !== 'undefined' && Splintarr.showNotification) {
+                Splintarr.showNotification(errMsg);
+            } else {
+                alert(errMsg);
+            }
+        }
+    } catch (err) {
+        var errMsg = 'Import failed: ' + err.message;
+        if (typeof Splintarr !== 'undefined' && Splintarr.showNotification) {
+            Splintarr.showNotification(errMsg);
+        } else {
+            alert(errMsg);
+        }
+    } finally {
+        btn.removeAttribute('aria-busy');
     }
 });
 
