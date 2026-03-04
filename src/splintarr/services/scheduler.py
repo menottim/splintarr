@@ -62,7 +62,15 @@ def _build_trigger_kwargs(
             kwargs["jitter"] = jitter_seconds
         return kwargs
 
-    # Default: interval mode
+    # Default: interval mode (also used as fallback for misconfigured daily/weekly)
+    if schedule_mode and schedule_mode != "interval":
+        logger.warning(
+            "schedule_mode_fallback_to_interval",
+            schedule_mode=schedule_mode,
+            schedule_time=schedule_time,
+            schedule_days=schedule_days,
+            reason="missing required fields for requested mode",
+        )
     kwargs = {"trigger": "interval", "hours": interval_hours or 24}
     if jitter_seconds:
         kwargs["jitter"] = jitter_seconds
