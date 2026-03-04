@@ -181,6 +181,15 @@ class SearchQueue(Base):
         comment="Minimum missing episodes per season to trigger season pack search (2-50)",
     )
 
+    # Budget-aware batch sizing (v1.3.0)
+    budget_aware = Column(
+        Boolean,
+        default=True,
+        server_default="1",
+        nullable=False,
+        comment="Automatically reduce batch size when indexer budget is low",
+    )
+
     # Timestamps
     created_at = Column(
         DateTime,

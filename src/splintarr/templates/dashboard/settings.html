@@ -163,6 +163,10 @@
                     <input type="checkbox" id="evt_grab_confirmed" name="grab_confirmed" checked>
                     Grab confirmed
                 </label>
+                <label>
+                    <input type="checkbox" id="evt_budget_alert" name="budget_alert" checked>
+                    Indexer budget alert
+                </label>
             </fieldset>
 
             <label>
@@ -494,6 +498,7 @@ function showNotificationStatus(message, isError) {
             document.getElementById('evt_library_sync').checked = data.events_enabled.library_sync || false;
             document.getElementById('evt_update_available').checked = data.events_enabled.update_available !== false;
             document.getElementById('evt_grab_confirmed').checked = data.events_enabled.grab_confirmed !== false;
+            document.getElementById('evt_budget_alert').checked = data.events_enabled.budget_alert !== false;
             document.getElementById('notifications_active').checked = data.is_active;
         }
         // 404 is fine — means no config yet
@@ -524,7 +529,8 @@ document.getElementById('notificationForm').addEventListener('submit', async fun
             instance_health: document.getElementById('evt_instance_health').checked,
             library_sync: document.getElementById('evt_library_sync').checked,
             update_available: document.getElementById('evt_update_available').checked,
-            grab_confirmed: document.getElementById('evt_grab_confirmed').checked
+            grab_confirmed: document.getElementById('evt_grab_confirmed').checked,
+            budget_alert: document.getElementById('evt_budget_alert').checked
         },
         is_active: document.getElementById('notifications_active').checked
     };
@@ -577,7 +583,8 @@ document.getElementById('testNotificationBtn').addEventListener('click', async f
             instance_health: document.getElementById('evt_instance_health').checked,
             library_sync: document.getElementById('evt_library_sync').checked,
             update_available: document.getElementById('evt_update_available').checked,
-            grab_confirmed: document.getElementById('evt_grab_confirmed').checked
+            grab_confirmed: document.getElementById('evt_grab_confirmed').checked,
+            budget_alert: document.getElementById('evt_budget_alert').checked
         },
         is_active: document.getElementById('notifications_active').checked
     };

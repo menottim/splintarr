@@ -118,6 +118,10 @@ class SearchQueueCreate(BaseModel):
         le=50,
         description="Minimum missing episodes per season to trigger season pack search (2-50)",
     )
+    budget_aware: bool = Field(
+        default=True,
+        description="Automatically reduce batch size when indexer budget is low",
+    )
 
     @field_validator("name")
     @classmethod
@@ -242,6 +246,10 @@ class SearchQueueUpdate(BaseModel):
         le=50,
         description="Minimum missing episodes per season to trigger season pack search (2-50)",
     )
+    budget_aware: bool | None = Field(
+        default=None,
+        description="Automatically reduce batch size when indexer budget is low",
+    )
 
     @field_validator("name")
     @classmethod
@@ -302,6 +310,7 @@ class SearchQueueResponse(BaseModel):
     season_pack_threshold: int = Field(
         default=3, description="Min missing episodes per season for season pack search"
     )
+    budget_aware: bool = Field(default=True, description="Budget-aware batch sizing enabled")
     created_at: datetime = Field(..., description="Queue item creation timestamp (ISO 8601)")
 
     model_config = {

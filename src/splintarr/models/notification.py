@@ -23,6 +23,7 @@ DEFAULT_EVENTS: dict[str, bool] = {
     "library_sync": True,
     "update_available": True,
     "grab_confirmed": True,
+    "budget_alert": True,
 }
 
 

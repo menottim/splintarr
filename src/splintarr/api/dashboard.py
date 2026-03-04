@@ -82,6 +82,52 @@ router = APIRouter(tags=["dashboard"])
 # Rate limiter
 limiter = Limiter(key_func=rate_limit_key_func)
 
+# Budget alert dedup — tracks which indexers have been alerted this period
+_alerted_indexers: set[str] = set()
+_alert_period_hour: int | None = None  # Reset dedup set when the hour changes
+
+BUDGET_ALERT_THRESHOLD = 80  # percent
+
+
+def _check_budget_alerts(indexers: list[dict]) -> list[dict]:
+    """Check indexer usage and return alerts for newly-over-threshold indexers.
+
+    Dedup resets every hour so alerts can fire again in the next budget period.
+    """
+    global _alert_period_hour
+    current_hour = datetime.now().hour
+    if _alert_period_hour != current_hour:
+        _alerted_indexers.clear()
+        _alert_period_hour = current_hour
+
+    alerts = []
+    for idx in indexers:
+        limit = idx.get("query_limit")
+        if not limit:
+            logger.debug(
+                "indexer_budget_check_skipped",
+                indexer_name=idx.get("name"),
+                reason="no_limit",
+            )
+            continue
+        used = idx.get("queries_used", 0)
+        pct = round(used / limit * 100)
+        key = f"{idx['name']}:{idx.get('limits_unit', 'day')}"
+        if pct >= BUDGET_ALERT_THRESHOLD and key not in _alerted_indexers:
+            _alerted_indexers.add(key)
+            alerts.append({
+                "indexer_name": idx["name"],
+                "queries_used": used,
+                "query_limit": limit,
+                "percent_used": pct,
+            })
+            logger.debug(
+                "indexer_budget_alert_generated",
+                indexer_name=idx["name"],
+                percent_used=pct,
+            )
+    return alerts
+
 
 # ============================================================================
 # SYSTEM STATUS HELPERS
@@ -1588,5 +1634,28 @@ async def api_indexer_health(
         user_id=current_user.id,
         indexer_count=len(indexer_list),
     )
+
+    # Check for budget alerts and fire notifications
+    alerts = _check_budget_alerts(indexer_list)
+    if alerts:
+        try:
+            from splintarr.services.discord import DiscordNotificationService
+
+            notif_config = (
+                db.query(NotificationConfig)
+                .filter(NotificationConfig.is_active.is_(True))
+                .first()
+            )
+            if notif_config and notif_config.is_event_enabled("budget_alert"):
+                webhook_url = decrypt_field(notif_config.webhook_url)
+                service = DiscordNotificationService(webhook_url)
+                for alert in alerts:
+                    await service.send_budget_alert(**alert)
+        except Exception as e:
+            logger.warning(
+                "budget_alert_notification_failed",
+                user_id=current_user.id,
+                error=str(e),
+            )
 
     return JSONResponse(content={"configured": True, "indexers": indexer_list})

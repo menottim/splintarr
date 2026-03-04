@@ -327,6 +327,47 @@ class DiscordNotificationService:
 
         return await self._send_embed(embed)
 
+    async def send_budget_alert(
+        self,
+        indexer_name: str,
+        queries_used: int,
+        query_limit: int,
+        percent_used: int,
+    ) -> bool:
+        """Send a budget alert when indexer API usage is high.
+
+        Args:
+            indexer_name: Name of the indexer
+            queries_used: Current query count
+            query_limit: Maximum allowed queries
+            percent_used: Usage percentage (0-100)
+
+        Returns:
+            bool: True if the webhook accepted the message
+        """
+        embed: dict = {
+            "title": f"Indexer Budget Alert: {indexer_name}",
+            "description": (
+                f"**Usage:** {queries_used} / {query_limit} ({percent_used}%)\n"
+                f"**Indexer:** {indexer_name}\n"
+                f"API budget is running low. Search batch sizes may be reduced automatically."
+            ),
+            "color": COLOR_RED,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "footer": {"text": "Splintarr"},
+        }
+
+        result = await self._send_embed(embed)
+
+        if result:
+            logger.info(
+                "discord_notification_budget_alert_sent",
+                indexer_name=indexer_name,
+                percent_used=percent_used,
+            )
+
+        return result
+
     async def send_test_message(self) -> bool:
         """
         Send a test notification to verify webhook configuration.
