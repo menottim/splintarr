@@ -28,6 +28,7 @@ from splintarr.core.events import event_bus
 from splintarr.core.security import decrypt_api_key, decrypt_field
 from splintarr.models import Instance, NotificationConfig, SearchHistory, SearchQueue
 from splintarr.services.cooldown import is_in_cooldown
+from splintarr.services.custom_filters import apply_custom_filters
 from splintarr.services.discord import DiscordNotificationService
 from splintarr.services.exclusion import ExclusionService
 from splintarr.services.radarr import RadarrClient
@@ -488,17 +489,18 @@ class SearchQueueManager:
         queue: SearchQueue,
         instance: Instance,
         db: Session,
-        fetch_method: str,
+        fetch_method: str | None,
         strategy_name: str,
         sort_key: str | None = None,
         sort_dir: str | None = None,
         effective_max_items: int | None = None,
         override_cooldowns: bool = False,
+        prefetched_records: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         """Shared search loop for all strategies.
 
         New flow:
-        1. Fetch ALL pages into a flat list
+        1. Fetch ALL pages into a flat list (or use prefetched_records)
         2. Batch-load LibraryItem data from DB (keyed by external_id)
         3. Score each item using compute_score()
         4. Sort by score descending
@@ -512,13 +514,16 @@ class SearchQueueManager:
             queue: Search queue being executed (provides cooldown/batch config)
             instance: Instance to search on
             db: Database session for library item lookups
-            fetch_method: Name of the client method that returns paginated records
-            strategy_name: Used for log events (e.g. "missing", "cutoff")
+            fetch_method: Name of the client method that returns paginated records.
+                Can be None when prefetched_records is provided.
+            strategy_name: Used for log events (e.g. "missing", "cutoff", "custom")
             sort_key: Optional sort key passed to the fetch method
             sort_dir: Optional sort direction passed to the fetch method
             effective_max_items: Override for max items per run (from Prowlarr budget).
                 If None, falls back to queue.max_items_per_run.
             override_cooldowns: If True, skip cooldown checks for this run.
+            prefetched_records: Pre-fetched and pre-filtered records to use instead
+                of calling the API. When provided, fetch_method is ignored.
         """
         logger.info(
             "executing_strategy",
@@ -566,18 +571,27 @@ class SearchQueueManager:
             ) as client:
                 search_fn = client.search_episodes if is_sonarr else client.search_movies
 
-                # Step 1: Fetch all records
-                all_records = await self._fetch_all_records(
-                    client, fetch_method, sort_key=sort_key, sort_dir=sort_dir
-                )
-
-                items_evaluated = len(all_records)
-                logger.info(
-                    "records_fetched",
-                    strategy=strategy_name,
-                    total_records=items_evaluated,
-                    instance_id=instance.id,
-                )
+                # Step 1: Fetch all records (or use prefetched)
+                if prefetched_records is not None:
+                    all_records = prefetched_records
+                    items_evaluated = len(all_records)
+                    logger.info(
+                        "prefetched_records_used",
+                        strategy=strategy_name,
+                        total_records=items_evaluated,
+                        instance_id=instance.id,
+                    )
+                else:
+                    all_records = await self._fetch_all_records(
+                        client, fetch_method, sort_key=sort_key, sort_dir=sort_dir
+                    )
+                    items_evaluated = len(all_records)
+                    logger.info(
+                        "records_fetched",
+                        strategy=strategy_name,
+                        total_records=items_evaluated,
+                        instance_id=instance.id,
+                    )
 
                 # Step 2: Batch-load library items
                 library_items = self._load_library_items(db, instance.id)
@@ -984,11 +998,14 @@ class SearchQueueManager:
         effective_max_items: int | None = None,
         override_cooldowns: bool = False,
     ) -> dict[str, Any]:
-        """
-        Execute custom strategy with user-defined filters.
+        """Execute custom strategy with user-defined filters.
+
+        Fetches records from one or more sources (missing, cutoff_unmet),
+        deduplicates them, applies custom filters via apply_custom_filters(),
+        then feeds the filtered records into the standard scoring/search pipeline.
 
         Args:
-            queue: Search queue
+            queue: Search queue with filters JSON
             instance: Instance to search on
             db: Database session
             effective_max_items: Override for max items per run (from Prowlarr budget)
@@ -997,26 +1014,89 @@ class SearchQueueManager:
         Returns:
             dict: Execution results
         """
-        logger.info("executing_custom_strategy", instance_type=instance.instance_type)
+        logger.info(
+            "executing_custom_strategy",
+            instance_type=instance.instance_type,
+            queue_id=queue.id,
+            instance_id=instance.id,
+        )
 
         # Parse custom filters
-        filters = {}
+        filters: dict[str, Any] = {}
         if queue.filters:
             try:
                 filters = json.loads(queue.filters)
             except json.JSONDecodeError as err:
                 raise SearchQueueError("Invalid custom filters JSON") from err
 
-        # For now, custom strategy defaults to missing strategy
-        # In a real implementation, you would apply the custom filters
-        logger.warning("custom_strategy_using_missing_fallback", filters=filters)
+        sources: list[str] = filters.get("sources", ["missing"])
 
-        return await self._execute_missing_strategy(
-            queue,
-            instance,
-            db,
+        # Fetch from all configured sources
+        api_key = decrypt_api_key(instance.api_key)
+        is_sonarr = instance.instance_type == "sonarr"
+        client_cls = SonarrClient if is_sonarr else RadarrClient
+
+        all_records: list[dict[str, Any]] = []
+        seen_keys: set[tuple[int, int]] = set()
+
+        async with client_cls(
+            url=instance.url,
+            api_key=api_key,
+            verify_ssl=instance.verify_ssl,
+            rate_limit_per_second=instance.rate_limit_per_second or 5,
+        ) as client:
+            for source in sources:
+                fetch_method = (
+                    "get_wanted_missing"
+                    if source == "missing"
+                    else "get_wanted_cutoff"
+                )
+                records = await self._fetch_all_records(client, fetch_method)
+                for record in records:
+                    series_id = (
+                        record.get("seriesId")
+                        or record.get("series", {}).get("id", 0)
+                    )
+                    record_id = record.get("id", 0)
+                    key = (series_id, record_id)
+                    if key not in seen_keys:
+                        seen_keys.add(key)
+                        all_records.append(record)
+
+        logger.info(
+            "custom_strategy_records_fetched",
+            sources=sources,
+            total_records=len(all_records),
+            queue_id=queue.id,
+            instance_id=instance.id,
+        )
+
+        # Load library items for filtering
+        library_items = self._load_library_items(db, instance.id)
+
+        # Apply custom filters
+        filtered_records = apply_custom_filters(all_records, library_items, filters)
+
+        logger.info(
+            "custom_strategy_filters_applied",
+            total=len(all_records),
+            after_filters=len(filtered_records),
+            queue_id=queue.id,
+            instance_id=instance.id,
+        )
+
+        # Feed into the standard pipeline with prefetched records
+        return await self._search_paginated_records(
+            queue=queue,
+            instance=instance,
+            db=db,
+            fetch_method=None,
+            strategy_name="custom",
+            sort_key=None,
+            sort_dir=None,
             effective_max_items=effective_max_items,
             override_cooldowns=override_cooldowns,
+            prefetched_records=filtered_records,
         )
 
     _STRATEGY_PARAMS: dict[str, tuple[str, str, str | None, str | None]] = {
