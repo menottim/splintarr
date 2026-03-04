@@ -79,6 +79,30 @@ class SearchQueue(Base):
         nullable=True,
         comment="Interval between searches in hours (for recurring searches)",
     )
+    schedule_mode = Column(
+        String(10),
+        default="interval",
+        server_default="interval",
+        nullable=False,
+        comment="Schedule mode: interval, daily, or weekly",
+    )
+    schedule_time = Column(
+        String(5),
+        nullable=True,
+        comment="Time of day for daily/weekly modes (HH:MM format)",
+    )
+    schedule_days = Column(
+        String(20),
+        nullable=True,
+        comment="Comma-separated days for weekly mode (mon,tue,wed,thu,fri,sat,sun)",
+    )
+    jitter_minutes = Column(
+        Integer,
+        default=0,
+        server_default="0",
+        nullable=False,
+        comment="Random jitter in minutes (0-15) to prevent thundering herd",
+    )
     next_run = Column(
         DateTime,
         nullable=True,

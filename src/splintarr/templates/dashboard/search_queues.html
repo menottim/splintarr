@@ -61,7 +61,14 @@
             <dt>Type</dt>
             <dd>
                 {% if queue.is_recurring %}
-                🔄 Recurring (every {{ queue.interval_hours }}h)
+                {% if queue.schedule_mode == 'daily' %}
+                🔄 Daily at {{ queue.schedule_time or '03:00' }}
+                {% elif queue.schedule_mode == 'weekly' %}
+                🔄 {{ queue.schedule_days|replace(',', ', ')|title if queue.schedule_days else 'Mon, Wed, Fri' }} at {{ queue.schedule_time or '03:00' }}
+                {% else %}
+                🔄 Every {{ queue.interval_hours }}h
+                {% endif %}
+                {% if queue.jitter_minutes %}<small style="color:var(--muted-color);">(+{{ queue.jitter_minutes }}m jitter)</small>{% endif %}
                 {% else %}
                 One-time
                 {% endif %}
@@ -201,11 +208,47 @@
                 <small>When enabled, this queue will re-run automatically on a schedule. One-time queues run once and stop.</small>
             </label>
 
-            <label for="interval_hours" id="intervalLabel" style="display: none;">
-                Interval (hours)
-                <input type="number" id="interval_hours" name="interval_hours" min="1" max="168" placeholder="24">
-                <small>How often to run this search (1-168 hours)</small>
-            </label>
+            <div id="scheduleOptions" style="display: none;">
+                <label for="schedule_mode">Schedule Mode
+                    <select id="schedule_mode" name="schedule_mode">
+                        <option value="interval">Every N hours</option>
+                        <option value="daily">Daily at specific time</option>
+                        <option value="weekly">Weekly on specific days</option>
+                    </select>
+                </label>
+
+                <div id="scheduleIntervalRow">
+                    <label for="interval_hours">Interval (hours)
+                        <input type="number" id="interval_hours" name="interval_hours" min="1" max="168" placeholder="24">
+                    </label>
+                </div>
+
+                <div id="scheduleTimeRow" style="display: none;">
+                    <label for="schedule_time">Time
+                        <input type="time" id="schedule_time" name="schedule_time" value="03:00">
+                    </label>
+                </div>
+
+                <div id="scheduleDaysRow" style="display: none;">
+                    <fieldset style="padding: 0.5rem;">
+                        <legend>Days</legend>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                            <label style="margin-bottom:0;"><input type="checkbox" name="schedule_day" value="mon" checked> Mon</label>
+                            <label style="margin-bottom:0;"><input type="checkbox" name="schedule_day" value="tue"> Tue</label>
+                            <label style="margin-bottom:0;"><input type="checkbox" name="schedule_day" value="wed" checked> Wed</label>
+                            <label style="margin-bottom:0;"><input type="checkbox" name="schedule_day" value="thu"> Thu</label>
+                            <label style="margin-bottom:0;"><input type="checkbox" name="schedule_day" value="fri" checked> Fri</label>
+                            <label style="margin-bottom:0;"><input type="checkbox" name="schedule_day" value="sat"> Sat</label>
+                            <label style="margin-bottom:0;"><input type="checkbox" name="schedule_day" value="sun"> Sun</label>
+                        </div>
+                    </fieldset>
+                </div>
+
+                <label for="jitter_minutes">Jitter (minutes)
+                    <input type="number" id="jitter_minutes" name="jitter_minutes" min="0" max="15" value="0">
+                    <small style="display:block;color:var(--muted-color);">Random offset to prevent all queues running at exactly the same time</small>
+                </label>
+            </div>
 
             <label>
                 Cooldown Mode
@@ -330,9 +373,45 @@
                 <input type="number" id="edit-max-items" min="1" max="500" value="50">
             </label>
 
-            <label for="edit-interval">
-                Interval (hours)
-                <input type="number" id="edit-interval" min="1" max="168" value="24">
+            <label for="edit-schedule-mode">Schedule Mode
+                <select id="edit-schedule-mode">
+                    <option value="interval">Every N hours</option>
+                    <option value="daily">Daily at specific time</option>
+                    <option value="weekly">Weekly on specific days</option>
+                </select>
+            </label>
+
+            <div id="edit-schedule-interval-row">
+                <label for="edit-interval">
+                    Interval (hours)
+                    <input type="number" id="edit-interval" min="1" max="168" value="24">
+                </label>
+            </div>
+
+            <div id="edit-schedule-time-row" style="display: none;">
+                <label for="edit-schedule-time">Time
+                    <input type="time" id="edit-schedule-time" value="03:00">
+                </label>
+            </div>
+
+            <div id="edit-schedule-days-row" style="display: none;">
+                <fieldset style="padding: 0.5rem;">
+                    <legend>Days</legend>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        <label style="margin-bottom:0;"><input type="checkbox" name="edit-schedule-day" value="mon" checked> Mon</label>
+                        <label style="margin-bottom:0;"><input type="checkbox" name="edit-schedule-day" value="tue"> Tue</label>
+                        <label style="margin-bottom:0;"><input type="checkbox" name="edit-schedule-day" value="wed" checked> Wed</label>
+                        <label style="margin-bottom:0;"><input type="checkbox" name="edit-schedule-day" value="thu"> Thu</label>
+                        <label style="margin-bottom:0;"><input type="checkbox" name="edit-schedule-day" value="fri" checked> Fri</label>
+                        <label style="margin-bottom:0;"><input type="checkbox" name="edit-schedule-day" value="sat"> Sat</label>
+                        <label style="margin-bottom:0;"><input type="checkbox" name="edit-schedule-day" value="sun"> Sun</label>
+                    </div>
+                </fieldset>
+            </div>
+
+            <label for="edit-jitter-minutes">Jitter (minutes)
+                <input type="number" id="edit-jitter-minutes" min="0" max="15" value="0">
+                <small style="display:block;color:var(--muted-color);">Random offset to prevent all queues running at exactly the same time</small>
             </label>
 
             <label for="edit-cooldown-mode">
@@ -392,6 +471,12 @@ var INSTANCE_TYPES = {
 };
 
 document.getElementById('recurring').addEventListener('change', toggleRecurring);
+document.getElementById('schedule_mode').addEventListener('change', function() {
+    var mode = this.value;
+    document.getElementById('scheduleIntervalRow').style.display = mode === 'interval' ? '' : 'none';
+    document.getElementById('scheduleTimeRow').style.display = (mode === 'daily' || mode === 'weekly') ? '' : 'none';
+    document.getElementById('scheduleDaysRow').style.display = mode === 'weekly' ? '' : 'none';
+});
 document.getElementById('cooldown_mode').addEventListener('change', function() {
     document.getElementById('flatCooldownRow').style.display =
         this.value === 'flat' ? '' : 'none';
@@ -481,16 +566,14 @@ document.addEventListener('click', function(e) {
 });
 
 function toggleRecurring() {
-    const recurring = document.getElementById('recurring').checked;
-    const intervalLabel = document.getElementById('intervalLabel');
-    const intervalInput = document.getElementById('interval_hours');
+    var recurring = document.getElementById('recurring').checked;
+    var scheduleOptions = document.getElementById('scheduleOptions');
 
     if (recurring) {
-        intervalLabel.style.display = 'block';
-        intervalInput.required = true;
+        scheduleOptions.style.display = '';
+        document.getElementById('schedule_mode').dispatchEvent(new Event('change'));
     } else {
-        intervalLabel.style.display = 'none';
-        intervalInput.required = false;
+        scheduleOptions.style.display = 'none';
     }
     updateSuggestedName();
 }
@@ -528,14 +611,26 @@ function getFormData() {
     var cooldownMode = document.getElementById('cooldown_mode').value;
     var seasonPackEnabled = document.getElementById('season_pack_enabled').checked;
     var strategy = document.getElementById('strategy').value;
+    var isRecurring = document.getElementById('recurring').checked;
+    var scheduleMode = document.getElementById('schedule_mode').value;
     var data = {
         instance_id: parseInt(document.getElementById('instance_id').value),
         name: document.getElementById('name').value,
         strategy: strategy,
-        recurring: document.getElementById('recurring').checked,
-        interval_hours: document.getElementById('recurring').checked
+        recurring: isRecurring,
+        interval_hours: (isRecurring && scheduleMode === 'interval')
             ? parseInt(document.getElementById('interval_hours').value)
             : null,
+        schedule_mode: isRecurring ? scheduleMode : 'interval',
+        schedule_time: (isRecurring && (scheduleMode === 'daily' || scheduleMode === 'weekly'))
+            ? (document.getElementById('schedule_time').value || null)
+            : null,
+        schedule_days: (isRecurring && scheduleMode === 'weekly')
+            ? (Array.from(document.querySelectorAll('input[name="schedule_day"]:checked')).map(function(c) { return c.value; }).join(',') || null)
+            : null,
+        jitter_minutes: isRecurring
+            ? (parseInt(document.getElementById('jitter_minutes').value) || 0)
+            : 0,
         cooldown_mode: cooldownMode,
         cooldown_hours: cooldownMode === 'flat'
             ? parseInt(document.getElementById('cooldown_hours').value)
@@ -789,11 +884,22 @@ async function cloneQueue(queueId) {
 
     var recurringCheckbox = document.getElementById('recurring');
     recurringCheckbox.checked = queue.recurring;
-    toggleRecurring();
 
+    // Set schedule fields before toggleRecurring
+    document.getElementById('schedule_mode').value = queue.schedule_mode || 'interval';
     if (queue.interval_hours) {
         document.getElementById('interval_hours').value = queue.interval_hours;
     }
+    document.getElementById('schedule_time').value = queue.schedule_time || '03:00';
+    document.getElementById('jitter_minutes').value = queue.jitter_minutes || 0;
+    if (queue.schedule_days) {
+        var cloneDays = queue.schedule_days.split(',');
+        document.querySelectorAll('input[name="schedule_day"]').forEach(function(cb) {
+            cb.checked = cloneDays.indexOf(cb.value) >= 0;
+        });
+    }
+
+    toggleRecurring();
 
     if (queue.cooldown_mode) {
         document.getElementById('cooldown_mode').value = queue.cooldown_mode;
@@ -836,9 +942,9 @@ async function cloneQueue(queueId) {
 }
 
 var PRESETS = {
-    'aggressive-missing': { strategy: 'missing', recurring: true, interval_hours: 1, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, budget_aware: true, nameSuffix: 'Aggressive Missing' },
-    'weekly-cutoff': { strategy: 'cutoff_unmet', recurring: true, interval_hours: 168, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, budget_aware: true, nameSuffix: 'Weekly Cutoff Unmet' },
-    'new-releases': { strategy: 'recent', recurring: true, interval_hours: 4, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, budget_aware: true, nameSuffix: 'New Releases' }
+    'aggressive-missing': { strategy: 'missing', recurring: true, interval_hours: 1, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, budget_aware: true, schedule_mode: 'interval', jitter_minutes: 5, nameSuffix: 'Aggressive Missing' },
+    'weekly-cutoff': { strategy: 'cutoff_unmet', recurring: true, interval_hours: 168, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, budget_aware: true, schedule_mode: 'weekly', schedule_time: '03:00', schedule_days: 'mon,thu', jitter_minutes: 10, nameSuffix: 'Weekly Cutoff Unmet' },
+    'new-releases': { strategy: 'recent', recurring: true, interval_hours: 4, cooldown_mode: 'adaptive', max_items_per_run: 50, season_pack_enabled: false, budget_aware: true, schedule_mode: 'interval', jitter_minutes: 5, nameSuffix: 'New Releases' }
 };
 
 function applyPreset(presetKey) {
@@ -850,11 +956,29 @@ function applyPreset(presetKey) {
 
     var recurringCheckbox = document.getElementById('recurring');
     recurringCheckbox.checked = preset.recurring;
-    toggleRecurring();
 
+    // Set schedule fields before toggleRecurring so dispatchEvent picks them up
+    document.getElementById('schedule_mode').value = preset.schedule_mode || 'interval';
     if (preset.interval_hours) {
         document.getElementById('interval_hours').value = preset.interval_hours;
     }
+    document.getElementById('schedule_time').value = preset.schedule_time || '03:00';
+    document.getElementById('jitter_minutes').value = preset.jitter_minutes || 0;
+
+    // Set day checkboxes from preset
+    if (preset.schedule_days) {
+        var presetDays = preset.schedule_days.split(',');
+        document.querySelectorAll('input[name="schedule_day"]').forEach(function(cb) {
+            cb.checked = presetDays.indexOf(cb.value) >= 0;
+        });
+    } else {
+        // Reset to defaults (Mon, Wed, Fri)
+        document.querySelectorAll('input[name="schedule_day"]').forEach(function(cb) {
+            cb.checked = ['mon', 'wed', 'fri'].indexOf(cb.value) >= 0;
+        });
+    }
+
+    toggleRecurring();
 
     document.getElementById('cooldown_mode').value = preset.cooldown_mode || 'adaptive';
     document.getElementById('flatCooldownRow').style.display =
@@ -936,6 +1060,20 @@ async function editQueue(queueId, instanceName) {
         document.getElementById('edit-strategy').value = queue.strategy;
         document.getElementById('edit-max-items').value = queue.max_items_per_run;
         document.getElementById('edit-interval').value = queue.interval_hours || 24;
+        document.getElementById('edit-schedule-mode').value = queue.schedule_mode || 'interval';
+        document.getElementById('edit-schedule-time').value = queue.schedule_time || '03:00';
+        document.getElementById('edit-jitter-minutes').value = queue.jitter_minutes || 0;
+        if (queue.schedule_days) {
+            var days = queue.schedule_days.split(',');
+            document.querySelectorAll('input[name="edit-schedule-day"]').forEach(function(cb) {
+                cb.checked = days.indexOf(cb.value) >= 0;
+            });
+        } else {
+            document.querySelectorAll('input[name="edit-schedule-day"]').forEach(function(cb) {
+                cb.checked = false;
+            });
+        }
+        document.getElementById('edit-schedule-mode').dispatchEvent(new Event('change'));
         document.getElementById('edit-cooldown-mode').value = queue.cooldown_mode || 'adaptive';
         document.getElementById('edit-cooldown-hours').value = queue.cooldown_hours || 24;
         document.getElementById('edit-flat-cooldown-row').style.display =
@@ -962,6 +1100,12 @@ async function editQueue(queueId, instanceName) {
     }
 }
 
+document.getElementById('edit-schedule-mode').addEventListener('change', function() {
+    var mode = this.value;
+    document.getElementById('edit-schedule-interval-row').style.display = mode === 'interval' ? '' : 'none';
+    document.getElementById('edit-schedule-time-row').style.display = (mode === 'daily' || mode === 'weekly') ? '' : 'none';
+    document.getElementById('edit-schedule-days-row').style.display = mode === 'weekly' ? '' : 'none';
+});
 document.getElementById('edit-cooldown-mode').addEventListener('change', function() {
     document.getElementById('edit-flat-cooldown-row').style.display =
         this.value === 'flat' ? '' : 'none';
@@ -1075,11 +1219,22 @@ document.getElementById('edit-queue-form').addEventListener('submit', async func
         }
     }
 
+    var editScheduleMode = document.getElementById('edit-schedule-mode').value;
     var payload = {
         name: document.getElementById('edit-name').value,
         strategy: editStrategy,
         max_items_per_run: parseInt(document.getElementById('edit-max-items').value),
-        interval_hours: parseInt(document.getElementById('edit-interval').value),
+        interval_hours: editScheduleMode === 'interval'
+            ? parseInt(document.getElementById('edit-interval').value)
+            : null,
+        schedule_mode: editScheduleMode,
+        schedule_time: (editScheduleMode === 'daily' || editScheduleMode === 'weekly')
+            ? (document.getElementById('edit-schedule-time').value || null)
+            : null,
+        schedule_days: editScheduleMode === 'weekly'
+            ? (Array.from(document.querySelectorAll('input[name="edit-schedule-day"]:checked')).map(function(c) { return c.value; }).join(',') || null)
+            : null,
+        jitter_minutes: parseInt(document.getElementById('edit-jitter-minutes').value) || 0,
         cooldown_mode: cooldownMode,
         cooldown_hours: cooldownMode === 'flat'
             ? parseInt(document.getElementById('edit-cooldown-hours').value)

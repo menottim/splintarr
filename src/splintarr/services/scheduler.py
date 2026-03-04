@@ -33,6 +33,50 @@ from splintarr.services.search_queue import SearchQueueManager
 logger = structlog.get_logger()
 
 
+def _build_trigger_kwargs(
+    schedule_mode: str | None,
+    interval_hours: int | None,
+    schedule_time: str | None,
+    schedule_days: str | None,
+    jitter_minutes: int,
+) -> dict[str, Any]:
+    """Build APScheduler trigger kwargs based on schedule mode."""
+    jitter_seconds = jitter_minutes * 60 if jitter_minutes else 0
+
+    if schedule_mode == "daily" and schedule_time:
+        hour, minute = int(schedule_time.split(":")[0]), int(schedule_time.split(":")[1])
+        kwargs: dict[str, Any] = {"trigger": "cron", "hour": hour, "minute": minute}
+        if jitter_seconds:
+            kwargs["jitter"] = jitter_seconds
+        return kwargs
+
+    if schedule_mode == "weekly" and schedule_time and schedule_days:
+        hour, minute = int(schedule_time.split(":")[0]), int(schedule_time.split(":")[1])
+        kwargs = {
+            "trigger": "cron",
+            "day_of_week": schedule_days,
+            "hour": hour,
+            "minute": minute,
+        }
+        if jitter_seconds:
+            kwargs["jitter"] = jitter_seconds
+        return kwargs
+
+    # Default: interval mode (also used as fallback for misconfigured daily/weekly)
+    if schedule_mode and schedule_mode != "interval":
+        logger.warning(
+            "schedule_mode_fallback_to_interval",
+            schedule_mode=schedule_mode,
+            schedule_time=schedule_time,
+            schedule_days=schedule_days,
+            reason="missing required fields for requested mode",
+        )
+    kwargs = {"trigger": "interval", "hours": interval_hours or 24}
+    if jitter_seconds:
+        kwargs["jitter"] = jitter_seconds
+    return kwargs
+
+
 class SearchSchedulerError(Exception):
     """Base exception for search scheduler errors."""
 
@@ -322,21 +366,26 @@ class SearchScheduler:
                 run_time = queue.next_run or datetime.utcnow()
 
                 # Schedule job
-                if queue.is_recurring and queue.interval_hours:
-                    # Recurring job with interval
+                if queue.is_recurring:
+                    trigger_kwargs = _build_trigger_kwargs(
+                        schedule_mode=getattr(queue, "schedule_mode", "interval"),
+                        interval_hours=queue.interval_hours,
+                        schedule_time=getattr(queue, "schedule_time", None),
+                        schedule_days=getattr(queue, "schedule_days", None),
+                        jitter_minutes=getattr(queue, "jitter_minutes", 0),
+                    )
                     self.scheduler.add_job(
                         self._execute_search_queue,
-                        trigger="interval",
-                        hours=queue.interval_hours,
                         id=job_id,
                         args=[queue_id],
                         next_run_time=run_time,
                         replace_existing=True,
+                        **trigger_kwargs,
                     )
                     logger.info(
                         "scheduled_recurring_queue",
                         queue_id=queue_id,
-                        interval_hours=queue.interval_hours,
+                        schedule_mode=getattr(queue, "schedule_mode", "interval"),
                         next_run=run_time,
                     )
                 else:
