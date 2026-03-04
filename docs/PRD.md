@@ -2,7 +2,7 @@
 
 > **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. This is the sole source of truth; versioned PRDs have been retired.
 
-**Last updated:** 2026-03-04 (v1.2.0: Custom Strategy Filters)
+**Last updated:** 2026-03-04 (v1.2.1: Notifications & Polish)
 
 ---
 
@@ -198,6 +198,12 @@ Feature status across all releases (Sonarr only; Radarr support deferred to post
 ### v1.2.0
 
 - **Custom Strategy Filters** (PR #119) — New "Custom" strategy with dropdown filters: year range, quality profile, series status (continuing/ended/upcoming). Missing + Cutoff Unmet can be combined (explicit opt-in exception to strategy isolation). Quality profiles auto-populated from library data. Integrates with dry run/preview mode. 72 tests. [Spec →](#20-custom-strategy-filters)
+
+### v1.2.1
+
+- **Discord Notification Enhancements** (PR #120) — Fix library_sync toggle (bug), add update_available and grab_confirmed notifications, remove zero-result gate. 6 total notification event types.
+- **Fix "Unknown" Series in Analytics** (PR #121) — Add `includeSeries=true` to Sonarr API calls, regex-based series name extraction in analytics.
+- **Auto Library Sync on Instance Add** (PR #122) — Trigger sync on instance creation, deferred sync on first dashboard visit after setup wizard.
 
 ---
 
@@ -627,3 +633,4 @@ Companion to Config Export (v0.2.1). Upload JSON to restore instances, queues, e
 | 2026-03-03 | v1.1.0: All 6 Visibility features shipped (PRs #111-#116). WebSocket, Demo Mode, Search Progress, Dry Run Preview, Mini Analytics, Bulk Queue Ops. Code simplification (-34 lines). Security audit: 0 Critical, 0 High, 3 Medium (all addressed). |
 | 2026-03-04 | v1.1.1: Automatic Update Checker (PRs #117-#118). GitHub Releases API check every 24h, dismissible dashboard banner, Settings toggle. 38 tests. |
 | 2026-03-04 | v1.2.0: Custom Strategy Filters (PR #119). Year/quality/status dropdown filters, combined Missing+Cutoff Unmet. 72 tests. Features #21-23 moved to v1.3.0. |
+| 2026-03-04 | v1.2.1: Discord notifications (6 event types, PRs #120), Unknown series fix (#121), auto library sync (#122). |

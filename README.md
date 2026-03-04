@@ -4,9 +4,9 @@
 
 <h1 align="center">Splintarr</h1>
 
-<p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.2.0">Version 1.2.0</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
+<p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.2.1">Version 1.2.1</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
 
-> **Status: v1.2.0 -- Smart Searching**
+> **Status: v1.2.1 -- Notifications & Polish**
 >
 > Splintarr is ready for use by homelab enthusiasts. Tested on Docker Desktop for Windows; Linux and macOS Docker environments are expected to work but have not been independently verified. **Radarr support is planned for a future release; currently supports Sonarr only.** This is AI-generated code (Claude Code) — treat accordingly.
 
@@ -109,7 +109,7 @@ Documentation is organized following the [Diataxis](https://diataxis.fr/) framew
 
 ### Release Information
 
-- **[Release Notes v1.2.0](RELEASE_NOTES.md)** -- What's in the current release
+- **[Release Notes v1.2.1](RELEASE_NOTES.md)** -- What's in the current release
 - **[Release History](https://github.com/menottim/splintarr/wiki/Release-History)** -- Complete version history
 
 ### Screenshots

@@ -139,6 +139,20 @@ docker run -d \
 - All existing data compatible
 - Secrets remain unchanged
 
+### Upgrading to v1.2.1
+
+**From:** v1.2.0
+
+**Breaking Changes:** None
+
+**New Features:** Discord notification enhancements (6 event types), "Unknown" series fix, auto library sync on instance add
+
+**Steps:**
+1. Pull latest image: `docker-compose pull`
+2. Restart: `docker-compose up -d`
+
+No database migrations required. New notification toggles default to enabled for new installs.
+
 ### Upgrading to v1.2.0
 
 **From:** v1.1.x

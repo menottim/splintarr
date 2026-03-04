@@ -1,27 +1,34 @@
-# Splintarr v1.2.0 Release Notes
+# Splintarr v1.2.1 Release Notes
 
 **Release Date:** 2026-03-04
-**Theme:** Smart Searching
+**Theme:** Notifications & Polish
 
-## What's New in v1.2.0
+## What's New in v1.2.1
 
-### Custom Strategy Filters (PR #119)
+### Discord Notification Enhancements (PRs #120)
 
-- **New "Custom" strategy** with dropdown filters for targeted searching:
-  - **Year range** — filter by release year (e.g., 2020-2024)
-  - **Quality profile** — target specific profiles from your library
-  - **Series status** — filter by continuing, ended, or upcoming
-- **Combined Missing + Cutoff Unmet** — explicit opt-in exception to strategy isolation, so you can search for both missing and upgradeable content in one queue
-- **Quality profiles auto-populated** from your library data (no manual entry)
-- **Dry run integration** — preview what custom filters will match before running
-- **Edit support** — existing filter settings pre-populated in the edit modal
-- 72 new tests (unit + integration)
+- **Fix library_sync toggle** — existed in Settings UI but had no handler (bug fix)
+- **Update available notification** — fires once when the update checker detects a newer version
+- **Zero-result search notifications** — search summaries now sent even when nothing was found (red embed)
+- **Grab confirmed notification** — fires after feedback check with grab/no-grab counts
+- 2 new Settings toggles (Update Available, Grab Confirmed), setup wizard defaults updated
 
-### Scope Note
+### Bug Fix: "Unknown" Series in Analytics (PR #121)
 
-Features #21-23 (Indexer Budget Visibility, Quality-Aware Search Intelligence, Queue Scheduling Improvements) have been moved to v1.3.0.
+- Add `includeSeries=true` to Sonarr wanted/missing and wanted/cutoff API calls so episode records include series titles
+- Fix analytics series name extraction — regex-based parsing replaces naive `split(" S")` which broke titles containing capital-S words (e.g., "The Simpsons", "Unknown Series")
 
-## Upgrading from v1.1.1
+### Auto Library Sync on Instance Add (PR #122)
+
+- **Normal instance add** triggers library sync immediately in background
+- **Setup wizard** defers sync until first dashboard visit (no sync during wizard flow)
+- Idempotent — `_sync_in_progress` guard prevents duplicate syncs
+
+### Fixes
+
+- Notification exception isolation — notification failures no longer clear update checker state (dab0695)
+
+## Upgrading from v1.2.0
 
 Pull the latest image and restart:
 
@@ -30,7 +37,7 @@ docker-compose pull
 docker-compose up -d
 ```
 
-No database migrations required. The Custom strategy uses existing database columns.
+No database migrations required. New notification event toggles default to enabled for new installs; existing users will see them after re-saving notification settings.
 
 ## Feedback
 
