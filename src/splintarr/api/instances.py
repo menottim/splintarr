@@ -15,7 +15,7 @@ All endpoints require JWT authentication and enforce rate limiting.
 from typing import Annotated, Any
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
 from slowapi import Limiter
@@ -90,6 +90,7 @@ def instance_to_response(instance: Instance) -> InstanceResponse:
 async def create_instance(
     request: Request,
     instance_data: InstanceCreate,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ) -> InstanceResponse:
@@ -189,6 +190,20 @@ async def create_instance(
                 instance_id=instance.id,
                 error=str(e),
             )
+
+        # Trigger library sync in background so data is available immediately
+        try:
+            from splintarr.api.library import _run_sync_all_background, _sync_in_progress
+
+            if not _sync_in_progress:
+                background_tasks.add_task(_run_sync_all_background)
+                logger.info(
+                    "library_sync_auto_triggered",
+                    instance_id=instance.id,
+                    trigger="instance_created",
+                )
+        except Exception as e:
+            logger.warning("library_sync_auto_trigger_failed", error=str(e))
 
         return instance_to_response(instance)
 
