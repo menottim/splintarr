@@ -200,6 +200,7 @@ async def create_instance(
                 logger.info(
                     "library_sync_auto_triggered",
                     instance_id=instance.id,
+                    user_id=current_user.id,
                     trigger="instance_created",
                 )
         except Exception as e:

@@ -20,7 +20,17 @@ from datetime import datetime, timedelta
 from typing import Annotated, Any
 
 import structlog
-from fastapi import APIRouter, Cookie, Depends, Form, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Cookie,
+    Depends,
+    Form,
+    Query,
+    Request,
+    Response,
+    status,
+)
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from slowapi import Limiter
 from sqlalchemy import case, func
@@ -694,6 +704,7 @@ async def setup_complete(
 @router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard_index(
     request: Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
 ) -> Response:
@@ -702,17 +713,17 @@ async def dashboard_index(
     """
     demo_mode = is_demo_active(db, current_user.id)
 
+    # Compute onboarding state once (reused in template context below)
+    onboarding = get_onboarding_state(db, current_user.id)
+
     # Auto-trigger library sync on first dashboard visit after setup wizard
     # (instance exists but library hasn't been synced yet)
     if not demo_mode:
-        onboarding = get_onboarding_state(db, current_user.id)
         if onboarding["has_instances"] and not onboarding["has_library"]:
             from splintarr.api.library import _run_sync_all_background, _sync_in_progress
 
             if not _sync_in_progress:
-                import asyncio
-
-                asyncio.ensure_future(_run_sync_all_background())
+                background_tasks.add_task(_run_sync_all_background)
                 logger.info(
                     "library_sync_auto_triggered",
                     user_id=current_user.id,
@@ -770,7 +781,7 @@ async def dashboard_index(
             "integrations": integrations,
             "services": services,
             "active_page": "dashboard",
-            "onboarding": get_onboarding_state(db, current_user.id),
+            "onboarding": onboarding,
             "demo_mode": demo_mode,
             "update_available": update_available,
             "update_latest_version": latest,
