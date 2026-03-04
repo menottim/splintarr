@@ -167,6 +167,24 @@
     </div>
 </article>
 
+<!-- Completion Progress -->
+<article id="completion-card" style="display: none;">
+    <header>
+        <h3>Completion Progress</h3>
+    </header>
+    <div id="completion-tabs" style="margin-bottom: 0.75rem;">
+        <small>
+            <a href="#" data-completion-tab="most_incomplete" class="completion-tab-active" style="margin-right: 0.75rem; font-weight: 600;">Most Incomplete</a>
+            <a href="#" data-completion-tab="closest_to_complete" style="margin-right: 0.75rem; color: var(--muted-color);">Closest to Complete</a>
+            <a href="#" data-completion-tab="recently_aired" style="color: var(--muted-color);">Recently Aired</a>
+        </small>
+    </div>
+    <div id="completion-list"></div>
+    <div style="margin-top: 0.5rem;">
+        <small><a href="/dashboard/library">View full library</a></small>
+    </div>
+</article>
+
 <!-- Indexer Health (only shown if Prowlarr configured) -->
 <div id="indexer-health-section" style="display: none;">
     <article>
@@ -389,6 +407,94 @@
     }
 })();
 {% endif %}
+
+// Completion Progress card
+(async function() {
+    try {
+        var response = await fetch('/api/library/completion');
+        if (!response.ok) return;
+        var data = await response.json();
+        window._completionData = data;
+
+        var card = document.getElementById('completion-card');
+        if (!card) return;
+
+        var hasData = data.most_incomplete.length > 0 ||
+                      data.closest_to_complete.length > 0 ||
+                      data.recently_aired.length > 0;
+        if (!hasData) return;
+
+        card.style.display = '';
+        renderCompletionList(data.most_incomplete);
+
+        document.querySelectorAll('[data-completion-tab]').forEach(function(tab) {
+            tab.addEventListener('click', function(e) {
+                e.preventDefault();
+                var key = this.dataset.completionTab;
+                renderCompletionList(window._completionData[key]);
+                document.querySelectorAll('[data-completion-tab]').forEach(function(t) {
+                    t.style.fontWeight = '';
+                    t.style.color = 'var(--muted-color)';
+                });
+                this.style.fontWeight = '600';
+                this.style.color = '';
+            });
+        });
+    } catch (e) { /* ignore */ }
+})();
+
+function renderCompletionList(items) {
+    var container = document.getElementById('completion-list');
+    if (!container) return;
+    container.textContent = '';
+
+    if (!items || items.length === 0) {
+        var empty = document.createElement('small');
+        empty.style.color = 'var(--muted-color)';
+        empty.textContent = 'No items in this category';
+        container.appendChild(empty);
+        return;
+    }
+
+    items.slice(0, 5).forEach(function(item) {
+        var row = document.createElement('a');
+        row.href = '/dashboard/library/' + item.id;
+        row.style.cssText = 'display:flex;align-items:center;gap:0.5rem;padding:0.35rem 0;text-decoration:none;color:inherit;border-bottom:1px solid var(--muted-border-color);';
+
+        var img = document.createElement('img');
+        img.src = item.poster_path ? '/posters/' + item.poster_path : '';
+        img.alt = '';
+        img.style.cssText = 'width:32px;height:48px;object-fit:cover;border-radius:3px;background:var(--muted-border-color);';
+        img.onerror = function() { this.style.display = 'none'; };
+        row.appendChild(img);
+
+        var info = document.createElement('div');
+        info.style.cssText = 'flex:1;min-width:0;';
+
+        var title = document.createElement('div');
+        title.style.cssText = 'font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        title.textContent = item.title + (item.year ? ' (' + item.year + ')' : '');
+        info.appendChild(title);
+
+        var barOuter = document.createElement('div');
+        barOuter.style.cssText = 'background:var(--muted-border-color);border-radius:3px;height:6px;width:100%;margin-top:2px;';
+        var barInner = document.createElement('div');
+        var pct = item.completion_pct;
+        var barColor = pct >= 80 ? 'var(--ins-color)' : pct >= 50 ? 'var(--mark-background-color)' : 'var(--del-color)';
+        barInner.style.cssText = 'height:100%;border-radius:3px;background:' + barColor + ';width:' + pct + '%;';
+        barOuter.appendChild(barInner);
+        info.appendChild(barOuter);
+
+        row.appendChild(info);
+
+        var count = document.createElement('small');
+        count.style.cssText = 'white-space:nowrap;color:var(--muted-color);';
+        count.textContent = item.episode_have + '/' + item.episode_count;
+        row.appendChild(count);
+
+        container.appendChild(row);
+    });
+}
 
 // Update banner dismiss
 (function() {
