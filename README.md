@@ -108,6 +108,7 @@ Documentation is organized following the [Diataxis](https://diataxis.fr/) framew
 
 - **[Architecture](docs/explanation/architecture.md)** -- System design and architectural decisions
 - **[Security](docs/explanation/security.md)** -- Security model, implementation details, and [accepted risks](docs/explanation/security.md#known-limitations-and-accepted-risks)
+- **[Huntarr Lessons](docs/explanation/huntarr-lessons.md)** -- How Splintarr addresses the 21 vulnerabilities found in Huntarr
 - **[Search Strategies](docs/explanation/search-strategies.md)** -- How different search strategies work
 
 ### Release Information
