@@ -8,6 +8,7 @@ dashboard polling. Authenticates via access_token cookie on handshake.
 import structlog
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from splintarr.config import settings
 from splintarr.core.auth import TokenError, get_current_user_id_from_token
 from splintarr.core.websocket import ws_manager
 from splintarr.database import get_session_factory
@@ -45,6 +46,24 @@ async def websocket_live(websocket: WebSocket) -> None:
         logger.warning("websocket_user_check_failed", error=str(e), user_id=user_id)
         await websocket.close(code=4001, reason="Authentication error")
         return
+
+    # Validate Origin header to prevent Cross-Site WebSocket Hijacking (CSWSH)
+    origin = websocket.headers.get("origin", "")
+    if origin:
+        allowed_origins = list(settings.cors_origins) if settings.cors_origins else []
+        # Also allow requests from the app's own host
+        host = websocket.headers.get("host", "")
+        if host:
+            local_origins = [f"http://{host}", f"https://{host}"]
+            allowed_origins.extend(local_origins)
+        if origin not in allowed_origins:
+            logger.warning(
+                "websocket_origin_rejected",
+                origin=origin,
+                user_id=user_id,
+            )
+            await websocket.close(code=4003, reason="Origin not allowed")
+            return
 
     await ws_manager.connect(websocket)
     logger.debug("websocket_client_connected", user_id=user_id)
