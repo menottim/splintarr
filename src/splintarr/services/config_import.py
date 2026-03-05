@@ -268,9 +268,20 @@ def apply_import(
         webhook_url = secrets.get("webhook_url")
         notif_data = data.get("notifications")
         # Validate webhook URL format (must be https Discord webhook)
-        if webhook_url and not webhook_url.startswith("https://"):
-            logger.warning("config_import_webhook_url_invalid", user_id=user_id)
-            webhook_url = None
+        if webhook_url:
+            if not webhook_url.startswith("https://"):
+                logger.warning("config_import_webhook_url_invalid", user_id=user_id)
+                webhook_url = None
+            else:
+                try:
+                    validate_instance_url(webhook_url, allow_local=False)
+                except Exception as e:
+                    logger.warning(
+                        "config_import_webhook_url_ssrf_blocked",
+                        user_id=user_id,
+                        error=str(e),
+                    )
+                    webhook_url = None
         if notif_data and webhook_url:
             existing_notif = (
                 db.query(NotificationConfig)

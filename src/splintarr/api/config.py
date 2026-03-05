@@ -201,6 +201,13 @@ async def import_preview(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """Validate import file and return preview of what will be imported."""
+    # Reject oversized payloads (max 1MB)
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > 1_048_576:
+        return JSONResponse(
+            status_code=413,
+            content={"detail": "Request body too large. Maximum 1MB."},
+        )
     try:
         body = await request.json()
     except Exception:
@@ -244,6 +251,13 @@ async def import_apply(
     db: Session = Depends(get_db),
 ) -> JSONResponse:
     """Apply an imported configuration with user-provided secrets."""
+    # Reject oversized payloads (max 1MB)
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > 1_048_576:
+        return JSONResponse(
+            status_code=413,
+            content={"detail": "Request body too large. Maximum 1MB."},
+        )
     try:
         body = await request.json()
     except Exception:

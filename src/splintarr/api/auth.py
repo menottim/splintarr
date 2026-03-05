@@ -234,6 +234,22 @@ async def register(
 
         db.add(user)
         db.commit()
+
+        # Post-commit race condition check
+        final_count = db.query(User).count()
+        if final_count > 1:
+            logger.warning(
+                "registration_race_detected",
+                username=user.username,
+                user_count=final_count,
+            )
+            db.delete(user)
+            db.commit()
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registration is disabled. Users already exist.",
+            )
+
         db.refresh(user)
 
         logger.info(

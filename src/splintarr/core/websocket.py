@@ -14,6 +14,8 @@ from fastapi import WebSocket
 
 logger = structlog.get_logger()
 
+MAX_WEBSOCKET_CONNECTIONS = 50
+
 
 class WebSocketManager:
     """Manages WebSocket connections and broadcasts events to all clients.
@@ -39,6 +41,14 @@ class WebSocketManager:
         Args:
             websocket: The incoming WebSocket to accept and track.
         """
+        if len(self.active_connections) >= MAX_WEBSOCKET_CONNECTIONS:
+            logger.warning(
+                "websocket_connection_limit_reached",
+                limit=MAX_WEBSOCKET_CONNECTIONS,
+                current=len(self.active_connections),
+            )
+            await websocket.close(code=4008, reason="Connection limit reached")
+            return
         await websocket.accept()
         self.active_connections.append(websocket)
         logger.info(

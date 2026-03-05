@@ -15,6 +15,7 @@ import hmac
 import secrets
 import string
 
+import structlog
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
 from cryptography.fernet import Fernet, InvalidToken
@@ -22,6 +23,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from splintarr.config import settings
+
+logger = structlog.get_logger()
 
 
 class PasswordHashingError(Exception):
@@ -277,8 +280,11 @@ class FieldEncryption:
         try:
             return self.decrypt(value)
         except EncryptionError:
-            # If decryption fails, return original value
-            # This handles legacy data that wasn't encrypted
+            # Decryption failed — likely a key rotation or corruption issue.
+            logger.warning(
+                "decryption_failed_returning_original",
+                value_prefix=value[:10] + "..." if len(value) > 10 else "[short]",
+            )
             return value
 
 

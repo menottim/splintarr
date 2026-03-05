@@ -19,20 +19,15 @@ services:
     # fixing /data permissions. This works on both Windows and Linux.
     # user directive not needed - entrypoint handles user switching
 
-    # Security: Read-only root filesystem
-    # Note: Disabled for Windows compatibility - volume mounts with non-root user
-    # have permission issues on Windows. Re-enable for Linux production deployments.
-    # read_only: true
+    # Security: Read-only root filesystem (disable for Windows: docker-compose.override.windows.yml)
+    read_only: true
 
-    # Security: Drop capabilities (but keep SETUID/SETGID for gosu)
-    # Note: On Windows, we need SETUID/SETGID for the entrypoint to switch users
-    # cap_drop:
-    #   - ALL
-    # cap_add:
-    #   - SETUID
-    #   - SETGID
-    # For simplicity on Windows, we'll skip capability dropping
-    # Re-enable for Linux production deployments
+    # Security: Drop capabilities
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
 
     # Security: No new privileges
     security_opt:

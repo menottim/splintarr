@@ -1,0 +1,7 @@
+# Windows override: disable read_only and cap_drop for compatibility.
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.override.windows.yml up -d
+services:
+  splintarr:
+    read_only: false
+    cap_drop: []
+    cap_add: []
