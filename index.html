@@ -644,8 +644,8 @@
         </div>
         <div class="feature-card fade-up stagger-5">
           <span class="feature-icon">&#x1f6e1;&#xfe0f;</span>
-          <h3>Encrypted at Rest</h3>
-          <p>The database is encrypted with SQLCipher (AES-256). Your Sonarr API keys are individually encrypted with Fernet. Passwords use Argon2id with a pepper stored separately. It's a homelab app that stores credentials, so this seemed important.</p>
+          <h3>Security Focus</h3>
+          <p>Defense in depth throughout: encrypted database (SQLCipher), individually encrypted API keys (Fernet), Argon2id password hashing with a separate pepper, CSP nonces on every response, SSRF protection on instance URLs, and rate limiting on all endpoints. Seven rounds of security review so far.</p>
         </div>
         <div class="feature-card fade-up stagger-6">
           <span class="feature-icon">&#x1f433;</span>
