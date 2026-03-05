@@ -11,6 +11,8 @@
 >
 > Splintarr is ready for use by homelab enthusiasts. Tested on Docker Desktop for Windows; Linux and macOS Docker environments are expected to work but have not been independently verified. **Radarr support is planned for a future release; currently supports Sonarr only.** This is AI-generated code (Claude Code) — treat accordingly.
 
+> **Is this Huntarr all over again?** No. Splintarr was built with awareness of the [Huntarr security incident](https://github.com/rfsbraz/huntarr-security-review). Every endpoint requires authentication, credentials are encrypted and never in API responses, there are no file uploads or path traversal vectors, and the container runs non-root with a read-only filesystem. Read the [full comparison](docs/explanation/huntarr-lessons.md) mapping all 21 Huntarr findings to Splintarr's approach.
+
 ---
 
 ## Table of Contents
