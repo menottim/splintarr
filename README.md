@@ -5,6 +5,7 @@
 <h1 align="center">Splintarr</h1>
 
 <p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.3.0">Version 1.3.0</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
+<p align="center"><a href="https://menottim.github.io/splintarr/">Website</a> · <a href="https://github.com/menottim/splintarr/wiki">Documentation</a> · <a href="https://github.com/menottim/splintarr/releases">Releases</a></p>
 
 > **Status: v1.3.0 -- Polish & Reach**
 >
