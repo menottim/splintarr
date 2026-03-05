@@ -11,7 +11,7 @@
 >
 > Splintarr is ready for use by homelab enthusiasts. Tested on Docker Desktop for Windows; Linux and macOS Docker environments are expected to work but have not been independently verified. **Radarr support is planned for a future release; currently supports Sonarr only.** This is AI-generated code (Claude Code) — treat accordingly.
 
-> **Is this Huntarr all over again?** No. Splintarr was built with awareness of the [Huntarr security incident](https://github.com/rfsbraz/huntarr-security-review). Every endpoint requires authentication, credentials are encrypted and never in API responses, there are no file uploads or path traversal vectors, and the container runs non-root with a read-only filesystem. Read the [full comparison](docs/explanation/huntarr-lessons.md) mapping all 21 Huntarr findings to Splintarr's approach.
+> **Is this Huntarr all over again?** No. The Huntarr incident wasn't just about specific bugs. It was about a development process with no code review, no security testing, and no way to catch problems before they shipped. Splintarr has a [security policy](SECURITY.md) with private disclosure via GitHub Security Advisories, a dedicated [security test suite](tests/security/), seven rounds of review (SAST, manual audit, active pentesting), GitHub CodeQL scanning with zero open alerts, and [five documented accepted risks](docs/explanation/security.md#known-limitations-and-accepted-risks) instead of ignored ones. When four vulnerabilities were found in v1.3.0, they were [filed as advisories](https://github.com/menottim/splintarr/security/advisories), fixed, and published within the same day. Read the [full Huntarr comparison](docs/explanation/huntarr-lessons.md) for the finding-by-finding breakdown.
 
 ---
 
