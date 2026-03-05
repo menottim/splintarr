@@ -139,6 +139,20 @@ docker run -d \
 - All existing data compatible
 - Secrets remain unchanged
 
+### Upgrading to v1.3.0
+
+**From:** v1.2.x
+
+**Breaking Changes:** None
+
+**New Features:** Indexer budget visibility, completion cards, daily/weekly scheduling, config import
+
+**Steps:**
+1. Pull latest image: `docker-compose pull`
+2. Restart: `docker-compose up -d`
+
+New database columns are auto-created on startup with safe defaults. No manual migrations required.
+
 ### Upgrading to v1.2.1
 
 **From:** v1.2.0

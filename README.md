@@ -4,9 +4,9 @@
 
 <h1 align="center">Splintarr</h1>
 
-<p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.2.1">Version 1.2.1</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
+<p align="center"><strong><a href="https://github.com/menottim/splintarr/releases/tag/v1.3.0">Version 1.3.0</a></strong> | Automated backlog search for Sonarr, designed for homelab use.</p>
 
-> **Status: v1.2.1 -- Notifications & Polish**
+> **Status: v1.3.0 -- Polish & Reach**
 >
 > Splintarr is ready for use by homelab enthusiasts. Tested on Docker Desktop for Windows; Linux and macOS Docker environments are expected to work but have not been independently verified. **Radarr support is planned for a future release; currently supports Sonarr only.** This is AI-generated code (Claude Code) — treat accordingly.
 
@@ -35,7 +35,7 @@ This tool is designed for **homelab enthusiasts** running personal Sonarr instan
 
 ### Key Features
 
-- **Intelligent Search Scheduling** -- Multiple strategies (missing, cutoff unmet, recent, custom) with customizable intervals
+- **Intelligent Search Scheduling** -- Multiple strategies with interval, daily, and weekly modes plus jitter
 - **Custom Strategy Filters** -- Target searches by year range, quality profile, and series status with combined Missing + Cutoff Unmet
 - **Search Intelligence** -- Adaptive prioritization, per-episode cooldowns, and search result feedback
 - **Real-Time WebSocket Updates** -- Single connection replaces polling, with auto-reconnect and fallback
@@ -45,7 +45,9 @@ This tool is designed for **homelab enthusiasts** running personal Sonarr instan
 - **Bulk Queue Operations** -- Multi-select with bulk pause, resume, run, and delete
 - **Demo Mode** -- Synthetic data on new installs so the dashboard looks alive before setup
 - **Season Pack Detection** -- Automatically searches for season packs with individual episode fallback
-- **Prowlarr Integration** -- Indexer-aware rate limiting to prevent bans
+- **Prowlarr Integration** -- Indexer-aware rate limiting with budget progress bars and alerts
+- **Series Completion Cards** -- Visual completion progress on dashboard and Library page
+- **Config Import/Export** -- Backup and restore your configuration with encrypted API key re-entry
 - **Library Overview** -- Visual poster grid with episode-level completion tracking
 - **Content Exclusion Lists** -- Exclude specific titles from automated searches
 - **Discord Notifications** -- Alerts for search activity, instance health, and queue events
@@ -109,7 +111,7 @@ Documentation is organized following the [Diataxis](https://diataxis.fr/) framew
 
 ### Release Information
 
-- **[Release Notes v1.2.1](RELEASE_NOTES.md)** -- What's in the current release
+- **[Release Notes v1.3.0](RELEASE_NOTES.md)** -- What's in the current release
 - **[Release History](https://github.com/menottim/splintarr/wiki/Release-History)** -- Complete version history
 
 ### Screenshots

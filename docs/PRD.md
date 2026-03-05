@@ -2,7 +2,7 @@
 
 > **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. This is the sole source of truth; versioned PRDs have been retired.
 
-**Last updated:** 2026-03-04 (v1.2.1: Notifications & Polish)
+**Last updated:** 2026-03-04 (v1.3.0: Polish & Reach)
 
 ---
 
@@ -74,7 +74,7 @@ Huntarr was the most popular tool in this space until critical security vulnerab
 
 ## Feature Status
 
-Feature status across all releases (Sonarr only; Radarr support deferred to post-v1.2). Tested on Docker Desktop for Windows.
+Feature status across all releases (Sonarr only; Radarr support deferred to post-v1.3). Tested on Docker Desktop for Windows.
 
 | # | Feature | Status | Release | Notes |
 |---|---------|--------|---------|-------|
@@ -103,7 +103,11 @@ Feature status across all releases (Sonarr only; Radarr support deferred to post
 | 19 | [Bulk Queue Operations](#19-bulk-queue-operations) | **Done** | v1.1.0 | PR #116 |
 | - | [Automatic Update Checker](#automatic-update-checker) | **Done** | v1.1.1 | PRs #117, #118; GitHub Releases API |
 | 20 | [Custom Strategy Filters](#20-custom-strategy-filters) | **Done** | v1.2.0 | PR #119; Year/quality/status filters |
-| - | Radarr Support | Deferred | Post-v1.2 | Backend code exists, UI gated |
+| 21 | [Indexer Budget Visibility](#21-indexer-budget-visibility--forecasting) | **Done** | v1.3.0 | PR #123; Progress bars, alerts, auto-sizing |
+| 23 | [Queue Scheduling Improvements](#23-queue-scheduling-improvements) | **Done** | v1.3.0 | PR #125; Daily/weekly modes, jitter |
+| 25 | [Series Completion Cards](#25-series-completion-cards) | **Done** | v1.3.0 | PR #124; Dashboard + Library section |
+| 14 | [Config Import](#14-config-import) | **Done** | v1.3.0 | PR #126; Preview + atomic import |
+| - | Radarr Support | Deferred | Post-v1.3 | Backend code exists, UI gated |
 
 ---
 
@@ -204,6 +208,15 @@ Feature status across all releases (Sonarr only; Radarr support deferred to post
 - **Discord Notification Enhancements** (PR #120) — Fix library_sync toggle (bug), add update_available and grab_confirmed notifications, remove zero-result gate. 6 total notification event types.
 - **Fix "Unknown" Series in Analytics** (PR #121) — Add `includeSeries=true` to Sonarr API calls, regex-based series name extraction in analytics.
 - **Auto Library Sync on Instance Add** (PR #122) — Trigger sync on instance creation, deferred sync on first dashboard visit after setup wizard.
+
+### v1.3.0
+
+- **Indexer Budget Visibility** (PR #123) — Visual progress bars on dashboard indexer widget, budget alert Discord notifications at 80%+, smart batch auto-sizing via `budget_aware` toggle. 13 tests.
+- **Series Completion Cards** (PR #124) — Dashboard "Completion Progress" card with 3 tabs, Library page collapsible section, `/api/library/completion` endpoint. 6 tests.
+- **Queue Scheduling Improvements** (PR #125) — Daily/weekly schedule modes via CronTrigger, jitter (0-15 min), schedule mode selector in queue modal. 12 tests.
+- **Config Import** (PR #126) — Upload JSON to restore instances/queues/exclusions/notifications, preview modal with API key re-entry, atomic import with rollback, SSRF protection. 8 tests.
+- **Code Simplification** — 12→6 DB queries on dashboard, N+1 elimination, duplicate code merged.
+- **Security Hardening** — SSRF check on imported URLs, field allowlists, user-scoped notification queries.
 
 ---
 
@@ -495,7 +508,8 @@ Implement the stubbed Custom Strategy with simple dropdown filters: year range, 
 
 ## v1.3.0 — Polish & Reach
 
-> **Theme:** Broaden appeal. Smarter budgets, better scheduling, more notification services, richer library views.
+> **Theme:** Broaden appeal. Smarter budgets, better scheduling, richer library views, config backup/restore.
+> **Shipped:** 2026-03-04. Features #14, #21, #23, #25 delivered (PRs #123-#126). Features #22, #24, #26 deferred.
 
 ### 21. Indexer Budget Visibility & Forecasting
 
@@ -634,3 +648,4 @@ Companion to Config Export (v0.2.1). Upload JSON to restore instances, queues, e
 | 2026-03-04 | v1.1.1: Automatic Update Checker (PRs #117-#118). GitHub Releases API check every 24h, dismissible dashboard banner, Settings toggle. 38 tests. |
 | 2026-03-04 | v1.2.0: Custom Strategy Filters (PR #119). Year/quality/status dropdown filters, combined Missing+Cutoff Unmet. 72 tests. Features #21-23 moved to v1.3.0. |
 | 2026-03-04 | v1.2.1: Discord notifications (6 event types, PRs #120), Unknown series fix (#121), auto library sync (#122). |
+| 2026-03-04 | v1.3.0: Polish & Reach. Indexer Budget (#123), Completion Cards (#124), Queue Scheduling (#125), Config Import (#126). 39 new tests. Code simplification + security hardening. |
