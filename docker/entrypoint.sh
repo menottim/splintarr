@@ -57,5 +57,5 @@ log "  DATABASE_KEY_FILE: ${DATABASE_KEY_FILE:-not set}"
 log "  SECRET_KEY_FILE: ${SECRET_KEY_FILE:-not set}"
 log "  PEPPER_FILE: ${PEPPER_FILE:-not set}"
 
-log "Starting application as root..."
-exec "$@"
+log "Dropping privileges to appuser..."
+exec gosu appuser "$@"
