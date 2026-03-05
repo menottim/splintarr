@@ -4,10 +4,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Splintarr - Intelligent Backlog Search for Sonarr</title>
-  <meta name="description" content="Splintarr automates systematic backlog searching for Sonarr. Scheduled, throttled, indexer-aware search with adaptive prioritization. Docker-first, encrypted, open source.">
-  <meta property="og:title" content="Splintarr - Intelligent Backlog Search for Sonarr">
-  <meta property="og:description" content="The backlog search scheduler that Sonarr should have built in.">
+  <title>Splintarr - Scheduled Backlog Search for Sonarr</title>
+  <meta name="description" content="Splintarr searches your Sonarr backlog on a schedule, a few items at a time, without overwhelming your indexers. Single Docker container, encrypted database, open source.">
+  <meta property="og:title" content="Splintarr - Scheduled Backlog Search for Sonarr">
+  <meta property="og:description" content="Searches your Sonarr backlog on a schedule, without overwhelming your indexers.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="https://raw.githubusercontent.com/menottim/splintarr/main/docs/images/dashboard.png">
   <link rel="icon" href="https://raw.githubusercontent.com/menottim/splintarr/main/src/splintarr/static/img/logo.svg" type="image/svg+xml">
@@ -624,13 +624,13 @@
       <div class="features-grid">
         <div class="feature-card fade-up stagger-1">
           <span class="feature-icon">&#x1f9e0;</span>
-          <h3>Search Intelligence</h3>
+          <h3>Prioritization</h3>
           <p>Each run scores items by recency, past attempts, and time since last search. Content that never downloads gets searched less often. Content that just aired gets searched first.</p>
         </div>
         <div class="feature-card fade-up stagger-2">
           <span class="feature-icon">&#x23f1;&#xfe0f;</span>
-          <h3>Flexible Scheduling</h3>
-          <p>Run every N hours, daily at a set time, or on specific days of the week. Add random jitter so your queues don't all fire at once. Batch sizes shrink automatically when indexer budgets run low.</p>
+          <h3>Scheduling</h3>
+          <p>Every N hours, daily at a set time, or on specific days. Random jitter keeps queues from all firing at once. Batch sizes shrink when indexer budgets run low.</p>
         </div>
         <div class="feature-card fade-up stagger-3">
           <span class="feature-icon">&#x1f50c;</span>
@@ -640,12 +640,12 @@
         <div class="feature-card fade-up stagger-4">
           <span class="feature-icon">&#x26a1;</span>
           <h3>Live Dashboard</h3>
-          <p>A single WebSocket connection keeps everything up to date. You can watch searches run in real time, see which series are closest to complete, and check the last 7 days of activity.</p>
+          <p>Watch searches run in real time. See which series are closest to complete. Check the last 7 days of search activity and grab rates. Updates over WebSocket, no refreshing.</p>
         </div>
         <div class="feature-card fade-up stagger-5">
           <span class="feature-icon">&#x1f6e1;&#xfe0f;</span>
           <h3>Security Focus</h3>
-          <p>Defense in depth throughout: encrypted database (SQLCipher), individually encrypted API keys (Fernet), Argon2id password hashing with a separate pepper, CSP nonces on every response, SSRF protection on instance URLs, and rate limiting on all endpoints. Seven rounds of security review so far.</p>
+          <p>The database is encrypted (SQLCipher). API keys are encrypted individually (Fernet). Passwords are hashed with Argon2id and a separate pepper. Every response gets a CSP nonce. Instance URLs go through SSRF checks. All endpoints are rate limited.</p>
         </div>
         <div class="feature-card fade-up stagger-6">
           <span class="feature-icon">&#x1f433;</span>
