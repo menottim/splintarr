@@ -82,7 +82,7 @@ services:
 
     # Health check
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx, sys; resp = httpx.get('http://localhost:7337/health', timeout=5.0); sys.exit(0 if resp.status_code == 200 else 1)"]
+      test: ["CMD", "python", "-c", "import urllib.request,sys; r=urllib.request.urlopen('http://localhost:7337/health',timeout=5); sys.exit(0 if r.status==200 else 1)"]
       interval: 30s
       timeout: 10s
       retries: 3

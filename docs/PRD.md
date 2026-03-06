@@ -2,7 +2,7 @@
 
 > **Living document.** Updated as features are implemented, priorities shift, or new requirements emerge. This is the sole source of truth; versioned PRDs have been retired.
 
-**Last updated:** 2026-03-04 (v1.3.0: Polish & Reach)
+**Last updated:** 2026-03-06 (v1.3.2: Windows Docker Fix)
 
 ---
 
@@ -651,3 +651,5 @@ Companion to Config Export (v0.2.1). Upload JSON to restore instances, queues, e
 | 2026-03-04 | v1.2.0: Custom Strategy Filters (PR #119). Year/quality/status dropdown filters, combined Missing+Cutoff Unmet. 72 tests. Features #21-23 moved to v1.3.0. |
 | 2026-03-04 | v1.2.1: Discord notifications (6 event types, PRs #120), Unknown series fix (#121), auto library sync (#122). |
 | 2026-03-04 | v1.3.0: Polish & Reach. Indexer Budget (#123), Completion Cards (#124), Queue Scheduling (#125), Config Import (#126). 39 new tests. Code simplification + security hardening. |
+| 2026-03-05 | v1.3.1: Security Hardening. 4 advisories resolved, scheduling bug fixes, GitHub Pages, Huntarr lessons. |
+| 2026-03-06 | v1.3.2: Windows Docker Fix. PermissionError on /app/logs bind mount, lighter healthcheck (urllib vs httpx). |

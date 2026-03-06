@@ -58,5 +58,12 @@ log "  DATABASE_KEY_FILE: ${DATABASE_KEY_FILE:-not set}"
 log "  SECRET_KEY_FILE: ${SECRET_KEY_FILE:-not set}"
 log "  PEPPER_FILE: ${PEPPER_FILE:-not set}"
 
+# Fix ownership of writable directories (needed on Windows where bind mounts are root-owned)
+for dir in /data /app/logs; do
+    if [ -d "$dir" ]; then
+        chown -R appuser:appuser "$dir" 2>/dev/null || log "Note: could not chown $dir (may already be correct)"
+    fi
+done
+
 log "Dropping privileges to appuser..."
 exec gosu appuser "$@"

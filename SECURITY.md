@@ -31,7 +31,7 @@ Only the latest release receives security fixes. There are no backports to older
 
 | Version | Supported |
 |---------|-----------|
-| Latest (currently 1.3.1) | Yes |
+| Latest (currently 1.3.2) | Yes |
 | Older releases | No |
 
 ## Scope

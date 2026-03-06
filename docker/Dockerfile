@@ -73,7 +73,8 @@ COPY --chown=appuser:appuser pyproject.toml ./
 
 # Create data directory and symlink (at build time for read_only filesystem)
 RUN mkdir -p /data && chown appuser:appuser /data \
-    && rm -rf /app/data && ln -sf /data /app/data
+    && rm -rf /app/data && ln -sf /data /app/data \
+    && mkdir -p /app/logs && chown appuser:appuser /app/logs
 
 # Copy and set up entrypoint script
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -85,12 +86,9 @@ ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # Health check with better error handling
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import httpx, sys; \
-        try: \
-            resp = httpx.get('http://localhost:7337/health', timeout=5.0); \
-            sys.exit(0 if resp.status_code == 200 else 1); \
-        except: \
-            sys.exit(1)" || exit 1
+    CMD python -c "import urllib.request,sys; \
+        try: r=urllib.request.urlopen('http://localhost:7337/health',timeout=5); sys.exit(0 if r.status==200 else 1); \
+        except: sys.exit(1)" || exit 1
 
 # Expose port
 EXPOSE 7337

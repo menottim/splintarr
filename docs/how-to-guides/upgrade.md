@@ -139,6 +139,20 @@ docker run -d \
 - All existing data compatible
 - Secrets remain unchanged
 
+### Upgrading to v1.3.2
+
+**From:** v1.3.1
+
+**Breaking Changes:** None
+
+**Bug Fixes:** Windows Docker crash on startup (PermissionError on `/app/logs/all.log`), lighter healthcheck using stdlib instead of httpx.
+
+**Steps:**
+1. Pull latest image: `docker-compose pull`
+2. Restart: `docker-compose up -d`
+
+No database migrations required. Windows users no longer need the override file for basic operation, though it is still recommended for full compatibility.
+
 ### Upgrading to v1.3.1
 
 **From:** v1.3.0

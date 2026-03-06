@@ -1,6 +1,6 @@
 # Getting Started
 
-**Splintarr v1.3.1**
+**Splintarr v1.3.2**
 
 This tutorial walks you through the post-install experience: completing the setup wizard, understanding the dashboard, creating your first search queue, and checking search history.
 

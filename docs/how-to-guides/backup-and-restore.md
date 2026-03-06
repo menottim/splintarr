@@ -1,6 +1,6 @@
 # Backup and Restore Guide
 
-**Splintarr v1.3.1**
+**Splintarr v1.3.2**
 
 This guide provides comprehensive procedures for backing up and restoring your Splintarr installation.
 
