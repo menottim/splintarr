@@ -26,6 +26,7 @@ services:
     cap_drop:
       - ALL
     cap_add:
+      - CHOWN
       - SETUID
       - SETGID
 
