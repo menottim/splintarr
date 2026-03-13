@@ -59,6 +59,12 @@
         radial-gradient(ellipse at 80% 80%, var(--gold-glow) 0%, transparent 50%);
       pointer-events: none;
       z-index: -1;
+      animation: drift 60s ease-in-out infinite alternate;
+    }
+
+    @keyframes drift {
+      from { transform: translate(0, 0); }
+      to { transform: translate(-2%, 1%); }
     }
 
     /* --- Noise texture overlay --- */
@@ -182,6 +188,12 @@
       height: 6px;
       background: var(--green);
       border-radius: 50%;
+      animation: pulse-dot 3s ease-in-out infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
 
     .hero h1 {
