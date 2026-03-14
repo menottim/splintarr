@@ -330,6 +330,22 @@ def init_db() -> None:
         Base.metadata.create_all(bind=engine)
         logger.info("database_tables_created")
 
+        # One-time reset: zero out grabs_confirmed data that was
+        # inflated by the pre-v1.4.0 hasFile-based grab detection.
+        # See: https://github.com/menottim/splintarr/issues/130
+        try:
+            with Session(engine) as session:
+                reset_count = (
+                    session.query(LibraryItem)
+                    .filter(LibraryItem.grabs_confirmed > 0)
+                    .update({"grabs_confirmed": 0, "last_grab_at": None})
+                )
+                if reset_count > 0:
+                    session.commit()
+                    logger.info("grabs_confirmed_reset", items_reset=reset_count)
+        except Exception as e:
+            logger.warning("grabs_confirmed_reset_failed", error=str(e))
+
         # Secure database file permissions
         database_url = settings.database_url
         if "sqlite:///" in database_url:
