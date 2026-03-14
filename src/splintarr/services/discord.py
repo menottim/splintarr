@@ -50,6 +50,46 @@ class DiscordNotificationService:
     # Public notification methods
     # ------------------------------------------------------------------
 
+    async def send_search_started(
+        self,
+        search_name: str,
+        instance_name: str,
+        strategy: str,
+        estimated_items: int,
+    ) -> bool:
+        """
+        Send a search started notification (blue embed).
+
+        Args:
+            search_name: Name of the search queue
+            instance_name: Name of the instance being searched
+            strategy: Search strategy (e.g. 'missing', 'cutoff')
+            estimated_items: Estimated number of items to evaluate
+
+        Returns:
+            bool: True if the webhook accepted the message
+        """
+        embed: dict = {
+            "title": f"Search Started: {search_name}",
+            "description": (
+                f"**Instance:** {instance_name}\n"
+                f"**Strategy:** {strategy}\n"
+                f"**Items to evaluate:** {estimated_items}"
+            ),
+            "color": COLOR_BLUE,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "footer": {"text": "Splintarr"},
+        }
+
+        logger.info(
+            "discord_notification_search_started",
+            search_name=search_name,
+            instance_name=instance_name,
+            estimated_items=estimated_items,
+        )
+
+        return await self._send_embed(embed)
+
     async def send_search_summary(
         self,
         search_name: str,
