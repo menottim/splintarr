@@ -785,6 +785,7 @@ class SearchQueueManager:
                                             "season_number": snum,
                                             "item_id": rec.get("id"),
                                             "command_id": cmd_result.get("id"),
+                                            "command_issued_at": datetime.utcnow().isoformat() + "Z",
                                             "result": "sent",
                                             "season_pack": True,
                                         }
@@ -868,6 +869,7 @@ class SearchQueueManager:
                                 "item_id": item_id,
                                 "series_id": series_id,
                                 "command_id": cmd_result.get("id"),
+                                "command_issued_at": datetime.utcnow().isoformat() + "Z",
                                 "result": "sent",
                             }
                         )
