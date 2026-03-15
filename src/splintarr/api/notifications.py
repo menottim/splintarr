@@ -14,9 +14,11 @@ import json
 
 import httpx
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, field_validator
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 
 from splintarr.core.auth import get_current_user_from_cookie
@@ -27,6 +29,8 @@ from splintarr.models.user import User
 from splintarr.services.discord import DiscordNotificationService
 
 logger = structlog.get_logger()
+
+limiter = Limiter(key_func=get_remote_address)
 
 # Create router
 router = APIRouter(
@@ -51,6 +55,8 @@ class NotificationConfigRequest(BaseModel):
     @classmethod
     def validate_webhook_url(cls, v: str) -> str:
         """Validate that the URL looks like a Discord webhook."""
+        from urllib.parse import urlparse, urlunparse
+
         v = v.strip()
         if not v:
             raise ValueError("Webhook URL cannot be empty")
@@ -61,6 +67,9 @@ class NotificationConfigRequest(BaseModel):
                 "Webhook URL must start with https://discord.com/api/webhooks/ "
                 "or https://discordapp.com/api/webhooks/"
             )
+        # Strip query parameters and fragments to prevent parameter pollution (#138)
+        parsed = urlparse(v)
+        v = urlunparse((parsed.scheme, parsed.netloc, parsed.path, "", "", ""))
         return v
 
 
@@ -164,7 +173,9 @@ async def save_notification_config(
 
 
 @router.post("/test", include_in_schema=False)
+@limiter.limit("3/minute")
 async def test_notification(
+    request: Request,
     current_user: User = Depends(get_current_user_from_cookie),
     db: Session = Depends(get_db),
 ) -> JSONResponse:
